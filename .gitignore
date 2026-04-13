@@ -1,0 +1,23 @@
+# dependencies
+node_modules
+
+# build outputs
+dist
+*.tsbuildinfo
+
+# env
+.env
+
+# logs
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+
+# IDE
+.vscode
+.idea
+
+# lockfiles
+packages/*/pnpm-lock.yaml

@@ -1,0 +1,31 @@
+{
+	"name": "@bytesocket/uws",
+	"version": "0.1.0",
+	"description": "High-performance WebSocket server for Node.js using uWebSockets.js",
+	"type": "module",
+	"types": "./dist/index.d.ts",
+	"module": "./dist/index.js",
+	"main": "./dist/index.cjs",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.cjs"
+		}
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsup",
+		"dev": "tsup --watch",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"msgpackr": "catalog:"
+	},
+	"devDependencies": {
+		"@types/node": "^24.12.2",
+		"uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.61.0"
+	}
+}
