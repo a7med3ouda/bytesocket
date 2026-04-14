@@ -1,387 +1,435 @@
 # ByteSocket
 
-**ByteSocket** is a strongly typed WebSocket client for TypeScript that focuses on reliability, ergonomics, and performance.
-
-It includes:
-
-- **Binary serialization** with `msgpackr` by default
-- **JSON serialization** when you need it
-- **Automatic reconnection** with exponential backoff
-- **Heartbeat / ping-pong** health checks
-- **Room management** with optimistic join / leave behavior
-- **Authentication support**
-- **Message queuing** while offline
-- **Type-safe global, room, and multi-room events**
-
----
-
-## Backend support
-
-ByteSocket currently includes backend support through:
-
-- `@bytesocket/uws` for **uWebSockets.js** backend apps
-
-**Express support is coming soon.**
-
----
-
-## Installation
-
-Install ByteSocket in your project using your package manager of choice.
+A modern WebSocket client with automatic reconnection, room management, authentication, heartbeat, and pluggable serialization — fully typed with TypeScript.
 
 ```bash
-npm install @bytesocket/client
-# or
-pnpm add @bytesocket/client
-# or
-yarn add @bytesocket/client
+npm install bytesocket
 ```
-
----
-
-## Why ByteSocket?
-
-WebSocket libraries are often either flexible but untyped, or typed but limited.
-
-ByteSocket aims to give you both:
-
-- a clean API for real-time apps
-- strong TypeScript inference for events and room data
-- a stable transport layer with reconnect, heartbeat, and auth handling
-- support for both JSON and binary message formats
 
 ---
 
 ## Features
 
-### Transport and reliability
-
-- Automatic connection on creation
-- Manual connect, reconnect, close, and destroy control
-- Reconnection with configurable backoff
-- Ping / pong heartbeat
-- Message queue with size limit
-- Queue overflow notification
-
-### Serialization
-
-- Default binary serialization with `msgpackr`
-- Optional JSON serialization
-- Predefined msgpack structures for efficient encoding
-
-### Messaging model
-
-- Global events
-- Room events
-- Multi-room events
-- System messages for open, close, error, auth, join, leave, and queue events
-
-### Type safety
-
-- Strongly typed event maps
-- Room-aware payload inference
-- Symmetric event definitions for `emit`, `listen`, `emitRoom`, `listenRoom`, and `emitRooms`
+- **Automatic reconnection** with exponential backoff and jitter
+- **Room management** — join/leave rooms, scoped event listeners, bulk operations
+- **Authentication** — static or async token injection with timeout
+- **Heartbeat** — configurable ping/pong keepalive
+- **Message queue** — outgoing messages are buffered while offline and flushed on reconnect
+- **Dual serialization** — JSON or binary MessagePack (`msgpackr`) out of the box
+- **Fully typed** — generic event maps for compile-time safety on all emit/listen calls
+- **Zero runtime dependencies** beyond `msgpackr` (for binary mode)
 
 ---
 
-## Quick start
+## Backend Packages
 
-```ts
+| Package                                                            | Backend                                                                      |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| [`@bytesocket/uws`](https://www.npmjs.com/package/@bytesocket/uws) | [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js) ✅ Available |
+| `@bytesocket/express`                                              | Express / `ws` 🚧 Coming soon                                                |
+
+---
+
+## Quick Start
+
+```typescript
+import { ByteSocket } from "bytesocket";
+
+const socket = new ByteSocket("wss://example.com/socket");
+
+socket.lifecycle.onOpen(() => console.log("Connected!"));
+socket.lifecycle.onClose((event) => console.log("Closed", event.code));
+
+socket.emit("hello", { text: "world" });
+socket.on("welcome", (data) => console.log(data));
+```
+
+---
+
+## Type-Safe Events
+
+Define your event schema once and get full inference everywhere:
+
+```typescript
 import { ByteSocket, SymmetricEvents } from "bytesocket";
 
-type Events = SymmetricEvents<{
+interface MyEvents extends SymmetricEvents {
 	emit: {
-		chat: { message: string };
-		typing: { isTyping: boolean };
+		"user:message": { text: string };
+		"user:typing": { userId: string };
 	};
 	listen: {
-		chat: { message: string; sender: string };
-		welcome: { text: string };
+		"server:broadcast": { text: string; from: string };
+		"user:joined": { userId: string; name: string };
 	};
 	emitRoom: {
-		lobby: {
-			gameStart: { level: number };
-		};
+		chat: { message: { text: string } };
+		notifications: { dismiss: { id: string } };
 	};
 	listenRoom: {
-		lobby: {
-			playerMove: { playerId: string; position: { x: number; y: number } };
+		chat: {
+			message: { text: string; sender: string; timestamp: number };
+			"user:left": { userId: string };
 		};
 	};
-}>;
+}
 
-const socket = new ByteSocket<Events>("ws://localhost:3000", {
-	debug: true,
-	auth: {
-		data: { token: "abc123" },
-	},
-});
+const socket = new ByteSocket<MyEvents>("wss://example.com/socket");
 
-socket.onOpen(() => {
-	console.log("Connected");
-});
-
-socket.on("chat", (data) => {
-	console.log(`${data.sender}: ${data.message}`);
-});
-
-socket.onRoom("lobby", "playerMove", (data) => {
-	console.log("Player moved:", data.position);
-});
-
-socket.emit("chat", { message: "Hello!" });
-socket.emitRoom("lobby", "gameStart", { level: 1 });
+// All of these are fully typed — wrong event names or payload shapes are compile errors
+socket.emit("user:message", { text: "Hello!" });
+socket.on("user:joined", (data) => console.log(data.name)); // data is typed
+socket.rooms.emit("chat", "message", { text: "Hi room!" });
+socket.rooms.on("chat", "message", (data) => console.log(data.sender));
 ```
 
 ---
 
 ## Authentication
 
-ByteSocket supports authentication in two ways:
+### Static token
 
-### Static auth payload
+```typescript
+const socket = new ByteSocket("wss://example.com/socket", {
+	auth: { token: "my-secret-token" },
+});
 
-```ts
-const socket = new ByteSocket("ws://localhost:3000", {
-	auth: {
-		data: { token: "abc123" },
+socket.lifecycle.onAuthSuccess(() => console.log("Authenticated"));
+socket.lifecycle.onAuthError((err) => console.error("Auth failed", err));
+```
+
+### Async token (e.g. refresh before each connection)
+
+```typescript
+const socket = new ByteSocket("wss://example.com/socket", {
+	auth: async (cb) => {
+		const { token } = await fetch("/api/token").then((r) => r.json());
+		cb({ token });
 	},
+	authTimeout: 8000, // ms to wait for server to confirm auth
 });
 ```
 
-### Async auth provider
-
-```ts
-const socket = new ByteSocket("ws://localhost:3000", {
-	auth: (done) => {
-		fetch("/api/token")
-			.then((res) => res.json())
-			.then((data) => done({ token: data.token }));
-	},
-});
-```
-
-Authentication is sent automatically after the socket opens. If auth succeeds, queued messages are flushed and room rejoin is restored.
+> When auth is configured, `onOpen` fires only after the server confirms authentication — your callbacks and queued messages are safe.
 
 ---
 
 ## Rooms
 
-Rooms are first-class in ByteSocket.
+### Joining and leaving
 
-```ts
-socket.joinRoom("lobby");
-socket.leaveRoom("lobby");
-
-socket.joinRooms(["lobby", "chat"]);
-socket.leaveRooms(["lobby", "chat"]);
+```typescript
+socket.rooms.join("lobby");
+socket.rooms.leave("lobby");
 ```
 
-Room listeners are typed as well:
+### Listening to room events
 
-```ts
-socket.onRoom("lobby", "playerMove", (data) => {
-	console.log(data.playerId);
+```typescript
+socket.rooms.on("chat", "message", (data) => {
+	console.log(`${data.sender}: ${data.text}`);
+});
+
+// One-time listener
+socket.rooms.once("chat", "message", (data) => {
+	console.log("First message ever:", data.text);
+});
+
+// Remove a specific listener
+socket.rooms.off("chat", "message", myCallback);
+
+// Remove all listeners for an event
+socket.rooms.off("chat", "message");
+
+// Remove all listeners for a room
+socket.rooms.off("chat");
+```
+
+### Emitting to a room
+
+```typescript
+socket.rooms.emit("chat", "message", { text: "Hello room!" });
+```
+
+### Room lifecycle events
+
+```typescript
+socket.rooms.lifecycle.onJoinSuccess((room) => {
+	console.log(`Joined ${room}`);
+});
+
+socket.rooms.lifecycle.onJoinError((room, err) => {
+	console.error(`Failed to join ${room}`, err);
+});
+
+socket.rooms.lifecycle.onLeaveSuccess((room) => {
+	console.log(`Left ${room}`);
 });
 ```
 
-You can also remove room listeners safely:
+### Bulk operations
 
-```ts
-socket.offRoom("lobby", "playerMove");
-socket.offRoom("lobby");
+```typescript
+// Join multiple rooms in one request
+socket.rooms.bulk.join(["lobby", "notifications", "chat"]);
+
+// Leave multiple rooms
+socket.rooms.bulk.leave(["lobby", "notifications"]);
+
+// Emit to multiple rooms at once
+socket.rooms.bulk.emit(["room1", "room2"], "announcement", { text: "Hello everyone!" });
+
+// Bulk lifecycle events
+socket.rooms.bulk.lifecycle.onJoinSuccess((rooms) => {
+	console.log("Joined rooms:", rooms);
+});
 ```
 
 ---
 
-## Events
+## Reconnection
 
-### Global events
+Reconnection is automatic by default with exponential backoff and jitter.
 
-```ts
-socket.on("message", (data) => {
-	console.log(data);
+```typescript
+const socket = new ByteSocket("wss://example.com/socket", {
+	reconnection: true,
+	maxReconnectionAttempts: 10,
+	reconnectionDelay: 1000, // initial delay in ms
+	reconnectionDelayMax: 30000, // cap delay at 30s
+	randomizationFactor: 0.5, // ±50% jitter
 });
 
-socket.emit("message", { text: "hello" });
-```
-
-### One-time listeners
-
-```ts
-socket.once("welcome", (data) => {
-	console.log("Received once:", data);
+socket.lifecycle.onReconnectFailed(() => {
+	console.error("All reconnection attempts exhausted");
 });
 ```
 
-### Removing listeners
+### Manual reconnect
 
-```ts
-socket.off("message");
-socket.off("message", handler);
+```typescript
+// Force an immediate reconnect (e.g. after regaining network)
+socket.reconnect();
+```
+
+### Rooms on reconnect
+
+Rooms you joined are automatically re-joined after reconnection — no extra code needed. The server is assumed to clear room membership on disconnect, and ByteSocket handles the rejoin handshake transparently.
+
+---
+
+## Heartbeat
+
+Keepalive ping/pong is enabled by default.
+
+```typescript
+const socket = new ByteSocket("wss://example.com/socket", {
+	heartbeatEnabled: true,
+	pingInterval: 25000, // send ping every 25s
+	pingTimeout: 20000, // close if no pong within 20s
+});
+```
+
+If no pong is received within `pingTimeout`, the connection is closed and reconnection begins automatically.
+
+---
+
+## Message Queue
+
+Messages emitted while the socket is offline are queued and sent automatically on reconnect.
+
+```typescript
+const socket = new ByteSocket("wss://example.com/socket", {
+	maxQueueSize: 100, // default; drop oldest when full
+});
+
+socket.lifecycle.onQueueFull(() => {
+	console.warn("Queue full — some messages will be dropped");
+});
 ```
 
 ---
 
-## System events
+## Serialization
 
-ByteSocket exposes built-in system event helpers for lifecycle and room operations:
+```typescript
+// Binary (default) — uses msgpackr, smaller payloads
+const socket = new ByteSocket("wss://example.com/socket", {
+	serialization: "binary",
+});
 
-```ts
-socket.onOpen(() => console.log("Opened"));
-socket.onClose((event) => console.log("Closed:", event.code));
-socket.onError((event) => console.error(event));
-socket.onAuthSuccess(() => console.log("Auth successful"));
-socket.onAuthError((data) => console.error("Auth failed", data));
+// JSON — plain text, easier to inspect
+const socket = new ByteSocket("wss://example.com/socket", {
+	serialization: "json",
+});
+```
 
-socket.onJoinRoomSuccess((room) => console.log("Joined room:", room));
-socket.onJoinRoomError((room, data) => console.error("Join failed:", room, data));
-socket.onLeaveRoomSuccess((room) => console.log("Left room:", room));
-socket.onLeaveRoomError((room, data) => console.error("Leave failed:", room, data));
+Advanced msgpackr options:
 
-socket.onQueueFull(() => console.warn("Message queue is full"));
+```typescript
+const socket = new ByteSocket("wss://example.com/socket", {
+	serialization: "binary",
+	msgpackrOptions: {
+		useFloat32: true,
+		bundleStrings: false,
+	},
+});
 ```
 
 ---
 
-## Configuration
+## URL Options
 
-```ts
-const socket = new ByteSocket("ws://localhost:3000", {
+```typescript
+const socket = new ByteSocket("wss://example.com", {
+	path: "/socket", // appended to URL path
+	queryParams: {
+		version: "2",
+		clientId: "abc123",
+	},
+	protocols: ["v2.chat"], // WebSocket subprotocols
+});
+// Connects to: wss://example.com/socket?version=2&clientId=abc123
+```
+
+Relative URLs are supported in browser environments:
+
+```typescript
+const socket = new ByteSocket("/socket"); // uses window.location.origin
+```
+
+---
+
+## Connection Control
+
+```typescript
+// Disable auto-connect and connect manually
+const socket = new ByteSocket("wss://example.com/socket", {
+	autoConnect: false,
+});
+
+socket.connect();
+
+// Graceful close (no auto-reconnect after this)
+socket.close();
+socket.close(1000, "User logged out");
+
+// Permanently destroy the instance and clean up all resources
+socket.destroy();
+```
+
+---
+
+## Lifecycle Events Reference
+
+```typescript
+// Connection
+socket.lifecycle.onOpen(() => {}); // socket ready (after auth if configured)
+socket.lifecycle.onClose((event) => {}); // socket closed
+socket.lifecycle.onError((event) => {}); // WebSocket error
+
+// Authentication
+socket.lifecycle.onAuthSuccess(() => {});
+socket.lifecycle.onAuthError((err) => {});
+
+// Queue
+socket.lifecycle.onQueueFull(() => {});
+
+// Reconnection
+socket.lifecycle.onReconnectFailed(() => {});
+```
+
+All lifecycle methods have `on`, `once`, and `off` variants:
+
+```typescript
+socket.lifecycle.onceOpen(() => console.log("Connected for the first time"));
+socket.lifecycle.offOpen(myOpenHandler);
+socket.lifecycle.offOpen(); // remove all open listeners
+```
+
+---
+
+## Update Auth Before Reconnect
+
+```typescript
+const socket = new ByteSocket("wss://example.com/socket", {
+	autoConnect: false,
+});
+
+// Set auth before the first connect
+socket.setAuth({ token: getToken() });
+socket.connect();
+
+// Update auth before a manual reconnect (must be called while socket is closed)
+socket.close();
+socket.setAuth({ token: await refreshToken() });
+socket.connect();
+```
+
+---
+
+## Raw Messages
+
+For advanced use cases where you need to bypass serialization:
+
+```typescript
+socket.sendRaw(new Uint8Array([1, 2, 3]));
+socket.sendRaw('{"custom":"payload"}');
+```
+
+---
+
+## Full Configuration Reference
+
+```typescript
+const socket = new ByteSocket("wss://example.com/socket", {
+	// Connection
 	autoConnect: true,
+
+	// Reconnection
 	reconnection: true,
 	maxReconnectionAttempts: Infinity,
 	reconnectionDelay: 1000,
 	reconnectionDelayMax: 5000,
-	randomizationFactor: 0.5,
-	protocols: ["v1"],
+	randomizationFactor: 0.5, // 0 = no jitter, 1 = maximum jitter
+
+	// URL
 	path: "/socket",
-	queryParams: { client: "web" },
+	queryParams: { key: "value" },
+	protocols: "v1",
+
+	// Auth
+	auth: { token: "abc" }, // or async (cb) => cb(data)
+	authTimeout: 5000,
+
+	// Heartbeat
 	heartbeatEnabled: true,
 	pingInterval: 25000,
 	pingTimeout: 20000,
-	authTimeout: 5000,
+
+	// Queue
 	maxQueueSize: 100,
-	serialization: "binary",
+
+	// Serialization
+	serialization: "binary", // 'binary' | 'json'
+	msgpackrOptions: {
+		useFloat32: FLOAT32_OPTIONS.DECIMAL_FIT,
+		copyBuffers: false,
+		int64AsType: "bigint",
+		bundleStrings: true,
+	},
+
+	// Debug
 	debug: false,
 });
 ```
-
-### Options overview
-
-- `autoConnect`: connect immediately after construction
-- `reconnection`: enable automatic reconnects
-- `maxReconnectionAttempts`: maximum reconnect attempts
-- `reconnectionDelay`: base reconnect delay
-- `reconnectionDelayMax`: maximum reconnect delay
-- `randomizationFactor`: jitter applied to reconnect delay
-- `protocols`: WebSocket subprotocol(s)
-- `path`: append a path to the base URL
-- `queryParams`: add URL query parameters
-- `heartbeatEnabled`: enable ping / pong heartbeat
-- `pingInterval`: interval between pings
-- `pingTimeout`: timeout waiting for pong
-- `auth`: static or callback-based auth configuration
-- `authTimeout`: timeout for authentication
-- `maxQueueSize`: maximum queued messages while offline
-- `serialization`: `binary` or `json`
-- `debug`: enable diagnostic logging
-
----
-
-## Message formats
-
-### User messages
-
-- `GeneralEvent` for global broadcasts
-- `RoomEvent` for single-room messages
-- `RoomsEvent` for multi-room messages
-
-### System messages
-
-ByteSocket reserves internal message types for:
-
-- open / close / error
-- auth / auth success / auth error
-- ping / pong
-- join / leave room
-- join / leave multiple rooms
-- queue full
-
-These are represented by the `SystemTypes` enum.
-
----
-
-## Utilities and types
-
-ByteSocket exports reusable TypeScript helpers:
-
-- `StringKeys<T>`
-- `StringNumberKeys<T>`
-- `MsgpackrOptions`
-- `SystemTypes`
-- `SystemMessage`
-- `UserMessage`
-- `AuthConfig`
-- `SymmetricEvents`
-- `ByteSocketOptions`
-
-This makes it easy to build your own abstractions on top of ByteSocket while keeping type safety.
-
----
-
-## Example architecture
-
-A common setup looks like this:
-
-```ts
-type AppEvents = SymmetricEvents<{
-	emit: {
-		chat: { message: string };
-	};
-	listen: {
-		chat: { message: string; sender: string };
-	};
-	emitRoom: {
-		lobby: {
-			ready: { userId: string };
-		};
-	};
-	listenRoom: {
-		lobby: {
-			playerJoined: { userId: string };
-		};
-	};
-}>;
-
-const socket = new ByteSocket<AppEvents>("ws://localhost:3000", {
-	serialization: "binary",
-	heartbeatEnabled: true,
-	reconnection: true,
-});
-```
-
-This gives you typed emit/listen calls while ByteSocket handles the transport details.
-
----
-
-## Notes
-
-- ByteSocket is designed for environments that support `WebSocket`.
-- In browsers, relative URLs such as `/socket` are supported.
-- The client can queue messages while offline and flush them after reconnection or auth success.
-- Room joins are optimistic, and success or error events can be used to confirm server state.
-
----
-
-## Copyright
-
-Copyright © Ahmed Ouda (`a7med3ouda`). All rights reserved.
-
-No part of this project may be reproduced, distributed, or modified without the developer's permission, except where explicitly allowed by law.
 
 ---
 
 ## License
 
-All rights reserved.
+Copyright © 2026 Ahmed Ouda. All rights reserved.
+
+This software and its source code are proprietary. No part of this package may be reproduced, distributed, or used in any form without prior written permission from the author.
+
+- GitHub: [@a7med3ouda](https://github.com/a7med3ouda)
