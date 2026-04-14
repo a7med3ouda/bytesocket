@@ -3,7 +3,11 @@
 A modern WebSocket client with automatic reconnection, room management, authentication, heartbeat, and pluggable serialization — fully typed with TypeScript.
 
 ```bash
-npm install bytesocket
+npm install @bytesocket/client
+# or
+pnpm add @bytesocket/client
+# or
+yarn add @bytesocket/client
 ```
 
 ---
