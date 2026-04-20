@@ -37,7 +37,7 @@ yarn add @bytesocket/client
 ## Quick Start
 
 ```typescript
-import { ByteSocket } from "bytesocket";
+import { ByteSocket } from "@bytesocket/client";
 
 const socket = new ByteSocket("wss://example.com/socket");
 
@@ -55,9 +55,9 @@ socket.on("welcome", (data) => console.log(data));
 Define your event schema once and get full inference everywhere:
 
 ```typescript
-import { ByteSocket, SymmetricEvents } from "bytesocket";
+import { ByteSocket, SymmetricEvents } from "@bytesocket/client";
 
-interface MyEvents extends SymmetricEvents {
+export type MyEvents = SymmetricEvents<{
 	emit: {
 		"user:message": { text: string };
 		"user:typing": { userId: string };
@@ -76,7 +76,7 @@ interface MyEvents extends SymmetricEvents {
 			"user:left": { userId: string };
 		};
 	};
-}
+}>;
 
 const socket = new ByteSocket<MyEvents>("wss://example.com/socket");
 
@@ -162,8 +162,9 @@ socket.rooms.lifecycle.onJoinSuccess((room) => {
 	console.log(`Joined ${room}`);
 });
 
-socket.rooms.lifecycle.onJoinError((room, err) => {
-	console.error(`Failed to join ${room}`, err);
+socket.rooms.lifecycle.onJoinError((room, ctx) => {
+	console.error(`Failed to join ${room}:`, ctx.error);
+	// ctx also contains phase, event, raw, code, bytes for debugging
 });
 
 socket.rooms.lifecycle.onLeaveSuccess((room) => {

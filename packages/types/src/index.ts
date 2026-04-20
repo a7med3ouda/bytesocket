@@ -58,6 +58,24 @@ export enum LifecycleTypes {
 }
 
 /**
+ * Context object passed to error handlers, providing details about where an error occurred.
+ */
+export type ErrorContext = {
+	/** The phase or component where the error originated (e.g., "decode", "auth", "middleware") */
+	phase: string;
+	/** The error object itself, if any */
+	error?: unknown;
+	/** The event name involved, if applicable */
+	event?: string;
+	/** Raw message content (stringified) for debugging */
+	raw?: string;
+	/** WebSocket close code, if applicable */
+	code?: number;
+	/** Number of bytes received, if applicable */
+	bytes?: number;
+};
+
+/**
  * Lifecycle message shape for events without additional data.
  */
 export type LifecycleType = {
@@ -67,7 +85,7 @@ export type LifecycleType = {
 /**
  * Lifecycle message shape for single-room operations (join/leave request/success).
  */
-export type RoomType<R extends string> = {
+export type LifecycleRoomType<R extends string> = {
 	type: LifecycleTypes.join_room | LifecycleTypes.join_room_success | LifecycleTypes.leave_room | LifecycleTypes.leave_room_success;
 	room: R;
 };
@@ -75,7 +93,7 @@ export type RoomType<R extends string> = {
 /**
  * Lifecycle message shape for bulk room operations (join/leave multiple rooms request/success).
  */
-export type RoomsType<Rs extends readonly string[]> = {
+export type LifecycleRoomsType<Rs extends readonly string[]> = {
 	type: LifecycleTypes.join_rooms | LifecycleTypes.join_rooms_success | LifecycleTypes.leave_rooms | LifecycleTypes.leave_rooms_success;
 	rooms: Rs;
 };
@@ -84,26 +102,34 @@ export type RoomsType<Rs extends readonly string[]> = {
  * Lifecycle message shape for events that carry generic data (error, auth, auth_error).
  */
 export type LifecyclePayload<D> = {
-	type: LifecycleTypes.error | LifecycleTypes.auth | LifecycleTypes.auth_error;
+	type: LifecycleTypes.auth;
 	data: D;
+};
+
+/**
+ * Lifecycle message shape for events that carry generic data (error, auth, auth_error).
+ */
+export type LifecycleError = {
+	type: LifecycleTypes.error | LifecycleTypes.auth_error;
+	data: ErrorContext;
 };
 
 /**
  * Lifecycle error message for a single room.
  */
-export type RoomPayload<R extends string, D> = {
+export type LifecycleRoomError<R extends string> = {
 	type: LifecycleTypes.join_room_error | LifecycleTypes.leave_room_error;
 	room: R;
-	data: D;
+	data: ErrorContext;
 };
 
 /**
  * Lifecycle error message for multiple rooms.
  */
-export type RoomsPayload<Rs extends readonly string[], D> = {
+export type LifecycleRoomsError<Rs extends readonly string[]> = {
 	type: LifecycleTypes.join_rooms_error | LifecycleTypes.leave_rooms_error;
 	rooms: Rs;
-	data: D;
+	data: ErrorContext;
 };
 
 /**
@@ -111,11 +137,12 @@ export type RoomsPayload<Rs extends readonly string[], D> = {
  */
 export type LifecycleMessage<R extends string, D> =
 	| LifecycleType
-	| RoomType<R>
-	| RoomsType<R[]>
+	| LifecycleRoomType<R>
+	| LifecycleRoomsType<R[]>
 	| LifecyclePayload<D>
-	| RoomPayload<R, D>
-	| RoomsPayload<R[], D>;
+	| LifecycleError
+	| LifecycleRoomError<R>
+	| LifecycleRoomsError<R[]>;
 
 /**
  * User‑defined event sent to a specific room.

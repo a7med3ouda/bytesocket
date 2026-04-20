@@ -1,6 +1,7 @@
 import {
 	LifecycleTypes,
 	type AnyCallback,
+	type ErrorContext,
 	type EventsForRooms,
 	type LifecycleMessage,
 	type StringKeys,
@@ -88,19 +89,19 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 			 * Register a listener for single‑room join errors.
 			 * @param callback - Function invoked with the room name and error data.
 			 */
-			onJoinError: (callback: <D>(room: string, data: D) => void) => this.onLifecycle(LifecycleTypes.join_room_error, callback),
+			onJoinError: (callback: (room: string, ctx: ErrorContext) => void) => this.onLifecycle(LifecycleTypes.join_room_error, callback),
 
 			/**
 			 * Remove a listener for single‑room join errors.
 			 * @param callback - Optional; if omitted, all listeners are removed.
 			 */
-			offJoinError: (callback?: <D>(room: string, data: D) => void) => this.offLifecycle(LifecycleTypes.join_room_error, callback),
+			offJoinError: (callback?: (room: string, ctx: ErrorContext) => void) => this.offLifecycle(LifecycleTypes.join_room_error, callback),
 
 			/**
 			 * Register a one‑time listener for single‑room join errors.
 			 * @param callback - Function invoked once with the room name and error data.
 			 */
-			onceJoinError: (callback: <D>(room: string, data: D) => void) => this.onceLifecycle(LifecycleTypes.join_room_error, callback),
+			onceJoinError: (callback: (room: string, ctx: ErrorContext) => void) => this.onceLifecycle(LifecycleTypes.join_room_error, callback),
 
 			/**
 			 * Register a listener for successful single‑room leave.
@@ -124,19 +125,19 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 			 * Register a listener for single‑room leave errors.
 			 * @param callback - Function invoked with the room name and error data.
 			 */
-			onLeaveError: (callback: <D>(room: string, data: D) => void) => this.onLifecycle(LifecycleTypes.leave_room_error, callback),
+			onLeaveError: (callback: (room: string, ctx: ErrorContext) => void) => this.onLifecycle(LifecycleTypes.leave_room_error, callback),
 
 			/**
 			 * Remove a listener for single‑room leave errors.
 			 * @param callback - Optional; if omitted, all listeners are removed.
 			 */
-			offLeaveError: (callback?: <D>(room: string, data: D) => void) => this.offLifecycle(LifecycleTypes.leave_room_error, callback),
+			offLeaveError: (callback?: (room: string, ctx: ErrorContext) => void) => this.offLifecycle(LifecycleTypes.leave_room_error, callback),
 
 			/**
 			 * Register a one‑time listener for single‑room leave errors.
 			 * @param callback - Function invoked once with the room name and error data.
 			 */
-			onceLeaveError: (callback: <D>(room: string, data: D) => void) => this.onceLifecycle(LifecycleTypes.leave_room_error, callback),
+			onceLeaveError: (callback: (room: string, ctx: ErrorContext) => void) => this.onceLifecycle(LifecycleTypes.leave_room_error, callback),
 		};
 
 		this.bulk = {
@@ -193,19 +194,21 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 				 * Register a listener for bulk join errors.
 				 * @param callback - Function invoked with the array of room names and error data.
 				 */
-				onJoinError: (callback: <D>(rooms: string[], data: D) => void) => this.onLifecycle(LifecycleTypes.join_rooms_error, callback),
+				onJoinError: (callback: (rooms: string[], ctx: ErrorContext) => void) => this.onLifecycle(LifecycleTypes.join_rooms_error, callback),
 
 				/**
 				 * Remove a listener for bulk join errors.
 				 * @param callback - Optional; if omitted, all listeners are removed.
 				 */
-				offJoinError: (callback?: <D>(rooms: string[], data: D) => void) => this.offLifecycle(LifecycleTypes.join_rooms_error, callback),
+				offJoinError: (callback?: (rooms: string[], ctx: ErrorContext) => void) =>
+					this.offLifecycle(LifecycleTypes.join_rooms_error, callback),
 
 				/**
 				 * Register a one‑time listener for bulk join errors.
 				 * @param callback - Function invoked once with the array of room names and error data.
 				 */
-				onceJoinError: (callback: <D>(rooms: string[], data: D) => void) => this.onceLifecycle(LifecycleTypes.join_rooms_error, callback),
+				onceJoinError: (callback: (rooms: string[], ctx: ErrorContext) => void) =>
+					this.onceLifecycle(LifecycleTypes.join_rooms_error, callback),
 
 				/**
 				 * Register a listener for successful bulk leave.
@@ -229,19 +232,22 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 				 * Register a listener for bulk leave errors.
 				 * @param callback - Function invoked with the array of room names and error data.
 				 */
-				onLeaveError: (callback: <D>(rooms: string[], data: D) => void) => this.onLifecycle(LifecycleTypes.leave_rooms_error, callback),
+				onLeaveError: (callback: (rooms: string[], ctx: ErrorContext) => void) =>
+					this.onLifecycle(LifecycleTypes.leave_rooms_error, callback),
 
 				/**
 				 * Remove a listener for bulk leave errors.
 				 * @param callback - Optional; if omitted, all listeners are removed.
 				 */
-				offLeaveError: (callback?: <D>(rooms: string[], data: D) => void) => this.offLifecycle(LifecycleTypes.leave_rooms_error, callback),
+				offLeaveError: (callback?: (rooms: string[], ctx: ErrorContext) => void) =>
+					this.offLifecycle(LifecycleTypes.leave_rooms_error, callback),
 
 				/**
 				 * Register a one‑time listener for bulk leave errors.
 				 * @param callback - Function invoked once with the array of room names and error data.
 				 */
-				onceLeaveError: (callback: <D>(rooms: string[], data: D) => void) => this.onceLifecycle(LifecycleTypes.leave_rooms_error, callback),
+				onceLeaveError: (callback: (rooms: string[], ctx: ErrorContext) => void) =>
+					this.onceLifecycle(LifecycleTypes.leave_rooms_error, callback),
 			},
 		};
 
@@ -501,7 +507,7 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 	 * Process an incoming message and dispatch to appropriate room handlers.
 	 * @returns `true` if the message was handled, otherwise `false`.
 	 */
-	_handleMessage(payload: any): boolean {
+	_handleMessage(payload: UserMessage): boolean {
 		if (this.#handleJoinRoomSuccessMessage(payload)) return true;
 		if (this.#handleLeaveRoomSuccessMessage(payload)) return true;
 		if (this.#handleRoomErrorMessage(payload)) return true;
@@ -513,8 +519,8 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 		return false;
 	}
 
-	#handleJoinRoomSuccessMessage(payload: any): boolean {
-		if (payload.type !== LifecycleTypes.join_room_success) return false;
+	#handleJoinRoomSuccessMessage(payload: UserMessage): boolean {
+		if (!("type" in payload) || !("room" in payload) || payload.type !== LifecycleTypes.join_room_success) return false;
 		const state = this.#roomStateMap.get(payload.room);
 		if (!state) {
 			if (this.debug) console.warn(`ByteSocket: stale ${LifecycleTypes[payload.type]} for "${payload.room}" - ignored`);
@@ -526,8 +532,8 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 		return true;
 	}
 
-	#handleLeaveRoomSuccessMessage(payload: any): boolean {
-		if (payload.type !== LifecycleTypes.leave_room_success) return false;
+	#handleLeaveRoomSuccessMessage(payload: UserMessage): boolean {
+		if (!("type" in payload) || !("room" in payload) || payload.type !== LifecycleTypes.leave_room_success) return false;
 		const state = this.#roomStateMap.get(payload.room);
 		if (!state) {
 			if (this.debug) console.warn(`ByteSocket: stale ${LifecycleTypes[payload.type]} for "${payload.room}" - ignored`);
@@ -540,8 +546,13 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 		return true;
 	}
 
-	#handleRoomErrorMessage(payload: any): boolean {
-		if (payload.type !== LifecycleTypes.join_room_error && payload.type !== LifecycleTypes.leave_room_error) return false;
+	#handleRoomErrorMessage(payload: UserMessage): boolean {
+		if (
+			!("type" in payload) ||
+			!("room" in payload) ||
+			(payload.type !== LifecycleTypes.join_room_error && payload.type !== LifecycleTypes.leave_room_error)
+		)
+			return false;
 		const state = this.#roomStateMap.get(payload.room);
 		if (!state) {
 			if (this.debug) console.warn(`ByteSocket: stale ${LifecycleTypes[payload.type]} for "${payload.room}" - ignored`);
@@ -552,8 +563,8 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 		return true;
 	}
 
-	#handleJoinRoomsSuccessMessage(payload: any): boolean {
-		if (payload.type !== LifecycleTypes.join_rooms_success) return false;
+	#handleJoinRoomsSuccessMessage(payload: UserMessage): boolean {
+		if (!("type" in payload) || !("rooms" in payload) || payload.type !== LifecycleTypes.join_rooms_success) return false;
 		const staleRooms = [];
 		const actualRooms = [];
 		for (const room of payload.rooms) {
@@ -573,8 +584,8 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 		return true;
 	}
 
-	#handleLeaveRoomsSuccessMessage(payload: any): boolean {
-		if (payload.type !== LifecycleTypes.leave_rooms_success) return false;
+	#handleLeaveRoomsSuccessMessage(payload: UserMessage): boolean {
+		if (!("type" in payload) || !("rooms" in payload) || payload.type !== LifecycleTypes.leave_rooms_success) return false;
 		const staleRooms = [];
 		const actualRooms = [];
 		for (const room of payload.rooms) {
@@ -595,8 +606,13 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 		return true;
 	}
 
-	#handleRoomsErrorMessage(payload: any): boolean {
-		if (payload.type !== LifecycleTypes.join_rooms_error && payload.type !== LifecycleTypes.leave_rooms_error) return false;
+	#handleRoomsErrorMessage(payload: UserMessage): boolean {
+		if (
+			!("type" in payload) ||
+			!("rooms" in payload) ||
+			(payload.type !== LifecycleTypes.join_rooms_error && payload.type !== LifecycleTypes.leave_rooms_error)
+		)
+			return false;
 		const staleRooms = [];
 		const actualRooms = [];
 		for (const room of payload.rooms) {
@@ -615,16 +631,16 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 		return true;
 	}
 
-	#handleRoomsMessage(payload: any): boolean {
-		if (payload.rooms == null || payload.event == null) return false;
+	#handleRoomsMessage(payload: UserMessage): boolean {
+		if (!("type" in payload) || !("rooms" in payload) || payload.rooms == null || payload.event == null) return false;
 		for (const room of payload.rooms) {
 			this.triggerCallback(this.#roomCallbacksMap.get(room)?.get(payload.event), payload.data);
 		}
 		return true;
 	}
 
-	#handleRoomMessage(payload: any): boolean {
-		if (payload.room == null || payload.event == null) return false;
+	#handleRoomMessage(payload: UserMessage): boolean {
+		if (!("type" in payload) || !("room" in payload) || payload.room == null || payload.event == null) return false;
 		this.triggerCallback(this.#roomCallbacksMap.get(payload.room)?.get(payload.event), payload.data);
 		return true;
 	}

@@ -2,6 +2,7 @@ import {
 	AuthState,
 	LifecycleTypes,
 	type AnyCallback,
+	type ErrorContext,
 	type LifecycleMessage,
 	type StringNumberKeys,
 	type SymmetricEvents,
@@ -241,15 +242,15 @@ export class ByteSocket<TEvents extends SymmetricEvents = SymmetricEvents> exten
 			/**
 			 * Register a listener for authentication errors.
 			 */
-			onAuthError: (callback: <D>(data: D) => void) => this.onLifecycle(LifecycleTypes.auth_error, callback),
+			onAuthError: (callback: (ctx: ErrorContext) => void) => this.onLifecycle(LifecycleTypes.auth_error, callback),
 			/**
 			 * Remove a listener for authentication errors.
 			 */
-			offAuthError: (callback?: <D>(data: D) => void) => this.offLifecycle(LifecycleTypes.auth_error, callback),
+			offAuthError: (callback?: (ctx: ErrorContext) => void) => this.offLifecycle(LifecycleTypes.auth_error, callback),
 			/**
 			 * Register a one‑time listener for authentication errors.
 			 */
-			onceAuthError: (callback: <D>(data: D) => void) => this.onceLifecycle(LifecycleTypes.auth_error, callback),
+			onceAuthError: (callback: (ctx: ErrorContext) => void) => this.onceLifecycle(LifecycleTypes.auth_error, callback),
 
 			/**
 			 * Register a listener for when the message queue becomes full and a message is dropped.
@@ -571,7 +572,7 @@ export class ByteSocket<TEvents extends SymmetricEvents = SymmetricEvents> exten
 	 *
 	 * @throws {Error} If called after `destroy()` or after the socket is already connecting/open.
 	 */
-	setAuth<D extends object>(config: AuthConfig<D> | undefined) {
+	setAuth<D>(config: AuthConfig<D> | undefined) {
 		if (this.#destroyed) throw new Error("ByteSocket: cannot call setAuth() after destroy().");
 		if (this.#ws !== null && this.readyState !== WebSocket.CLOSED)
 			throw new Error("ByteSocket: auth cannot be changed after connect() has been called.");
@@ -758,7 +759,7 @@ export class ByteSocket<TEvents extends SymmetricEvents = SymmetricEvents> exten
 	// Message Handling
 	// ────────────────────────────────────────────────────────────────────────────
 
-	#parseMessage(message: MessageEvent): { success: true; payload: any } | { success: false; payload?: never } {
+	#parseMessage(message: MessageEvent): { success: true; payload: UserMessage } | { success: false; payload?: never } {
 		if (message.data instanceof Blob) {
 			if (this.debug) console.warn("ByteSocket: received unexpected Blob message. Ensure binaryType is 'arraybuffer'.");
 			return { success: false };
@@ -773,13 +774,13 @@ export class ByteSocket<TEvents extends SymmetricEvents = SymmetricEvents> exten
 		}
 	}
 
-	#handleAuthMessage(payload: any): boolean {
-		if (payload.type === LifecycleTypes.auth_success) {
+	#handleAuthMessage(payload: UserMessage): boolean {
+		if ("type" in payload && payload.type === LifecycleTypes.auth_success) {
 			if (this.debug) console.log("ByteSocket: auth success");
 			this.#handleAuthSuccess();
 			return true;
 		}
-		if (payload.type === LifecycleTypes.auth_error) {
+		if ("type" in payload && payload.type === LifecycleTypes.auth_error) {
 			if (this.debug) console.warn("ByteSocket: auth error", payload.data);
 			this.#handleAuthError(payload.data);
 			return true;
@@ -787,13 +788,13 @@ export class ByteSocket<TEvents extends SymmetricEvents = SymmetricEvents> exten
 		return false;
 	}
 
-	#handleHeartbeatMessage(payload: any): boolean {
-		if (payload.type === LifecycleTypes.ping) {
+	#handleHeartbeatMessage(payload: UserMessage): boolean {
+		if ("type" in payload && payload.type === LifecycleTypes.ping) {
 			if (this.debug) console.log("ByteSocket: ping received");
 			this.#send({ type: LifecycleTypes.pong });
 			return true;
 		}
-		if (payload.type === LifecycleTypes.pong) {
+		if ("type" in payload && payload.type === LifecycleTypes.pong) {
 			if (this.debug) console.log("ByteSocket: pong received");
 			this.#clearPongTimeout();
 			return true;
@@ -801,7 +802,7 @@ export class ByteSocket<TEvents extends SymmetricEvents = SymmetricEvents> exten
 		return false;
 	}
 
-	#handleEventMessage(payload: any): boolean {
+	#handleEventMessage(payload: UserMessage): boolean {
 		if (payload.event == null) return false;
 		this.triggerCallback(this.#callbacksMap.get(payload.event), payload.data);
 		return true;

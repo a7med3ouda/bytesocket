@@ -1,32 +1,14 @@
-import type { MsgpackrOptions, UserMessage } from "@bytesocket/types";
+import type { MsgpackrOptions, SymmetricEvents, UserMessage } from "@bytesocket/types";
 import type { UUID } from "node:crypto";
 import type { WebSocketBehavior } from "uWebSockets.js";
 import type { Socket } from "./socket";
-
-/**
- * Context object passed to error handlers, providing details about where an error occurred.
- */
-export type ErrorContext = {
-	/** The phase or component where the error originated (e.g., "decode", "auth", "middleware") */
-	phase: string;
-	/** The error object itself, if any */
-	error?: unknown;
-	/** The event name involved, if applicable */
-	event?: string;
-	/** Raw message content (stringified) for debugging */
-	raw?: string;
-	/** WebSocket close code, if applicable */
-	code?: number;
-	/** Number of bytes received, if applicable */
-	bytes?: number;
-};
 
 /**
  * Callback used by the authentication function to return the authentication result.
  * @param payload - The authenticated user data to attach to the socket.
  * @param error - Optional error if authentication failed.
  */
-export type AuthCallback = (payload: unknown, error?: Error) => void;
+export type AuthCallback = (payload: any, error?: Error) => void;
 
 /**
  * Authentication function signature. Called when a client sends an auth message.
@@ -43,7 +25,11 @@ export type AuthCallback = (payload: unknown, error?: Error) => void;
  *   }
  * };
  */
-export type AuthFunction<SD extends SocketData, D = unknown> = (socket: Socket<SD>, data: D, callback: AuthCallback) => void;
+export type AuthFunction<TEvents extends SymmetricEvents, SD extends SocketData, D = any> = (
+	socket: Socket<TEvents, SD>,
+	data: D,
+	callback: AuthCallback,
+) => void;
 
 /**
  * Callback for global event listeners.
@@ -56,7 +42,7 @@ export type AuthFunction<SD extends SocketData, D = unknown> = (socket: Socket<S
  *   console.log(`User ${data.userId} joined`);
  * });
  */
-export type EventCallback<SD extends SocketData, D> = (socket: Socket<SD>, data: D) => void;
+export type EventCallback<TEvents extends SymmetricEvents, SD extends SocketData, D> = (socket: Socket<TEvents, SD>, data: D) => void;
 
 /**
  * Middleware function for room‑scoped events. Can inspect or block the broadcast.
@@ -80,7 +66,11 @@ export type EventCallback<SD extends SocketData, D> = (socket: Socket<SD>, data:
  *   next();
  * });
  */
-export type RoomEventMiddleware<SD extends SocketData, D> = (socket: Socket<SD>, data: D, next: MiddlewareNext) => void | Promise<void>;
+export type RoomEventMiddleware<TEvents extends SymmetricEvents, SD extends SocketData, D> = (
+	socket: Socket<TEvents, SD>,
+	data: D,
+	next: MiddlewareNext,
+) => void | Promise<void>;
 
 /**
  * Next function for middleware chains. Call `next()` to proceed, or `next(error)` to abort.
@@ -98,7 +88,11 @@ export type MiddlewareNext = (error?: unknown | null) => void;
  *   next();
  * });
  */
-export type Middleware<SD extends SocketData = SocketData> = (socket: Socket<SD>, ctx: UserMessage, next: MiddlewareNext) => void | Promise<void>;
+export type Middleware<TEvents extends SymmetricEvents, SD extends SocketData = SocketData> = (
+	socket: Socket<TEvents, SD>,
+	ctx: UserMessage,
+	next: MiddlewareNext,
+) => void | Promise<void>;
 
 /**
  * Data automatically attached to every socket by the server.
@@ -138,7 +132,10 @@ export interface SocketData {
  *   }
  * });
  */
-export interface ByteSocketOptions<SD extends SocketData = SocketData> extends Omit<WebSocketBehavior<SD>, "upgrade" | "open" | "message" | "close"> {
+export interface ByteSocketOptions<TEvents extends SymmetricEvents = SymmetricEvents, SD extends SocketData = SocketData> extends Omit<
+	WebSocketBehavior<SD>,
+	"upgrade" | "open" | "message" | "close"
+> {
 	/** Enable debug logging to console. Default `false`. */
 	debug?: boolean;
 	/** Timeout in milliseconds for global middleware execution. Default `5000`. */
@@ -156,9 +153,9 @@ export interface ByteSocketOptions<SD extends SocketData = SocketData> extends O
 	/** Options passed directly to the underlying msgpackr Packr instance. */
 	msgpackrOptions?: MsgpackrOptions;
 	/** Action to take when a global middleware error occurs. Default `"ignore"`. */
-	onMiddlewareError?: "ignore" | "close" | ((error: unknown, socket: Socket<SD>) => void);
+	onMiddlewareError?: "ignore" | "close" | ((error: unknown, socket: Socket<TEvents, SD>) => void);
 	/** Action to take when a global middleware times out. Default `"ignore"`. */
-	onMiddlewareTimeout?: "ignore" | "close" | ((error: unknown, socket: Socket<SD>) => void);
+	onMiddlewareTimeout?: "ignore" | "close" | ((error: unknown, socket: Socket<TEvents, SD>) => void);
 	/** Authentication configuration. */
-	auth?: AuthFunction<SD>;
+	auth?: AuthFunction<TEvents, SD>;
 }

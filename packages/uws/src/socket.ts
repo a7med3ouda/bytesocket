@@ -1,6 +1,7 @@
 import {
 	AuthState,
 	LifecycleTypes,
+	type ErrorContext,
 	type EventsForRooms,
 	type LifecycleMessage,
 	type StringKeys,
@@ -9,7 +10,7 @@ import {
 	type UserMessage,
 } from "@bytesocket/types";
 import type { RecognizedString, WebSocket } from "uWebSockets.js";
-import type { AuthFunction, ErrorContext, SocketData } from "./types";
+import type { AuthFunction, MiddlewareNext, SocketData } from "./types";
 
 /**
  * Represents an individual WebSocket connection.
@@ -28,7 +29,7 @@ import type { AuthFunction, ErrorContext, SocketData } from "./types";
  *   socket.emit("welcome", { message: "Hello!" });
  * });
  */
-export class Socket<SD extends SocketData = SocketData, TEvents extends SymmetricEvents = SymmetricEvents> {
+export class Socket<TEvents extends SymmetricEvents = SymmetricEvents, SD extends SocketData = SocketData> {
 	/**
 	 * Room management and room‑scoped event emission.
 	 *
@@ -371,30 +372,40 @@ export class Socket<SD extends SocketData = SocketData, TEvents extends Symmetri
 	/** @internal */
 	_handleAuth<D>(
 		parsed: { type: LifecycleTypes.auth; data: D } | null,
-		auth: AuthFunction<SD, D> | undefined,
+		auth: AuthFunction<TEvents, SD, D> | undefined,
 		authTimeout: number,
 		broadcastRoom: string,
+		next: MiddlewareNext,
 	) {
 		if (auth && parsed !== null) {
 			if (this.#authState !== AuthState.idle) return;
 			this.#authState = AuthState.pending;
 			this.#authTimer = setTimeout(() => {
-				if (!this.isClosed && !this.isAuthenticated) this.#setAuthFailed({ phase: "auth", error: new Error("Auth timeout"), code: 4008 });
+				if (!this.isClosed && !this.isAuthenticated) {
+					const err = new Error("Auth timeout");
+					this.#setAuthFailed({ phase: "auth", error: err, code: 4008 });
+					next(err);
+				}
 			}, authTimeout);
 			try {
 				auth(this, parsed.data, (payload, error) => {
 					if (error || payload == null) {
-						this.#setAuthFailed({ phase: "auth", error: error || new Error("Auth failed"), code: 4003 });
+						const err = error || new Error("Auth failed");
+						this.#setAuthFailed({ phase: "auth", error: err, code: 4003 });
+						next(err);
 						return;
 					}
 					this.rooms.join(broadcastRoom);
 					this.#setAuthSuccess(payload);
+					next();
 				});
 			} catch (err) {
 				this.#setAuthFailed({ phase: "auth", error: err, code: 4003 });
+				next(err);
 			}
 		} else {
 			this.#handleNoAuth(broadcastRoom);
+			next();
 		}
 	}
 
@@ -419,7 +430,7 @@ export class Socket<SD extends SocketData = SocketData, TEvents extends Symmetri
 		if (this.#authState !== AuthState.pending) return;
 		this.#clearAuthTimer();
 		this.#authState = AuthState.failed;
-		this.send({ type: LifecycleTypes.auth_error, data: ctx.error });
+		this.send({ type: LifecycleTypes.auth_error, data: ctx });
 		this.close(ctx.code, ctx.phase);
 	}
 

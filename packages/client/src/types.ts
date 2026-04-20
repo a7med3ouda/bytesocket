@@ -34,7 +34,7 @@ export interface RoomState {
  *   }
  * });
  */
-export type AuthConfig<D = unknown> = { data: D } | ((cb: (data: D) => void) => void);
+export type AuthConfig<D = any> = { data: D } | ((cb: (data: D) => void) => void);
 
 /**
  * Configuration options for ByteSocket.

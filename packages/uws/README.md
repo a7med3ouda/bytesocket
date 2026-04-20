@@ -101,26 +101,32 @@ Share a single event interface between server and client for end-to-end type saf
 import { ByteSocket, SymmetricEvents } from "@bytesocket/uws";
 
 // Define once, import on both sides
-export interface MyEvents extends SymmetricEvents {
-	listen: {
-		"user:message": { text: string };
-		"user:typing": { userId: string };
-	};
+export type MyEvents = SymmetricEvents<{
 	emit: {
 		"server:broadcast": { text: string; from: string };
 		"user:joined": { userId: string; name: string };
 	};
-	listenRoom: {
-		chat: {
-			message: { text: string; sender: string };
-		};
+	listen: {
+		"user:message": { text: string };
+		"user:typing": { userId: string };
 	};
 	emitRoom: {
 		chat: {
 			message: { text: string; sender: string; timestamp: number };
 		};
 	};
-}
+	listenRoom: {
+		chat: {
+			message: { text: string; sender: string };
+		};
+	};
+	emitRooms?: {
+		rooms: ["lobby", "announcements"];
+		events: {
+			alert: { msg: string };
+		};
+	};
+}>;
 
 const io = new ByteSocket<MyEvents>(app);
 
@@ -148,7 +154,7 @@ interface MySocketData extends SocketData {
 	userId: number;
 }
 
-const io = new ByteSocket<MySocketData>(app, {
+const io = new ByteSocket<MyEvents, MySocketData>(app, {
 	auth: (socket, data, callback) => {
 		// data is whatever the client sent in its auth payload
 		if (data.token === "valid-token") {
@@ -208,9 +214,10 @@ socket.rooms.bulk.emit(["room1", "room2"], "alert", { msg: "Hello both!" });
 // Single-room guard
 io.rooms.lifecycle.onJoin((socket, room, next) => {
 	if (room === "admin" && !socket.payload?.isAdmin) {
-		next(new Error("Not authorized")); // sends join_room_error to client
+		// The error is sent to the client as a join_room_error with a proper ErrorContext
+		next(new Error("Not authorized"));
 	} else {
-		next(); // allow the join
+		next();
 	}
 });
 
@@ -300,6 +307,16 @@ io.lifecycle.onOpen((socket) => {
 	console.log(`${socket.id} connected`);
 });
 
+// Authentication success (fires after server confirms auth)
+io.lifecycle.onAuthSuccess((socket) => {
+	console.log(`Socket ${socket.id} authenticated`);
+});
+
+// Authentication failure (fires when auth fails or times out)
+io.lifecycle.onAuthError((socket, ctx) => {
+	console.error(`Auth failed for ${socket.id}:`, ctx.error);
+});
+
 // Raw incoming message
 io.lifecycle.onMessage((socket, parsed, rawBuffer, isBinary) => {
 	console.log("Raw message received", parsed);
@@ -312,7 +329,9 @@ io.lifecycle.onClose((socket, code, message) => {
 
 // Errors (decode, auth, middleware, etc.)
 io.lifecycle.onError((socket, ctx) => {
-	console.error(`Error in phase "${ctx?.phase}":`, ctx?.error);
+	// socket may be null if the error occurred before the socket was fully created (e.g., upgrade phase)
+	const socketId = socket?.id ?? "unknown";
+	console.error(`[${socketId}] Error in phase "${ctx.phase}":`, ctx.error);
 });
 ```
 
@@ -340,13 +359,16 @@ socket.payload; // any (cast to your type)
 // Arbitrary data store — survives across middleware
 socket.locals.requestId = randomUUID();
 
-// HTTP metadata from upgrade request
-socket.userData.query; // query string
-socket.userData.cookie; // Cookie header
-socket.userData.authorization; // Authorization header
-socket.userData.userAgent; // User-Agent header
-socket.userData.host;
-socket.userData.xForwardedFor;
+// HTTP metadata from upgrade request (convenience getters)
+socket.query; // query string
+socket.cookie; // Cookie header
+socket.authorization; // Authorization header
+socket.userAgent; // User-Agent header
+socket.host; // Host header
+socket.xForwardedFor; // X-Forwarded-For header
+
+// The raw userData object (including any custom fields) is still available:
+socket.userData; // full SocketData object
 
 // Auth state
 socket.isAuthenticated; // boolean
@@ -383,7 +405,7 @@ interface AppSocketData extends SocketData {
 	tenantId: string;
 }
 
-const io = new ByteSocket<AppSocketData, MyEvents>(app, {
+const io = new ByteSocket<MyEvents, AppSocketData>(app, {
 	auth: (socket, data, callback) => {
 		const tenant = lookupTenant(data.token);
 		if (!tenant) return callback(null, new Error("Unauthorized"));
