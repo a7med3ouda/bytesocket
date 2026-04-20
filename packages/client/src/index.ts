@@ -6,5 +6,7 @@
 
 export * from "@bytesocket/types";
 export { FLOAT32_OPTIONS } from "msgpackr";
-export { ByteSocket } from "./byte-socket";
+export * from "./byte-socket";
+export * from "./room-manager";
+export * from "./socket-base";
 export * from "./types";
