@@ -217,7 +217,7 @@ export enum AuthState {
  * @typeParam T - A map of event names to their payload types.
  *
  * @example
- * interface MyEvents extends SymmetricEvents<{
+ * interface MyEvents extends SocketEvents<{
  *   emit: {
  *     message: { text: string };
  *     'user:typing': { userId: string };
@@ -243,7 +243,7 @@ export enum AuthState {
  * io.on('message', (data) => { data.sender });         // typed
  * io.rooms.on('chat', 'message', (data) => {});        // typed room listen
  */
-export type SymmetricEvents<T extends { [event: string | number]: unknown } = { [event: string | number]: unknown }> = {
+export type SocketEvents<T extends { [event: string | number]: unknown } = { [event: string | number]: unknown }> = {
 	/** Events that can be emitted globally. */
 	emit?: T;
 	/** Events that can be listened to globally. */
@@ -259,4 +259,4 @@ export type SymmetricEvents<T extends { [event: string | number]: unknown } = { 
 /**
  * Extracts the event map for a specific set of rooms from `emitRooms`.
  */
-export type EventsForRooms<T extends NonNullable<SymmetricEvents["emitRooms"]>, R> = Extract<T, { rooms: R }>["events"];
+export type EventsForRooms<T extends NonNullable<SocketEvents["emitRooms"]>, R> = Extract<T, { rooms: R }>["events"];

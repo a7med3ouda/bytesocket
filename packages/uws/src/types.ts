@@ -1,4 +1,4 @@
-import type { MsgpackrOptions, SymmetricEvents, UserMessage } from "@bytesocket/types";
+import type { MsgpackrOptions, SocketEvents, UserMessage } from "@bytesocket/types";
 import type { UUID } from "node:crypto";
 import type { WebSocketBehavior } from "uWebSockets.js";
 import type { Socket } from "./socket";
@@ -25,7 +25,7 @@ export type AuthCallback = (payload: any, error?: Error) => void;
  *   }
  * };
  */
-export type AuthFunction<TEvents extends SymmetricEvents, SD extends SocketData, D = any> = (
+export type AuthFunction<TEvents extends SocketEvents, SD extends SocketData, D = any> = (
 	socket: Socket<TEvents, SD>,
 	data: D,
 	callback: AuthCallback,
@@ -42,7 +42,7 @@ export type AuthFunction<TEvents extends SymmetricEvents, SD extends SocketData,
  *   console.log(`User ${data.userId} joined`);
  * });
  */
-export type EventCallback<TEvents extends SymmetricEvents, SD extends SocketData, D> = (socket: Socket<TEvents, SD>, data: D) => void;
+export type EventCallback<TEvents extends SocketEvents, SD extends SocketData, D> = (socket: Socket<TEvents, SD>, data: D) => void;
 
 /**
  * Middleware function for room‑scoped events. Can inspect or block the broadcast.
@@ -66,7 +66,7 @@ export type EventCallback<TEvents extends SymmetricEvents, SD extends SocketData
  *   next();
  * });
  */
-export type RoomEventMiddleware<TEvents extends SymmetricEvents, SD extends SocketData, D> = (
+export type RoomEventMiddleware<TEvents extends SocketEvents, SD extends SocketData, D> = (
 	socket: Socket<TEvents, SD>,
 	data: D,
 	next: MiddlewareNext,
@@ -88,7 +88,7 @@ export type MiddlewareNext = (error?: unknown | null) => void;
  *   next();
  * });
  */
-export type Middleware<TEvents extends SymmetricEvents, SD extends SocketData = SocketData> = (
+export type Middleware<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData> = (
 	socket: Socket<TEvents, SD>,
 	ctx: UserMessage,
 	next: MiddlewareNext,
@@ -132,7 +132,7 @@ export interface SocketData {
  *   }
  * });
  */
-export interface ByteSocketOptions<TEvents extends SymmetricEvents = SymmetricEvents, SD extends SocketData = SocketData> extends Omit<
+export interface ByteSocketOptions<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData> extends Omit<
 	WebSocketBehavior<SD>,
 	"upgrade" | "open" | "message" | "close"
 > {

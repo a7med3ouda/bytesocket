@@ -4,8 +4,8 @@ import {
 	type AnyCallback,
 	type ErrorContext,
 	type LifecycleMessage,
+	type SocketEvents,
 	type StringNumberKeys,
-	type SymmetricEvents,
 	type UserMessage,
 } from "@bytesocket/types";
 import { FLOAT32_OPTIONS, Packr } from "msgpackr";
@@ -19,12 +19,12 @@ import type { AuthConfig, ByteSocketOptions, EventCallback } from "./types";
  *
  * It provides a fully typed event system via a user‑supplied event map (`TEvents`).
  *
- * @typeParam TEvents - A type extending `SymmetricEvents` that defines the shape of
+ * @typeParam TEvents - A type extending `SocketEvents` that defines the shape of
  *                      all emit/listen events (global and room‑scoped).
  *
  * @example
  * // Define your event schema
- * interface MyEvents extends SymmetricEvents<{
+ * interface MyEvents extends SocketEvents<{
  *   emit: { ping: void };
  *   listen: { pong: number };
  *   emitRoom: {
@@ -51,7 +51,7 @@ import type { AuthConfig, ByteSocketOptions, EventCallback } from "./types";
  *   console.log(`${data.sender}: ${data.message}`);
  * });
  */
-export class ByteSocket<TEvents extends SymmetricEvents = SymmetricEvents> extends SocketBase {
+export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends SocketBase {
 	// ────────────────────────────────────────────────────────────────────────────
 	// Namespaces
 	// ────────────────────────────────────────────────────────────────────────────

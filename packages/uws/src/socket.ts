@@ -4,9 +4,9 @@ import {
 	type ErrorContext,
 	type EventsForRooms,
 	type LifecycleMessage,
+	type SocketEvents,
 	type StringKeys,
 	type StringNumberKeys,
-	type SymmetricEvents,
 	type UserMessage,
 } from "@bytesocket/types";
 import type { RecognizedString, WebSocket } from "uWebSockets.js";
@@ -20,7 +20,7 @@ import type { AuthFunction, MiddlewareNext, SocketData } from "./types";
  * middleware, and event listeners.
  *
  * @typeParam SD - The socket data type (must extend `SocketData`).
- * @typeParam TEvents - The event map type (from `SymmetricEvents`) for type‑safe emits.
+ * @typeParam TEvents - The event map type (from `SocketEvents`) for type‑safe emits.
  *
  * @example
  * io.lifecycle.onOpen((socket) => {
@@ -29,7 +29,7 @@ import type { AuthFunction, MiddlewareNext, SocketData } from "./types";
  *   socket.emit("welcome", { message: "Hello!" });
  * });
  */
-export class Socket<TEvents extends SymmetricEvents = SymmetricEvents, SD extends SocketData = SocketData> {
+export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData> {
 	/**
 	 * Room management and room‑scoped event emission.
 	 *

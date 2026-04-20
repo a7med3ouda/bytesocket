@@ -98,10 +98,10 @@ app.listen(3000, (token) => {
 Share a single event interface between server and client for end-to-end type safety:
 
 ```typescript
-import { ByteSocket, SymmetricEvents } from "@bytesocket/uws";
+import { ByteSocket, SocketEvents } from "@bytesocket/uws";
 
 // Define once, import on both sides
-export type MyEvents = SymmetricEvents<{
+export type MyEvents = SocketEvents<{
 	emit: {
 		"server:broadcast": { text: string; from: string };
 		"user:joined": { userId: string; name: string };

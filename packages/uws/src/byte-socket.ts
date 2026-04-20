@@ -4,9 +4,9 @@ import {
 	type ErrorContext,
 	type EventsForRooms,
 	type LifecycleMessage,
+	type SocketEvents,
 	type StringKeys,
 	type StringNumberKeys,
-	type SymmetricEvents,
 	type UserMessage,
 } from "@bytesocket/types";
 import { FLOAT32_OPTIONS, Packr } from "msgpackr";
@@ -32,12 +32,12 @@ type RequiredOptions =
  * Provides a fully typed event system via a user‑supplied event map (`TEvents`).
  *
  * @typeParam SD - The socket data type (must extend `SocketData`).
- * @typeParam TEvents - A type extending `SymmetricEvents` that defines the shape of
+ * @typeParam TEvents - A type extending `SocketEvents` that defines the shape of
  *                      all emit/listen events (global and room‑scoped).
  *
  * @example
  * // Define your event schema
- * interface MyEvents extends SymmetricEvents<{
+ * interface MyEvents extends SocketEvents<{
  *   emit: { ping: void };
  *   listen: { pong: number };
  *   emitRoom: { chat: { message: string } };
@@ -57,7 +57,7 @@ type RequiredOptions =
  *   next();
  * });
  */
-export class ByteSocket<TEvents extends SymmetricEvents = SymmetricEvents, SD extends SocketData = SocketData> {
+export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData> {
 	/**
 	 * Lifecycle event listeners for connection, authentication, and errors.
 	 *

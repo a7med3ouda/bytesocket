@@ -4,9 +4,9 @@ import {
 	type ErrorContext,
 	type EventsForRooms,
 	type LifecycleMessage,
+	type SocketEvents,
 	type StringKeys,
 	type StringNumberKeys,
-	type SymmetricEvents,
 	type UserMessage,
 } from "@bytesocket/types";
 import { SocketBase } from "./socket-base";
@@ -18,9 +18,9 @@ import type { EventCallback, RoomState } from "./types";
  * You should not instantiate this class directly; it is accessible via
  * `socket.rooms` on a ByteSocket instance.
  *
- * @typeParam TEvents - The event map type (from SymmetricEvents) defining allowed room events.
+ * @typeParam TEvents - The event map type (from SocketEvents) defining allowed room events.
  */
-export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
+export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 	/**
 	 * Lifecycle event listeners for single‑room operations.
 	 *

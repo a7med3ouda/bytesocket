@@ -31,18 +31,18 @@ Most WebSocket setups require wiring together reconnection logic, room managemen
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│                    Your App                     │
-├───────────────────────┬─────────────────────────┤
-│   @bytesocket/client  │     @bytesocket/uws     │
-│   (Browser / Node)    │  (uWebSockets.js server)│
-├───────────────────────┴─────────────────────────┤
-│          Shared SymmetricEvents<T> type         │
-│     (event names · payloads · room scopes)      │
-└─────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────┐
+│                     Your App                      │
+├───────────────────────┬───────────────────────────┤
+│   @bytesocket/client  │      @bytesocket/uws      │
+│    (Browser / Node)   │  (uWebSockets.js server)  │
+├───────────────────────┴───────────────────────────┤
+│          Shared SocketEvents<T> type           │
+│      (event names · payloads · room scopes)       │
+└───────────────────────────────────────────────────┘
 ```
 
-The `SymmetricEvents` interface is the single source of truth for your event schema. Import it on both sides and TypeScript enforces correctness everywhere.
+The `SocketEvents` interface is the single source of truth for your event schema. Import it on both sides and TypeScript enforces correctness everywhere.
 
 ---
 
@@ -51,9 +51,9 @@ The `SymmetricEvents` interface is the single source of truth for your event sch
 **Shared types** (`types.ts`):
 
 ```typescript
-import type { SymmetricEvents } from "@bytesocket/client";
+import type { SocketEvents } from "@bytesocket/client";
 
-export interface ChatEvents extends SymmetricEvents {
+export interface ChatEvents extends SocketEvents {
 	listen: {
 		"user:joined": { userId: string; name: string };
 	};

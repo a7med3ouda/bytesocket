@@ -10,7 +10,7 @@ You do not need to install this package directly; it is a dependency of the main
 
 - `StringKeys<T>` – Extract only string keys from a type.
 - `StringNumberKeys<T>` – Extract string or number keys.
-- `SymmetricEvents<T>` – The event map shape for end‑to‑end type safety.
+- `SocketEvents<T>` – The event map shape for end‑to‑end type safety.
 - `EventsForRooms<T, R>` – Extract events for a specific set of rooms.
 
 ### Lifecycle & Error Types
@@ -45,9 +45,9 @@ All types are re‑exported by `@bytesocket/client` and `@bytesocket/uws`. Impor
 
 ```typescript
 // ✅ Recommended
-import { SymmetricEvents, LifecycleTypes } from "@bytesocket/client";
+import { type SocketEvents, LifecycleTypes } from "@bytesocket/client";
 // or
-import { SymmetricEvents, LifecycleTypes } from "@bytesocket/uws";
+import { type SocketEvents, LifecycleTypes } from "@bytesocket/uws";
 ```
 
 ---

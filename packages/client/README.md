@@ -55,9 +55,9 @@ socket.on("welcome", (data) => console.log(data));
 Define your event schema once and get full inference everywhere:
 
 ```typescript
-import { ByteSocket, SymmetricEvents } from "@bytesocket/client";
+import { ByteSocket, SocketEvents } from "@bytesocket/client";
 
-export type MyEvents = SymmetricEvents<{
+export type MyEvents = SocketEvents<{
 	emit: {
 		"user:message": { text: string };
 		"user:typing": { userId: string };
