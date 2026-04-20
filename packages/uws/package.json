@@ -1,6 +1,6 @@
 {
 	"name": "@bytesocket/uws",
-	"version": "0.1.4",
+	"version": "0.1.5",
 	"license": "MIT",
 	"description": "High-performance WebSocket server for Node.js using uWebSockets.js",
 	"type": "module",
