@@ -50,12 +50,24 @@ importers:
 
   packages/client:
     dependencies:
+      '@bytesocket/types':
+        specifier: workspace:*
+        version: link:../types
+      msgpackr:
+        specifier: 'catalog:'
+        version: 1.11.9
+
+  packages/types:
+    devDependencies:
       msgpackr:
         specifier: 'catalog:'
         version: 1.11.9
 
   packages/uws:
     dependencies:
+      '@bytesocket/types':
+        specifier: workspace:*
+        version: link:../types
       msgpackr:
         specifier: 'catalog:'
         version: 1.11.9

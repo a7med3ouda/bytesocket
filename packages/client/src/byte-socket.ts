@@ -1,18 +1,16 @@
-import { FLOAT32_OPTIONS, Packr } from "msgpackr";
-import { RoomManager } from "./room-manager";
-import { SocketBase } from "./socket-base";
 import {
 	AuthState,
 	LifecycleTypes,
-	SymmetricEvents,
 	type AnyCallback,
-	type AuthConfig,
-	type ByteSocketOptions,
-	type EventCallback,
 	type LifecycleMessage,
 	type StringNumberKeys,
+	type SymmetricEvents,
 	type UserMessage,
-} from "./types";
+} from "@bytesocket/types";
+import { FLOAT32_OPTIONS, Packr } from "msgpackr";
+import { RoomManager } from "./room-manager";
+import { SocketBase } from "./socket-base";
+import type { AuthConfig, ByteSocketOptions, EventCallback } from "./types";
 
 /**
  * ByteSocket is a WebSocket client with automatic reconnection, room management,
@@ -619,7 +617,7 @@ export class ByteSocket<TEvents extends SymmetricEvents = SymmetricEvents> exten
 		this.triggerCallback(this.lifecycleCallbacksMap.get(LifecycleTypes.auth_error), err);
 	}
 
-	#authenticate<D extends object>(config: AuthConfig<D>): void {
+	#authenticate<D = unknown>(config: AuthConfig<D>): void {
 		this.#authState = AuthState.pending;
 		this.#startAuthTimeout();
 		if (typeof config === "function") {
@@ -635,11 +633,11 @@ export class ByteSocket<TEvents extends SymmetricEvents = SymmetricEvents> exten
 				this.#handleAuthError(error);
 			}
 		} else {
-			this.#sendAuthData(config);
+			this.#sendAuthData(config.data);
 		}
 	}
 
-	#sendAuthData<D extends object>(data: D): void {
+	#sendAuthData<D = unknown>(data: D): void {
 		if (this.readyState === WebSocket.OPEN) {
 			this.#send({ type: LifecycleTypes.auth, data }, true);
 			if (this.debug) console.log("ByteSocket: auth payload sent");

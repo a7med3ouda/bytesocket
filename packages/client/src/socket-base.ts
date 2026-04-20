@@ -1,4 +1,5 @@
-import { AnyCallback, LifecycleTypes, type EventCallback } from "./types";
+import type { AnyCallback, LifecycleTypes } from "@bytesocket/types";
+import type { EventCallback } from "./types";
 
 /**
  * Abstract base class providing common callback management for lifecycle and user events.

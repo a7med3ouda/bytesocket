@@ -1,16 +1,15 @@
-import { SocketBase } from "./socket-base";
 import {
 	LifecycleTypes,
 	type AnyCallback,
-	type EventCallback,
 	type EventsForRooms,
 	type LifecycleMessage,
-	type RoomState,
 	type StringKeys,
 	type StringNumberKeys,
 	type SymmetricEvents,
 	type UserMessage,
-} from "./types";
+} from "@bytesocket/types";
+import { SocketBase } from "./socket-base";
+import type { EventCallback, RoomState } from "./types";
 
 /**
  * Manages room membership and room‑scoped event listeners.
@@ -138,7 +137,7 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 			 * @param callback - Function invoked once with the room name and error data.
 			 */
 			onceLeaveError: (callback: (room: string, data: unknown) => void) => this.onceLifecycle(LifecycleTypes.leave_room_error, callback),
-		} as const;
+		};
 
 		this.bulk = {
 			/**
@@ -244,8 +243,8 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 				 */
 				onceLeaveError: (callback: (rooms: string[], data: unknown) => void) =>
 					this.onceLifecycle(LifecycleTypes.leave_rooms_error, callback),
-			} as const,
-		} as const;
+			},
+		};
 
 		onOpen(() => this.#onSocketOpen());
 		onClose(() => this.#onSocketClose());
