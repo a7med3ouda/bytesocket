@@ -1,6 +1,6 @@
 {
 	"name": "@bytesocket/uws",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"license": "MIT",
 	"description": "High-performance WebSocket server for Node.js using uWebSockets.js",
 	"type": "module",
@@ -30,5 +30,26 @@
 	"devDependencies": {
 		"@types/node": "^24.12.2",
 		"uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.61.0"
-	}
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/a7med3ouda/bytesocket.git",
+		"directory": "packages/uws"
+	},
+	"homepage": "https://github.com/a7med3ouda/bytesocket#readme",
+	"bugs": {
+		"url": "https://github.com/a7med3ouda/bytesocket/issues"
+	},
+	"keywords": [
+		"websocket",
+		"socket",
+		"realtime",
+		"bytesocket",
+		"uws",
+		"uWebSockets",
+		"ultimate-express",
+		"hyper-express",
+		"msgpack",
+		"binary"
+	]
 }

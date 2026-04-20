@@ -1,6 +1,6 @@
 {
 	"name": "@bytesocket/client",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"license": "MIT",
 	"description": "High-performance WebSocket client for browsers",
 	"type": "module",
@@ -26,5 +26,26 @@
 	"dependencies": {
 		"@bytesocket/types": "workspace:*",
 		"msgpackr": "catalog:"
-	}
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/a7med3ouda/bytesocket.git",
+		"directory": "packages/client"
+	},
+	"homepage": "https://github.com/a7med3ouda/bytesocket#readme",
+	"bugs": {
+		"url": "https://github.com/a7med3ouda/bytesocket/issues"
+	},
+	"keywords": [
+		"websocket",
+		"socket",
+		"realtime",
+		"bytesocket",
+		"uws",
+		"uWebSockets",
+		"ultimate-express",
+		"hyper-express",
+		"msgpack",
+		"binary"
+	]
 }

@@ -34,10 +34,10 @@ Most WebSocket setups require wiring together reconnection logic, room managemen
 ┌─────────────────────────────────────────────────┐
 │                    Your App                     │
 ├───────────────────────┬─────────────────────────┤
-│   @bytesocket/client  │     @bytesocket/uws      │
-│   (Browser / Node)    │  (uWebSockets.js server) │
+│   @bytesocket/client  │     @bytesocket/uws     │
+│   (Browser / Node)    │  (uWebSockets.js server)│
 ├───────────────────────┴─────────────────────────┤
-│          Shared SymmetricEvents<T> type          │
+│          Shared SymmetricEvents<T> type         │
 │     (event names · payloads · room scopes)      │
 └─────────────────────────────────────────────────┘
 ```

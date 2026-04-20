@@ -1,6 +1,9 @@
 # `@bytesocket/uws`
 
-High-performance WebSocket server for [ByteSocket](../../README.md) built on [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js).
+High-performance WebSocket server for [ByteSocket](https://github.com/a7med3ouda/bytesocket/tree/main/packages/uws) built on [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js).
+
+> ✅ Compatible with Ultimate Express and any framework exposing a `uWebSockets.js` instance.
+> ⚠️ Hyper Express supported only when accessing the underlying uWS instance
 
 ```bash
 npm install @bytesocket/uws
@@ -52,6 +55,36 @@ io.on("hello", (socket, data) => {
 });
 
 app.ws("/socket", io.handler);
+
+app.listen(3000, (token) => {
+	if (token) console.log("Listening on port 3000");
+});
+```
+
+---
+
+## Ultimate Express Compatibility
+
+```typescript
+import express from "ultimate-express";
+
+const app = express();
+const io = new ByteSocket(app.uwsApp);
+
+io.lifecycle.onOpen((socket) => {
+	console.log(`Socket ${socket.id} connected`);
+	socket.rooms.join("lobby");
+});
+
+io.lifecycle.onClose((socket, code) => {
+	console.log(`Socket ${socket.id} disconnected (${code})`);
+});
+
+io.on("hello", (socket, data) => {
+	socket.emit("welcome", { message: `Hello, ${data.name}!` });
+});
+
+app.uwsApp.ws("/api/ws", io.handler);
 
 app.listen(3000, (token) => {
 	if (token) console.log("Listening on port 3000");

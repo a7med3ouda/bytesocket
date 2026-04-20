@@ -1,17 +1,17 @@
 {
 	"name": "@bytesocket/types",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"license": "MIT",
 	"description": "Shared types and enums for ByteSocket",
 	"type": "module",
-	"main": "dist/index.js",
-	"module": "dist/index.mjs",
-	"types": "dist/index.d.ts",
+	"main": "./dist/index.cjs",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
-			"import": "./dist/index.mjs",
-			"require": "./dist/index.js",
-			"types": "./dist/index.d.ts"
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.cjs"
 		}
 	},
 	"files": [
@@ -24,5 +24,26 @@
 	},
 	"devDependencies": {
 		"msgpackr": "catalog:"
-	}
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/a7med3ouda/bytesocket.git",
+		"directory": "packages/uws"
+	},
+	"homepage": "https://github.com/a7med3ouda/bytesocket#readme",
+	"bugs": {
+		"url": "https://github.com/a7med3ouda/bytesocket/issues"
+	},
+	"keywords": [
+		"websocket",
+		"socket",
+		"realtime",
+		"bytesocket",
+		"uws",
+		"uWebSockets",
+		"ultimate-express",
+		"hyper-express",
+		"msgpack",
+		"binary"
+	]
 }

@@ -1,6 +1,6 @@
 # ByteSocket
 
-A modern WebSocket client with automatic reconnection, room management, authentication, heartbeat, and pluggable serialization — fully typed with TypeScript.
+A modern WebSocket client for [ByteSocket](https://github.com/a7med3ouda/bytesocket/tree/main/packages/client) with automatic reconnection, room management, authentication, heartbeat, and pluggable serialization — fully typed with TypeScript.
 
 ```bash
 npm install @bytesocket/client
