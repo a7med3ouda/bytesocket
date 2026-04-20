@@ -1,6 +1,7 @@
 {
 	"name": "@bytesocket/types",
 	"version": "0.1.0",
+	"license": "MIT",
 	"description": "Shared types and enums for ByteSocket",
 	"type": "module",
 	"main": "dist/index.js",
@@ -14,7 +15,8 @@
 		}
 	},
 	"files": [
-		"dist"
+		"dist",
+		"LICENSE"
 	],
 	"scripts": {
 		"build": "tsup",

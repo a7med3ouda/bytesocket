@@ -1,6 +1,7 @@
 {
 	"name": "@bytesocket/uws",
 	"version": "0.1.0",
+	"license": "MIT",
 	"description": "High-performance WebSocket server for Node.js using uWebSockets.js",
 	"type": "module",
 	"main": "./dist/index.cjs",
@@ -14,7 +15,8 @@
 		}
 	},
 	"files": [
-		"dist"
+		"dist",
+		"LICENSE"
 	],
 	"scripts": {
 		"build": "tsup",

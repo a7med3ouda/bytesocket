@@ -432,8 +432,6 @@ const socket = new ByteSocket("wss://example.com/socket", {
 
 ## License
 
-Copyright © 2026 Ahmed Ouda. All rights reserved.
-
-This software and its source code are proprietary. No part of this package may be reproduced, distributed, or used in any form without prior written permission from the author.
+[MIT](LICENSE) © 2026 Ahmed Ouda
 
 - GitHub: [@a7med3ouda](https://github.com/a7med3ouda)

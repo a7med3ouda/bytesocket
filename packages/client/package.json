@@ -1,6 +1,7 @@
 {
 	"name": "@bytesocket/client",
 	"version": "0.1.0",
+	"license": "MIT",
 	"description": "High-performance WebSocket client for browsers",
 	"type": "module",
 	"main": "./dist/index.cjs",
@@ -14,7 +15,8 @@
 		}
 	},
 	"files": [
-		"dist"
+		"dist",
+		"LICENSE"
 	],
 	"scripts": {
 		"build": "tsup",
