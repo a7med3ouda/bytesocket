@@ -21,3 +21,4 @@ pnpm-debug.log*
 
 # lockfiles
 packages/*/pnpm-lock.yaml
+*.tgz

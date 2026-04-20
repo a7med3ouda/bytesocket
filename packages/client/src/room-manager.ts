@@ -44,7 +44,7 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 
 	#roomStateMap = new Map<string, RoomState>();
 
-	#send: <R extends string, E extends string | number, D = unknown>(
+	#send: <R extends string, E extends string | number, D>(
 		payload: LifecycleMessage<R, D> | UserMessage<R, E, D>,
 		bypassAuthPending?: boolean,
 	) => void;
@@ -54,7 +54,7 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 	 */
 	constructor(
 		protected readonly debug: boolean,
-		send: <R extends string, E extends string | number, D = unknown>(
+		send: <R extends string, E extends string | number, D>(
 			payload: LifecycleMessage<R, D> | UserMessage<R, E, D>,
 			bypassAuthPending?: boolean,
 		) => void,
@@ -88,19 +88,19 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 			 * Register a listener for single‑room join errors.
 			 * @param callback - Function invoked with the room name and error data.
 			 */
-			onJoinError: (callback: (room: string, data: unknown) => void) => this.onLifecycle(LifecycleTypes.join_room_error, callback),
+			onJoinError: (callback: <D>(room: string, data: D) => void) => this.onLifecycle(LifecycleTypes.join_room_error, callback),
 
 			/**
 			 * Remove a listener for single‑room join errors.
 			 * @param callback - Optional; if omitted, all listeners are removed.
 			 */
-			offJoinError: (callback?: (room: string, data: unknown) => void) => this.offLifecycle(LifecycleTypes.join_room_error, callback),
+			offJoinError: (callback?: <D>(room: string, data: D) => void) => this.offLifecycle(LifecycleTypes.join_room_error, callback),
 
 			/**
 			 * Register a one‑time listener for single‑room join errors.
 			 * @param callback - Function invoked once with the room name and error data.
 			 */
-			onceJoinError: (callback: (room: string, data: unknown) => void) => this.onceLifecycle(LifecycleTypes.join_room_error, callback),
+			onceJoinError: (callback: <D>(room: string, data: D) => void) => this.onceLifecycle(LifecycleTypes.join_room_error, callback),
 
 			/**
 			 * Register a listener for successful single‑room leave.
@@ -124,19 +124,19 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 			 * Register a listener for single‑room leave errors.
 			 * @param callback - Function invoked with the room name and error data.
 			 */
-			onLeaveError: (callback: (room: string, data: unknown) => void) => this.onLifecycle(LifecycleTypes.leave_room_error, callback),
+			onLeaveError: (callback: <D>(room: string, data: D) => void) => this.onLifecycle(LifecycleTypes.leave_room_error, callback),
 
 			/**
 			 * Remove a listener for single‑room leave errors.
 			 * @param callback - Optional; if omitted, all listeners are removed.
 			 */
-			offLeaveError: (callback?: (room: string, data: unknown) => void) => this.offLifecycle(LifecycleTypes.leave_room_error, callback),
+			offLeaveError: (callback?: <D>(room: string, data: D) => void) => this.offLifecycle(LifecycleTypes.leave_room_error, callback),
 
 			/**
 			 * Register a one‑time listener for single‑room leave errors.
 			 * @param callback - Function invoked once with the room name and error data.
 			 */
-			onceLeaveError: (callback: (room: string, data: unknown) => void) => this.onceLifecycle(LifecycleTypes.leave_room_error, callback),
+			onceLeaveError: (callback: <D>(room: string, data: D) => void) => this.onceLifecycle(LifecycleTypes.leave_room_error, callback),
 		};
 
 		this.bulk = {
@@ -193,19 +193,19 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 				 * Register a listener for bulk join errors.
 				 * @param callback - Function invoked with the array of room names and error data.
 				 */
-				onJoinError: (callback: (rooms: string[], data: unknown) => void) => this.onLifecycle(LifecycleTypes.join_rooms_error, callback),
+				onJoinError: (callback: <D>(rooms: string[], data: D) => void) => this.onLifecycle(LifecycleTypes.join_rooms_error, callback),
 
 				/**
 				 * Remove a listener for bulk join errors.
 				 * @param callback - Optional; if omitted, all listeners are removed.
 				 */
-				offJoinError: (callback?: (rooms: string[], data: unknown) => void) => this.offLifecycle(LifecycleTypes.join_rooms_error, callback),
+				offJoinError: (callback?: <D>(rooms: string[], data: D) => void) => this.offLifecycle(LifecycleTypes.join_rooms_error, callback),
 
 				/**
 				 * Register a one‑time listener for bulk join errors.
 				 * @param callback - Function invoked once with the array of room names and error data.
 				 */
-				onceJoinError: (callback: (rooms: string[], data: unknown) => void) => this.onceLifecycle(LifecycleTypes.join_rooms_error, callback),
+				onceJoinError: (callback: <D>(rooms: string[], data: D) => void) => this.onceLifecycle(LifecycleTypes.join_rooms_error, callback),
 
 				/**
 				 * Register a listener for successful bulk leave.
@@ -229,20 +229,19 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 				 * Register a listener for bulk leave errors.
 				 * @param callback - Function invoked with the array of room names and error data.
 				 */
-				onLeaveError: (callback: (rooms: string[], data: unknown) => void) => this.onLifecycle(LifecycleTypes.leave_rooms_error, callback),
+				onLeaveError: (callback: <D>(rooms: string[], data: D) => void) => this.onLifecycle(LifecycleTypes.leave_rooms_error, callback),
 
 				/**
 				 * Remove a listener for bulk leave errors.
 				 * @param callback - Optional; if omitted, all listeners are removed.
 				 */
-				offLeaveError: (callback?: (rooms: string[], data: unknown) => void) => this.offLifecycle(LifecycleTypes.leave_rooms_error, callback),
+				offLeaveError: (callback?: <D>(rooms: string[], data: D) => void) => this.offLifecycle(LifecycleTypes.leave_rooms_error, callback),
 
 				/**
 				 * Register a one‑time listener for bulk leave errors.
 				 * @param callback - Function invoked once with the array of room names and error data.
 				 */
-				onceLeaveError: (callback: (rooms: string[], data: unknown) => void) =>
-					this.onceLifecycle(LifecycleTypes.leave_rooms_error, callback),
+				onceLeaveError: (callback: <D>(rooms: string[], data: D) => void) => this.onceLifecycle(LifecycleTypes.leave_rooms_error, callback),
 			},
 		};
 
@@ -366,11 +365,11 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 	 *   console.log('New message:', data);
 	 * });
 	 */
-	on<R extends StringKeys<TEvents["listenRoom"]>, E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>>(
-		room: R,
-		event: E,
-		callback: EventCallback<NonNullable<TEvents["listenRoom"]>[R][E]>,
-	): void {
+	on<
+		R extends StringKeys<TEvents["listenRoom"]>,
+		E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
+		D extends NonNullable<TEvents["listenRoom"]>[R][E],
+	>(room: R, event: E, callback: EventCallback<D>): void {
 		this.#addRoomCallback(room, event, callback);
 	}
 
@@ -387,11 +386,11 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 	 * // Remove all listeners for 'chat' room
 	 * socket.rooms.off('chat');
 	 */
-	off<R extends StringKeys<TEvents["listenRoom"]>, E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>>(
-		room: R,
-		event?: E,
-		callback?: EventCallback<NonNullable<TEvents["listenRoom"]>[R][E]>,
-	): void {
+	off<
+		R extends StringKeys<TEvents["listenRoom"]>,
+		E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
+		D extends NonNullable<TEvents["listenRoom"]>[R][E],
+	>(room: R, event?: E, callback?: EventCallback<D>): void {
 		const roomMap = this.#roomCallbacksMap.get(room);
 		if (!roomMap) return;
 		if (event === undefined) {
@@ -429,12 +428,12 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 	 *   console.log('First message only:', data);
 	 * });
 	 */
-	once<R extends StringKeys<TEvents["listenRoom"]>, E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>>(
-		room: R,
-		event: E,
-		callback: EventCallback<NonNullable<TEvents["listenRoom"]>[R][E]>,
-	): void {
-		const callbackWrapper: EventCallback<NonNullable<TEvents["listenRoom"]>[R][E]> = (data) => {
+	once<
+		R extends StringKeys<TEvents["listenRoom"]>,
+		E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
+		D extends NonNullable<TEvents["listenRoom"]>[R][E],
+	>(room: R, event: E, callback: EventCallback<D>): void {
+		const callbackWrapper: EventCallback<D> = (data) => {
 			this.#deleteRoomCallback(room, event, callbackWrapper);
 			this.#deleteOnceRoomCallback(room, event, callback, callbackWrapper);
 			callback(data);
@@ -443,11 +442,11 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 		this.#addRoomCallback(room, event, callbackWrapper);
 	}
 
-	#deleteRoomCallback<R extends StringKeys<TEvents["listenRoom"]>, E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>>(
-		room: R,
-		event: E,
-		callback: EventCallback<NonNullable<TEvents["listenRoom"]>[R][E]>,
-	): void {
+	#deleteRoomCallback<
+		R extends StringKeys<TEvents["listenRoom"]>,
+		E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
+		D extends NonNullable<TEvents["listenRoom"]>[R][E],
+	>(room: R, event: E, callback: EventCallback<D>): void {
 		const roomMap = this.#roomCallbacksMap.get(room);
 		if (roomMap) {
 			this.deleteCallback(roomMap, event, callback);
@@ -455,12 +454,11 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 		}
 	}
 
-	#deleteOnceRoomCallback<R extends StringKeys<TEvents["listenRoom"]>, E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>>(
-		room: R,
-		event: E,
-		callback: EventCallback<NonNullable<TEvents["listenRoom"]>[R][E]>,
-		callbackWrapper: EventCallback<NonNullable<TEvents["listenRoom"]>[R][E]>,
-	): void {
+	#deleteOnceRoomCallback<
+		R extends StringKeys<TEvents["listenRoom"]>,
+		E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
+		D extends NonNullable<TEvents["listenRoom"]>[R][E],
+	>(room: R, event: E, callback: EventCallback<D>, callbackWrapper: EventCallback<D>): void {
 		const onceRoomMap = this.#onceRoomCallbacksMap.get(room);
 		if (onceRoomMap) {
 			this.deleteOnceCallback(onceRoomMap, event, callback, callbackWrapper);
@@ -468,11 +466,11 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 		}
 	}
 
-	#addRoomCallback<R extends StringKeys<TEvents["listenRoom"]>, E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>>(
-		room: R,
-		event: E,
-		callback: EventCallback<NonNullable<TEvents["listenRoom"]>[R][E]>,
-	): void {
+	#addRoomCallback<
+		R extends StringKeys<TEvents["listenRoom"]>,
+		E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
+		D extends NonNullable<TEvents["listenRoom"]>[R][E],
+	>(room: R, event: E, callback: EventCallback<D>): void {
 		let roomMap = this.#roomCallbacksMap.get(room);
 		if (!roomMap) {
 			roomMap = new Map();
@@ -481,12 +479,11 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 		this.addCallback(roomMap, event, callback);
 	}
 
-	#addOnceRoomCallback<R extends StringKeys<TEvents["listenRoom"]>, E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>>(
-		room: R,
-		event: E,
-		callback: EventCallback<NonNullable<TEvents["listenRoom"]>[R][E]>,
-		callbackWrapper: EventCallback<NonNullable<TEvents["listenRoom"]>[R][E]>,
-	): void {
+	#addOnceRoomCallback<
+		R extends StringKeys<TEvents["listenRoom"]>,
+		E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
+		D extends NonNullable<TEvents["listenRoom"]>[R][E],
+	>(room: R, event: E, callback: EventCallback<D>, callbackWrapper: EventCallback<D>): void {
 		let onceRoomMap = this.#onceRoomCallbacksMap.get(room);
 		if (!onceRoomMap) {
 			onceRoomMap = new Map();

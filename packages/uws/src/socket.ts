@@ -110,7 +110,7 @@ export class Socket<SD extends SocketData = SocketData, TEvents extends Symmetri
 	 * Payload attached during successful authentication.
 	 * Available in middleware and event listeners.
 	 */
-	payload: unknown = null;
+	payload: any = {};
 
 	/**
 	 * Mutable object for storing arbitrary data during the socket's lifetime.
@@ -122,11 +122,11 @@ export class Socket<SD extends SocketData = SocketData, TEvents extends Symmetri
 	 *   next();
 	 * });
 	 */
-	locals: Record<string | number, unknown> = {};
+	locals: any = {};
 
 	readonly #ws: WebSocket<SD>;
 	readonly #broadcastRoom: string;
-	readonly #encode: <R extends string, E extends string | number, D = unknown>(
+	readonly #encode: <R extends string, E extends string | number, D>(
 		payload: LifecycleMessage<R, D> | UserMessage<R, E, D>,
 	) => string | Buffer<ArrayBufferLike>;
 	#authState: AuthState = AuthState.idle;
@@ -155,12 +155,87 @@ export class Socket<SD extends SocketData = SocketData, TEvents extends Symmetri
 		return this.#ws.getUserData();
 	}
 
+	/**
+	 * The raw query string from the WebSocket upgrade request.
+	 *
+	 * @example
+	 * // If the client connected to `wss://example.com/socket?room=lobby&token=abc`,
+	 * // this will be `"room=lobby&token=abc"`.
+	 * const query = socket.query;
+	 * const params = new URLSearchParams(socket.query);
+	 * console.log(params.get('room')); // "lobby"
+	 */
+	get query(): string {
+		return this.userData.query;
+	}
+
+	/**
+	 * The `Cookie` header from the WebSocket upgrade request.
+	 *
+	 * @example
+	 * // Useful for session handling when not using the Authorization header.
+	 * const cookies = socket.cookie;
+	 * const sessionId = parseCookies(cookies)?.sessionId;
+	 */
+	get cookie(): string {
+		return this.userData.cookie;
+	}
+
+	/**
+	 * The `Authorization` header from the WebSocket upgrade request.
+	 * Typically contains a Bearer token or Basic auth credentials.
+	 *
+	 * @example
+	 * const authHeader = socket.authorization;
+	 * if (authHeader?.startsWith('Bearer ')) {
+	 *   const token = authHeader.slice(7);
+	 *   // validate token...
+	 * }
+	 */
+	get authorization(): string {
+		return this.userData.authorization;
+	}
+
+	/**
+	 * The `User-Agent` header from the WebSocket upgrade request.
+	 *
+	 * @example
+	 * console.log(`Client: ${socket.userAgent}`);
+	 * // "Client: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ..."
+	 */
+	get userAgent(): string {
+		return this.userData.userAgent;
+	}
+
+	/**
+	 * The `Host` header from the WebSocket upgrade request.
+	 * Includes the domain and (optionally) port the client used to connect.
+	 *
+	 * @example
+	 * console.log(socket.host); // "api.example.com"
+	 */
+	get host(): string {
+		return this.userData.host;
+	}
+
+	/**
+	 * The `X-Forwarded-For` header from the WebSocket upgrade request.
+	 * Contains the originating client IP when behind a proxy or load balancer.
+	 *
+	 * @example
+	 * const clientIp = socket.xForwardedFor?.split(',')[0].trim() || 'unknown';
+	 * console.log(`Client IP: ${clientIp}`);
+	 */
+	get xForwardedFor(): string {
+		return this.userData.xForwardedFor;
+	}
+
 	/** @internal */
 	constructor(
 		id: string,
 		ws: WebSocket<SD>,
 		broadcastRoom: string,
-		encode: <R extends string, E extends string | number, D = unknown>(
+		encode: <R extends string, E extends string | number, D>(
 			payload: LifecycleMessage<R, D> | UserMessage<R, E, D>,
 		) => string | Buffer<ArrayBufferLike>,
 	) {
@@ -210,7 +285,7 @@ export class Socket<SD extends SocketData = SocketData, TEvents extends Symmetri
 	 *
 	 * @internal You typically use `emit()` or `broadcast()` instead.
 	 */
-	send<R extends string, E extends string | number, D = unknown>(payload: LifecycleMessage<R, D> | UserMessage<R, E, D>) {
+	send<R extends string, E extends string | number, D>(payload: LifecycleMessage<R, D> | UserMessage<R, E, D>) {
 		if (this.#closed) return;
 		const message = this.#encode(payload);
 		this.#ws.send(message);
@@ -294,9 +369,9 @@ export class Socket<SD extends SocketData = SocketData, TEvents extends Symmetri
 	}
 
 	/** @internal */
-	_handleAuth<T extends { type: LifecycleTypes.auth; data: unknown } | null>(
-		parsed: T,
-		auth: AuthFunction<SD> | undefined,
+	_handleAuth<D>(
+		parsed: { type: LifecycleTypes.auth; data: D } | null,
+		auth: AuthFunction<SD, D> | undefined,
 		authTimeout: number,
 		broadcastRoom: string,
 	) {
@@ -330,7 +405,7 @@ export class Socket<SD extends SocketData = SocketData, TEvents extends Symmetri
 		this.rooms.join(broadcastRoom);
 	}
 
-	#setAuthSuccess(payload: unknown): void {
+	#setAuthSuccess<P>(payload: P): void {
 		if (this.#closed) return;
 		if (this.#authState !== AuthState.pending) return;
 		this.#clearAuthTimer();

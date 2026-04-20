@@ -241,15 +241,15 @@ export class ByteSocket<TEvents extends SymmetricEvents = SymmetricEvents> exten
 			/**
 			 * Register a listener for authentication errors.
 			 */
-			onAuthError: (callback: (data: unknown) => void) => this.onLifecycle(LifecycleTypes.auth_error, callback),
+			onAuthError: (callback: <D>(data: D) => void) => this.onLifecycle(LifecycleTypes.auth_error, callback),
 			/**
 			 * Remove a listener for authentication errors.
 			 */
-			offAuthError: (callback?: (data: unknown) => void) => this.offLifecycle(LifecycleTypes.auth_error, callback),
+			offAuthError: (callback?: <D>(data: D) => void) => this.offLifecycle(LifecycleTypes.auth_error, callback),
 			/**
 			 * Register a one‑time listener for authentication errors.
 			 */
-			onceAuthError: (callback: (data: unknown) => void) => this.onceLifecycle(LifecycleTypes.auth_error, callback),
+			onceAuthError: (callback: <D>(data: D) => void) => this.onceLifecycle(LifecycleTypes.auth_error, callback),
 
 			/**
 			 * Register a listener for when the message queue becomes full and a message is dropped.
@@ -299,7 +299,7 @@ export class ByteSocket<TEvents extends SymmetricEvents = SymmetricEvents> exten
 	// Encoding / Decoding
 	// ────────────────────────────────────────────────────────────────────────────
 
-	#encode<R extends string, E extends string | number, D = unknown>(payload: LifecycleMessage<R, D> | UserMessage<R, E, D>): string | BufferSource {
+	#encode<R extends string, E extends string | number, D>(payload: LifecycleMessage<R, D> | UserMessage<R, E, D>): string | BufferSource {
 		if (this.#options.serialization === "binary") {
 			return this.#packr.pack(payload);
 		} else {
@@ -346,7 +346,7 @@ export class ByteSocket<TEvents extends SymmetricEvents = SymmetricEvents> exten
 		}
 	}
 
-	#send<R extends string, E extends string | number, D = unknown>(
+	#send<R extends string, E extends string | number, D>(
 		payload: LifecycleMessage<R, D> | UserMessage<R, E, D>,
 		bypassAuthPending: boolean = false,
 	): void {
@@ -427,7 +427,7 @@ export class ByteSocket<TEvents extends SymmetricEvents = SymmetricEvents> exten
 	 *   console.log(`User ${data.userId} joined`);
 	 * });
 	 */
-	on<E extends StringNumberKeys<TEvents["listen"]>>(event: E, callback: EventCallback<NonNullable<TEvents["listen"]>[E]>): void {
+	on<E extends StringNumberKeys<TEvents["listen"]>, D extends NonNullable<TEvents["listen"]>[E]>(event: E, callback: EventCallback<D>): void {
 		this.addCallback(this.#callbacksMap, event, callback);
 	}
 
@@ -441,7 +441,7 @@ export class ByteSocket<TEvents extends SymmetricEvents = SymmetricEvents> exten
 	 * // Remove all listeners for 'user:joined'
 	 * socket.off('user:joined');
 	 */
-	off<E extends StringNumberKeys<TEvents["listen"]>>(event: E, callback?: EventCallback<NonNullable<TEvents["listen"]>[E]>): void {
+	off<E extends StringNumberKeys<TEvents["listen"]>, D extends NonNullable<TEvents["listen"]>[E]>(event: E, callback?: EventCallback<D>): void {
 		if (!callback) {
 			this.#callbacksMap.delete(event);
 			this.#onceCallbacksMap.delete(event);
@@ -467,8 +467,8 @@ export class ByteSocket<TEvents extends SymmetricEvents = SymmetricEvents> exten
 	 *   console.log('First join event:', data);
 	 * });
 	 */
-	once<E extends StringNumberKeys<TEvents["listen"]>>(event: E, callback: EventCallback<NonNullable<TEvents["listen"]>[E]>): void {
-		const callbackWrapper: EventCallback<NonNullable<TEvents["listen"]>[E]> = (data) => {
+	once<E extends StringNumberKeys<TEvents["listen"]>, D extends NonNullable<TEvents["listen"]>[E]>(event: E, callback: EventCallback<D>): void {
+		const callbackWrapper: EventCallback<D> = (data) => {
 			this.deleteCallback(this.#callbacksMap, event, callbackWrapper);
 			this.deleteOnceCallback(this.#onceCallbacksMap, event, callback, callbackWrapper);
 			callback(data);
@@ -605,7 +605,7 @@ export class ByteSocket<TEvents extends SymmetricEvents = SymmetricEvents> exten
 		this.triggerCallback(this.lifecycleCallbacksMap.get(LifecycleTypes.auth_success));
 	}
 
-	#handleAuthError(err: unknown, permanent = true): void {
+	#handleAuthError<T>(err: T, permanent = true): void {
 		this.#clearAuthTimeout();
 		if (permanent) {
 			this.#messageQueue = [];
@@ -617,7 +617,7 @@ export class ByteSocket<TEvents extends SymmetricEvents = SymmetricEvents> exten
 		this.triggerCallback(this.lifecycleCallbacksMap.get(LifecycleTypes.auth_error), err);
 	}
 
-	#authenticate<D = unknown>(config: AuthConfig<D>): void {
+	#authenticate<D>(config: AuthConfig<D>): void {
 		this.#authState = AuthState.pending;
 		this.#startAuthTimeout();
 		if (typeof config === "function") {
@@ -637,7 +637,7 @@ export class ByteSocket<TEvents extends SymmetricEvents = SymmetricEvents> exten
 		}
 	}
 
-	#sendAuthData<D = unknown>(data: D): void {
+	#sendAuthData<D>(data: D): void {
 		if (this.readyState === WebSocket.OPEN) {
 			this.#send({ type: LifecycleTypes.auth, data }, true);
 			if (this.debug) console.log("ByteSocket: auth payload sent");

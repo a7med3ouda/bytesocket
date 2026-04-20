@@ -43,7 +43,7 @@ export type AuthCallback = (payload: unknown, error?: Error) => void;
  *   }
  * };
  */
-export type AuthFunction<SD extends SocketData = SocketData, D = unknown> = (socket: Socket<SD>, data: D, callback: AuthCallback) => void;
+export type AuthFunction<SD extends SocketData, D = any> = (socket: Socket<SD>, data: D, callback: AuthCallback) => void;
 
 /**
  * Callback for global event listeners.
@@ -56,7 +56,7 @@ export type AuthFunction<SD extends SocketData = SocketData, D = unknown> = (soc
  *   console.log(`User ${data.userId} joined`);
  * });
  */
-export type EventCallback<SD extends SocketData = SocketData, D = unknown> = (socket: Socket<SD>, data: D) => void;
+export type EventCallback<SD extends SocketData, D> = (socket: Socket<SD>, data: D) => void;
 
 /**
  * Middleware function for room‑scoped events. Can inspect or block the broadcast.
@@ -80,11 +80,7 @@ export type EventCallback<SD extends SocketData = SocketData, D = unknown> = (so
  *   next();
  * });
  */
-export type RoomEventMiddleware<SD extends SocketData = SocketData, D = unknown> = (
-	socket: Socket<SD>,
-	data: D,
-	next: MiddlewareNext,
-) => void | Promise<void>;
+export type RoomEventMiddleware<SD extends SocketData, D> = (socket: Socket<SD>, data: D, next: MiddlewareNext) => void | Promise<void>;
 
 /**
  * Next function for middleware chains. Call `next()` to proceed, or `next(error)` to abort.

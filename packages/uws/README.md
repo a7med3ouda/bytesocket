@@ -335,7 +335,7 @@ Every event handler and middleware receives a `Socket` instance:
 socket.id; // UUID string
 
 // Auth payload (set by your auth function)
-socket.payload; // unknown (cast to your type)
+socket.payload; // any (cast to your type)
 
 // Arbitrary data store — survives across middleware
 socket.locals.requestId = randomUUID();

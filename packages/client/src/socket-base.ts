@@ -19,11 +19,7 @@ export abstract class SocketBase {
 	/**
 	 * Adds a callback to a given event in the provided map.
 	 */
-	protected addCallback<E extends string | number, D = unknown>(
-		callbacksMap: Map<string | number, Set<AnyCallback>>,
-		event: E,
-		callback: EventCallback<D>,
-	) {
+	protected addCallback<E extends string | number, D>(callbacksMap: Map<string | number, Set<AnyCallback>>, event: E, callback: EventCallback<D>) {
 		let eventCallbackSet = callbacksMap.get(event);
 		if (!eventCallbackSet) {
 			eventCallbackSet = new Set();
@@ -35,7 +31,7 @@ export abstract class SocketBase {
 	/**
 	 * Registers a one‑time callback by storing the wrapper in a separate map.
 	 */
-	protected addOnceCallback<E extends string | number, D = unknown>(
+	protected addOnceCallback<E extends string | number, D>(
 		onceCallbacksMap: Map<string | number, Map<AnyCallback, Set<AnyCallback>>>,
 		event: E,
 		callback: EventCallback<D>,
@@ -57,7 +53,7 @@ export abstract class SocketBase {
 	/**
 	 * Removes a callback from an event map.
 	 */
-	protected deleteCallback<E extends string | number, D = unknown>(
+	protected deleteCallback<E extends string | number, D>(
 		callbacksMap: Map<string | number, Set<AnyCallback>>,
 		event: E,
 		callbackWrapper: EventCallback<D>,
@@ -74,7 +70,7 @@ export abstract class SocketBase {
 	/**
 	 * Removes a one‑time callback and its associated wrapper.
 	 */
-	protected deleteOnceCallback<E extends string | number, D = unknown>(
+	protected deleteOnceCallback<E extends string | number, D>(
 		onceCallbacksMap: Map<string | number, Map<AnyCallback, Set<AnyCallback>>>,
 		event: E,
 		callback: EventCallback<D>,
@@ -126,7 +122,7 @@ export abstract class SocketBase {
 	 * The callback is automatically removed after the first invocation.
 	 */
 	protected onceLifecycle<T extends LifecycleTypes>(type: T, callback: AnyCallback) {
-		const callbackWrapper = (...args: unknown[]) => {
+		const callbackWrapper = <Args extends Array<unknown>>(...args: Args) => {
 			this.deleteCallback(this.lifecycleCallbacksMap, type, callbackWrapper);
 			this.deleteOnceCallback(this.onceLifecycleCallbacksMap, type, callback, callbackWrapper);
 			callback(...args);
@@ -138,7 +134,7 @@ export abstract class SocketBase {
 	/**
 	 * Safely invokes a set of callbacks, catching and logging errors if debug is enabled.
 	 */
-	protected triggerCallback(callbackWrappers?: Set<AnyCallback>, ...args: unknown[]) {
+	protected triggerCallback<Args extends Array<unknown>>(callbackWrappers?: Set<AnyCallback>, ...args: Args) {
 		if (!callbackWrappers) return;
 		const callbacks = Array.from(callbackWrappers);
 		for (const callback of callbacks) {

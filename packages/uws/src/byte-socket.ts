@@ -111,22 +111,34 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 			data: D,
 		) => void;
 		/** Register a room event middleware. */
-		on: <R extends StringKeys<TEvents["listenRoom"]>, E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>>(
+		on: <
+			R extends StringKeys<TEvents["listenRoom"]>,
+			E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
+			D extends NonNullable<TEvents["listenRoom"]>[R][E],
+		>(
 			room: R,
 			event: E,
-			callback: RoomEventMiddleware<SD, NonNullable<TEvents["listenRoom"]>[R][E]>,
+			callback: RoomEventMiddleware<SD, D>,
 		) => void;
 		/** Remove a room event middleware. */
-		off: <R extends StringKeys<TEvents["listenRoom"]>, E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>>(
+		off: <
+			R extends StringKeys<TEvents["listenRoom"]>,
+			E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
+			D extends NonNullable<TEvents["listenRoom"]>[R][E],
+		>(
 			room: R,
 			event?: E,
-			callback?: RoomEventMiddleware<SD, NonNullable<TEvents["listenRoom"]>[R][E]>,
+			callback?: RoomEventMiddleware<SD, D>,
 		) => void;
 		/** Register a one‑time room event middleware. */
-		once: <R extends StringKeys<TEvents["listenRoom"]>, E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>>(
+		once: <
+			R extends StringKeys<TEvents["listenRoom"]>,
+			E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
+			D extends NonNullable<TEvents["listenRoom"]>[R][E],
+		>(
 			room: R,
 			event: E,
-			callback: RoomEventMiddleware<SD, NonNullable<TEvents["listenRoom"]>[R][E]>,
+			callback: RoomEventMiddleware<SD, D>,
 		) => void;
 		/** Lifecycle hooks for room join/leave (single rooms). */
 		lifecycle: {
@@ -342,7 +354,7 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 	 *
 	 * @example io.on('userJoined', (socket, data) => { console.log(data.userId); });
 	 */
-	on<E extends StringNumberKeys<TEvents["listen"]>>(event: E, callback: EventCallback<SD, NonNullable<TEvents["listen"]>[E]>): void {
+	on<E extends StringNumberKeys<TEvents["listen"]>, D extends NonNullable<TEvents["listen"]>>(event: E, callback: EventCallback<SD, D>): void {
 		this.#addCallback(this.#callbacksMap, event, callback);
 	}
 
@@ -352,7 +364,7 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 	 *
 	 * @example io.off('userJoined', myCallback);
 	 */
-	off<E extends StringNumberKeys<TEvents["listen"]>>(event: E, callback?: EventCallback<SD, NonNullable<TEvents["listen"]>[E]>): void {
+	off<E extends StringNumberKeys<TEvents["listen"]>, D extends NonNullable<TEvents["listen"]>>(event: E, callback?: EventCallback<SD, D>): void {
 		if (!callback) {
 			this.#callbacksMap.delete(event);
 			this.#onceCallbacksMap.delete(event);
@@ -375,8 +387,8 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 	 *
 	 * @example io.once('userJoined', (socket, data) => { console.log('First join'); });
 	 */
-	once<E extends StringNumberKeys<TEvents["listen"]>>(event: E, callback: EventCallback<SD, NonNullable<TEvents["listen"]>[E]>): void {
-		const callbackWrapper: EventCallback<SD, NonNullable<TEvents["listen"]>[E]> = (...args) => {
+	once<E extends StringNumberKeys<TEvents["listen"]>, D extends NonNullable<TEvents["listen"]>>(event: E, callback: EventCallback<SD, D>): void {
+		const callbackWrapper: EventCallback<SD, D> = (...args) => {
 			this.#deleteCallback(this.#callbacksMap, event, callbackWrapper);
 			this.#deleteOnceCallback(this.#onceCallbacksMap, event, callback, callbackWrapper);
 			callback(...args);
@@ -385,19 +397,19 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 		this.#addCallback(this.#callbacksMap, event, callbackWrapper);
 	}
 
-	#onRoom<R extends StringKeys<TEvents["listenRoom"]>, E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>>(
-		room: R,
-		event: E,
-		callback: RoomEventMiddleware<SD, NonNullable<TEvents["listenRoom"]>[R][E]>,
-	): void {
+	#onRoom<
+		R extends StringKeys<TEvents["listenRoom"]>,
+		E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
+		D extends NonNullable<TEvents["listenRoom"]>[R][E],
+	>(room: R, event: E, callback: RoomEventMiddleware<SD, D>): void {
 		this.#addRoomCallback(room, event, callback);
 	}
 
-	#offRoom<R extends StringKeys<TEvents["listenRoom"]>, E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>>(
-		room: R,
-		event?: E,
-		callback?: RoomEventMiddleware<SD, NonNullable<TEvents["listenRoom"]>[R][E]>,
-	): void {
+	#offRoom<
+		R extends StringKeys<TEvents["listenRoom"]>,
+		E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
+		D extends NonNullable<TEvents["listenRoom"]>[R][E],
+	>(room: R, event?: E, callback?: RoomEventMiddleware<SD, D>): void {
 		const roomMap = this.#roomCallbacksMap.get(room);
 		if (!roomMap) return;
 		if (event === undefined) {
@@ -426,12 +438,12 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 		this.#deleteRoomCallback(room, event, callback);
 	}
 
-	#onceRoom<R extends StringKeys<TEvents["listenRoom"]>, E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>>(
-		room: R,
-		event: E,
-		callback: RoomEventMiddleware<SD, NonNullable<TEvents["listenRoom"]>[R][E]>,
-	): void {
-		const callbackWrapper: RoomEventMiddleware<SD, NonNullable<TEvents["listenRoom"]>[R][E]> = (...args) => {
+	#onceRoom<
+		R extends StringKeys<TEvents["listenRoom"]>,
+		E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
+		D extends NonNullable<TEvents["listenRoom"]>[R][E],
+	>(room: R, event: E, callback: RoomEventMiddleware<SD, D>): void {
+		const callbackWrapper: RoomEventMiddleware<SD, D> = (...args) => {
 			this.#deleteRoomCallback(room, event, callbackWrapper);
 			this.#deleteOnceRoomCallback(room, event, callback, callbackWrapper);
 			callback(...args);
@@ -440,11 +452,11 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 		this.#addRoomCallback(room, event, callbackWrapper);
 	}
 
-	#deleteRoomCallback<R extends StringKeys<TEvents["listenRoom"]>, E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>>(
-		room: R,
-		event: E,
-		callback: RoomEventMiddleware<SD, NonNullable<TEvents["listenRoom"]>[R][E]>,
-	): void {
+	#deleteRoomCallback<
+		R extends StringKeys<TEvents["listenRoom"]>,
+		E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
+		D extends NonNullable<TEvents["listenRoom"]>[R][E],
+	>(room: R, event: E, callback: RoomEventMiddleware<SD, D>): void {
 		const roomMap = this.#roomCallbacksMap.get(room);
 		if (roomMap) {
 			this.#deleteCallback(roomMap, event, callback);
@@ -452,12 +464,11 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 		}
 	}
 
-	#deleteOnceRoomCallback<R extends StringKeys<TEvents["listenRoom"]>, E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>>(
-		room: R,
-		event: E,
-		callback: RoomEventMiddleware<SD, NonNullable<TEvents["listenRoom"]>[R][E]>,
-		callbackWrapper: RoomEventMiddleware<SD, NonNullable<TEvents["listenRoom"]>[R][E]>,
-	): void {
+	#deleteOnceRoomCallback<
+		R extends StringKeys<TEvents["listenRoom"]>,
+		E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
+		D extends NonNullable<TEvents["listenRoom"]>[R][E],
+	>(room: R, event: E, callback: RoomEventMiddleware<SD, D>, callbackWrapper: RoomEventMiddleware<SD, D>): void {
 		const onceRoomMap = this.#onceRoomCallbacksMap.get(room);
 		if (onceRoomMap) {
 			this.#deleteOnceCallback(onceRoomMap, event, callback, callbackWrapper);
@@ -465,11 +476,11 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 		}
 	}
 
-	#addRoomCallback<R extends StringKeys<TEvents["listenRoom"]>, E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>>(
-		room: R,
-		event: E,
-		callback: RoomEventMiddleware<SD, NonNullable<TEvents["listenRoom"]>[R][E]>,
-	): void {
+	#addRoomCallback<
+		R extends StringKeys<TEvents["listenRoom"]>,
+		E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
+		D extends NonNullable<TEvents["listenRoom"]>[R][E],
+	>(room: R, event: E, callback: RoomEventMiddleware<SD, D>): void {
 		let roomMap = this.#roomCallbacksMap.get(room);
 		if (!roomMap) {
 			roomMap = new Map();
@@ -478,12 +489,11 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 		this.#addCallback(roomMap, event, callback);
 	}
 
-	#addOnceRoomCallback<R extends StringKeys<TEvents["listenRoom"]>, E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>>(
-		room: R,
-		event: E,
-		callback: RoomEventMiddleware<SD, NonNullable<TEvents["listenRoom"]>[R][E]>,
-		callbackWrapper: RoomEventMiddleware<SD, NonNullable<TEvents["listenRoom"]>[R][E]>,
-	): void {
+	#addOnceRoomCallback<
+		R extends StringKeys<TEvents["listenRoom"]>,
+		E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
+		D extends NonNullable<TEvents["listenRoom"]>[R][E],
+	>(room: R, event: E, callback: RoomEventMiddleware<SD, D>, callbackWrapper: RoomEventMiddleware<SD, D>): void {
 		let onceRoomMap = this.#onceRoomCallbacksMap.get(room);
 		if (!onceRoomMap) {
 			onceRoomMap = new Map();
@@ -506,7 +516,11 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 		this.#middlewares.push(fn);
 	}
 
-	#runMiddlewares(socket: Socket<SD, TEvents>, ctx: UserMessage, finalCallback: () => void): void {
+	#runMiddlewares<R extends string, E extends string | number, D>(
+		socket: Socket<SD, TEvents>,
+		ctx: UserMessage<R, E, D>,
+		finalCallback: () => void,
+	): void {
 		let index = 0;
 		let aborted = false;
 
@@ -733,7 +747,7 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 		});
 	}
 
-	#encode<R extends string, E extends string | number, D = unknown>(
+	#encode<R extends string, E extends string | number, D>(
 		payload: LifecycleMessage<R, D> | UserMessage<R, E, D>,
 	): string | Buffer<ArrayBufferLike> {
 		if (this.#options.serialization === "binary") {
@@ -941,7 +955,7 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 	}
 
 	#onceLifecycle<T extends LifecycleTypes>(type: T, callback: AnyCallback) {
-		const callbackWrapper = (...args: unknown[]) => {
+		const callbackWrapper = <Args extends Array<unknown>>(...args: Args) => {
 			this.#deleteCallback(this.#lifecycleCallbacksMap, type, callbackWrapper);
 			this.#deleteOnceCallback(this.#onceLifecycleCallbacksMap, type, callback, callbackWrapper);
 			callback(...args);
@@ -950,7 +964,7 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 		this.#addCallback(this.#lifecycleCallbacksMap, type, callbackWrapper);
 	}
 
-	#triggerCallbacks(callbackSet?: Set<AnyCallback>, ...args: unknown[]): void {
+	#triggerCallbacks<Args extends Array<unknown>>(callbackSet?: Set<AnyCallback>, ...args: Args): void {
 		if (!callbackSet) return;
 		const callbacks = Array.from(callbackSet);
 		for (const callback of callbacks) {
@@ -963,7 +977,7 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 		}
 	}
 
-	#runSyncHooks(callbackSet: Set<AnyCallback> | undefined, args: unknown[], next: MiddlewareNext): void {
+	#runSyncHooks<Args extends Array<unknown>>(callbackSet: Set<AnyCallback> | undefined, args: Args, next: MiddlewareNext): void {
 		if (!callbackSet) return next();
 		let firstError: unknown = null;
 		for (const cb of callbackSet) {
@@ -977,7 +991,7 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 		next(firstError);
 	}
 
-	#runAsyncHooksOrNext(callbacks: Set<AnyCallback> | undefined, args: unknown[], finalCallback: MiddlewareNext): void {
+	#runAsyncHooksOrNext<Args extends Array<unknown>>(callbacks: Set<AnyCallback> | undefined, args: Args, finalCallback: MiddlewareNext): void {
 		if (!callbacks || callbacks.size === 0) {
 			try {
 				finalCallback();
@@ -1123,7 +1137,7 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 		return this.#isMessage(obj) && "room" in obj && typeof obj.room === "string";
 	}
 
-	#isRoomsMessage<Rs extends string[], E extends string | number, D = unknown>(obj: unknown): obj is { rooms: Rs; event: E; data: D } {
+	#isRoomsMessage<Rs extends string[], E extends string | number, D>(obj: unknown): obj is { rooms: Rs; event: E; data: D } {
 		return this.#isMessage(obj) && "rooms" in obj && Array.isArray(obj.rooms) && !obj.rooms.some((x) => typeof x !== "string");
 	}
 }

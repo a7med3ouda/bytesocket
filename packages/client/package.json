@@ -1,6 +1,6 @@
 {
 	"name": "@bytesocket/client",
-	"version": "0.1.2",
+	"version": "0.1.3",
 	"license": "MIT",
 	"description": "High-performance WebSocket client for browsers",
 	"type": "module",

@@ -83,7 +83,7 @@ export type RoomsType<Rs extends readonly string[]> = {
 /**
  * Lifecycle message shape for events that carry generic data (error, auth, auth_error).
  */
-export type LifecyclePayload<D = unknown> = {
+export type LifecyclePayload<D> = {
 	type: LifecycleTypes.error | LifecycleTypes.auth | LifecycleTypes.auth_error;
 	data: D;
 };
@@ -91,7 +91,7 @@ export type LifecyclePayload<D = unknown> = {
 /**
  * Lifecycle error message for a single room.
  */
-export type RoomPayload<R extends string, D = unknown> = {
+export type RoomPayload<R extends string, D> = {
 	type: LifecycleTypes.join_room_error | LifecycleTypes.leave_room_error;
 	room: R;
 	data: D;
@@ -100,7 +100,7 @@ export type RoomPayload<R extends string, D = unknown> = {
 /**
  * Lifecycle error message for multiple rooms.
  */
-export type RoomsPayload<Rs extends readonly string[], D = unknown> = {
+export type RoomsPayload<Rs extends readonly string[], D> = {
 	type: LifecycleTypes.join_rooms_error | LifecycleTypes.leave_rooms_error;
 	rooms: Rs;
 	data: D;
@@ -109,7 +109,7 @@ export type RoomsPayload<Rs extends readonly string[], D = unknown> = {
 /**
  * Union of all possible lifecycle messages that ByteSocket may send or receive.
  */
-export type LifecycleMessage<R extends string, D = unknown> =
+export type LifecycleMessage<R extends string, D> =
 	| LifecycleType
 	| RoomType<R>
 	| RoomsType<R[]>
@@ -124,7 +124,7 @@ export type LifecycleMessage<R extends string, D = unknown> =
  * // Emitting to room "chat" with event "message"
  * socket.rooms.emit("chat", "message", { text: "Hello!" });
  */
-export type RoomEvent<R extends string, E extends string | number, D = unknown> = {
+export type RoomEvent<R extends string, E extends string | number, D> = {
 	room: R;
 	event: E;
 	data: D;
@@ -137,7 +137,7 @@ export type RoomEvent<R extends string, E extends string | number, D = unknown> 
  * // Emitting to rooms ["lobby", "announcements"]
  * socket.rooms.bulk.emit(["lobby", "announcements"], "alert", { msg: "Server restart in 5m" });
  */
-export type RoomsEvent<Rs extends readonly string[], E extends string | number, D = unknown> = {
+export type RoomsEvent<Rs extends readonly string[], E extends string | number, D> = {
 	rooms: Rs;
 	event: E;
 	data: D;
@@ -149,7 +149,7 @@ export type RoomsEvent<Rs extends readonly string[], E extends string | number, 
  * @example
  * socket.emit("userJoined", { userId: "abc123" });
  */
-export type GeneralEvent<E extends string | number, D = unknown> = {
+export type GeneralEvent<E extends string | number, D> = {
 	event: E;
 	data: D;
 };
@@ -157,7 +157,7 @@ export type GeneralEvent<E extends string | number, D = unknown> = {
 /**
  * Union of all possible user messages that can be emitted or listened to.
  */
-export type UserMessage<R extends string = string, E extends string | number = string | number, D = unknown> =
+export type UserMessage<R extends string = string, E extends string | number = string | number, D = any> =
 	| GeneralEvent<E, D>
 	| RoomEvent<R, E, D>
 	| RoomsEvent<R[], E, D>;

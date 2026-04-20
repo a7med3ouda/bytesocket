@@ -3,7 +3,7 @@ import type { MsgpackrOptions } from "@bytesocket/types";
 /**
  * Signature of a callback that receives event data.
  */
-export type EventCallback<D = unknown> = (data: D) => void;
+export type EventCallback<D> = (data: D) => void;
 
 /**
  * Internal state tracking for a single room.
@@ -34,7 +34,7 @@ export interface RoomState {
  *   }
  * });
  */
-export type AuthConfig<D = unknown> = { data: D } | ((cb: (data: D) => void) => void);
+export type AuthConfig<D = any> = { data: D } | ((cb: (data: D) => void) => void);
 
 /**
  * Configuration options for ByteSocket.
