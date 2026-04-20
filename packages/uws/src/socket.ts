@@ -54,7 +54,7 @@ export class Socket<SD extends SocketData = SocketData, TEvents extends Symmetri
 		emit: <
 			R extends StringKeys<TEvents["emitRoom"]>,
 			E extends StringNumberKeys<NonNullable<TEvents["emitRoom"]>[R]>,
-			D extends NonNullable<NonNullable<TEvents["emitRoom"]>[R]>[E],
+			D extends NonNullable<TEvents["emitRoom"]>[R][E],
 		>(
 			room: R,
 			event: E,
@@ -312,7 +312,7 @@ export class Socket<SD extends SocketData = SocketData, TEvents extends Symmetri
 	#publish<
 		R extends StringKeys<TEvents["emitRoom"]>,
 		E extends StringNumberKeys<NonNullable<TEvents["emitRoom"]>[R]>,
-		D extends NonNullable<NonNullable<TEvents["emitRoom"]>[R]>[E],
+		D extends NonNullable<TEvents["emitRoom"]>[R][E],
 	>(room: R, event: E, data: D): void {
 		if (this.#closed) return;
 		const message = this.#encode({ room, event, data });

@@ -157,7 +157,7 @@ export type GeneralEvent<E extends string | number, D> = {
 /**
  * Union of all possible user messages that can be emitted or listened to.
  */
-export type UserMessage<R extends string = string, E extends string | number = string | number, D = any> =
+export type UserMessage<R extends string = string, E extends string | number = string | number, D = unknown> =
 	| GeneralEvent<E, D>
 	| RoomEvent<R, E, D>
 	| RoomsEvent<R[], E, D>;
@@ -216,11 +216,7 @@ export enum AuthState {
  * io.on('message', (data) => { data.sender });         // typed
  * io.rooms.on('chat', 'message', (data) => {});        // typed room listen
  */
-export type SymmetricEvents<
-	T extends { [event: string | number]: unknown } = {
-		[event: string | number]: unknown;
-	},
-> = {
+export type SymmetricEvents<T extends { [event: string | number]: unknown } = { [event: string | number]: unknown }> = {
 	/** Events that can be emitted globally. */
 	emit?: T;
 	/** Events that can be listened to globally. */

@@ -267,7 +267,7 @@ export class RoomManager<TEvents extends SymmetricEvents> extends SocketBase {
 	emit<
 		R extends StringKeys<TEvents["emitRoom"]>,
 		E extends StringNumberKeys<NonNullable<TEvents["emitRoom"]>[R]>,
-		D extends NonNullable<NonNullable<TEvents["emitRoom"]>[R]>[E],
+		D extends NonNullable<TEvents["emitRoom"]>[R][E],
 	>(room: R, event: E, data: D): void {
 		this.#send({ room, event, data });
 	}

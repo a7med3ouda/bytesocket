@@ -104,7 +104,7 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 		emit: <
 			R extends StringKeys<TEvents["emitRoom"]>,
 			E extends StringNumberKeys<NonNullable<TEvents["emitRoom"]>[R]>,
-			D extends NonNullable<NonNullable<TEvents["emitRoom"]>[R]>[E],
+			D extends NonNullable<TEvents["emitRoom"]>[R][E],
 		>(
 			room: R,
 			event: E,
@@ -326,7 +326,7 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 	#publish<
 		R extends StringKeys<TEvents["emitRoom"]>,
 		E extends StringNumberKeys<NonNullable<TEvents["emitRoom"]>[R]>,
-		D extends NonNullable<NonNullable<TEvents["emitRoom"]>[R]>[E],
+		D extends NonNullable<TEvents["emitRoom"]>[R][E],
 	>(room: R, event: E, data: D) {
 		if (this.#destroyed) return;
 		const message = this.#encode({ room, event, data });
@@ -354,7 +354,7 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 	 *
 	 * @example io.on('userJoined', (socket, data) => { console.log(data.userId); });
 	 */
-	on<E extends StringNumberKeys<TEvents["listen"]>, D extends NonNullable<TEvents["listen"]>>(event: E, callback: EventCallback<SD, D>): void {
+	on<E extends StringNumberKeys<TEvents["listen"]>, D extends NonNullable<TEvents["listen"]>[E]>(event: E, callback: EventCallback<SD, D>): void {
 		this.#addCallback(this.#callbacksMap, event, callback);
 	}
 
@@ -364,7 +364,7 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 	 *
 	 * @example io.off('userJoined', myCallback);
 	 */
-	off<E extends StringNumberKeys<TEvents["listen"]>, D extends NonNullable<TEvents["listen"]>>(event: E, callback?: EventCallback<SD, D>): void {
+	off<E extends StringNumberKeys<TEvents["listen"]>, D extends NonNullable<TEvents["listen"]>[E]>(event: E, callback?: EventCallback<SD, D>): void {
 		if (!callback) {
 			this.#callbacksMap.delete(event);
 			this.#onceCallbacksMap.delete(event);
@@ -387,7 +387,7 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 	 *
 	 * @example io.once('userJoined', (socket, data) => { console.log('First join'); });
 	 */
-	once<E extends StringNumberKeys<TEvents["listen"]>, D extends NonNullable<TEvents["listen"]>>(event: E, callback: EventCallback<SD, D>): void {
+	once<E extends StringNumberKeys<TEvents["listen"]>, D extends NonNullable<TEvents["listen"]>[E]>(event: E, callback: EventCallback<SD, D>): void {
 		const callbackWrapper: EventCallback<SD, D> = (...args) => {
 			this.#deleteCallback(this.#callbacksMap, event, callbackWrapper);
 			this.#deleteOnceCallback(this.#onceCallbacksMap, event, callback, callbackWrapper);
@@ -1132,7 +1132,7 @@ export class ByteSocket<SD extends SocketData = SocketData, TEvents extends Symm
 	#isRoomMessage<
 		R extends StringKeys<TEvents["listenRoom"]>,
 		E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
-		D extends NonNullable<NonNullable<TEvents["listenRoom"]>[R]>[E],
+		D extends NonNullable<TEvents["listenRoom"]>[R][E],
 	>(obj: unknown): obj is { room: R; event: E; data: D } {
 		return this.#isMessage(obj) && "room" in obj && typeof obj.room === "string";
 	}

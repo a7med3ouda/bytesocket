@@ -43,7 +43,7 @@ export type AuthCallback = (payload: unknown, error?: Error) => void;
  *   }
  * };
  */
-export type AuthFunction<SD extends SocketData, D = any> = (socket: Socket<SD>, data: D, callback: AuthCallback) => void;
+export type AuthFunction<SD extends SocketData, D = unknown> = (socket: Socket<SD>, data: D, callback: AuthCallback) => void;
 
 /**
  * Callback for global event listeners.
