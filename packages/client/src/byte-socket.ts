@@ -179,7 +179,10 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 
 		this.#packr = new Packr({
 			...msgpackrOptions,
-			structures: ByteSocket.#DEFAULT_STRUCTURES,
+			useRecords: false,
+			structures: msgpackrOptions?.structures?.length
+				? [...ByteSocket.#DEFAULT_STRUCTURES, ...msgpackrOptions.structures]
+				: ByteSocket.#DEFAULT_STRUCTURES,
 			useFloat32: msgpackrOptions?.useFloat32 ?? FLOAT32_OPTIONS.DECIMAL_FIT,
 			copyBuffers: msgpackrOptions?.copyBuffers ?? false,
 			int64AsType: msgpackrOptions?.int64AsType ?? "bigint",

@@ -35,7 +35,7 @@ You do not need to install this package directly; it is a dependency of the main
 
 ### Other
 
-- `MsgpackrOptions` – Type for msgpackr configuration (excludes internal `structures`).
+- `MsgpackrOptions` – Type for msgpackr configuration (excludes internal `useRecords` must be false).
 - `AuthState` – Enum of authentication states (`idle`, `none`, `pending`, `success`, `failed`).
 - `AnyCallback` – Generic callback type (internal).
 

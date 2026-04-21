@@ -21,9 +21,9 @@ export type StringKeys<T> = Extract<keyof NonNullable<T>, string>;
 export type StringNumberKeys<T> = Extract<keyof NonNullable<T>, string | number>;
 
 /**
- * Options for the msgpackr serialization library, excluding the internal `structures` field.
+ * Options for the msgpackr serialization library, excluding the internal `useRecords` field must be false.
  */
-export type MsgpackrOptions = Omit<Options, "structures">;
+export type MsgpackrOptions = Omit<Options, "useRecords">;
 
 /**
  * Enumeration of all lifecycle message types used internally by ByteSocket.

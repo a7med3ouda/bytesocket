@@ -2,4 +2,4 @@ packages:
     - packages/*
 
 catalog:
-    msgpackr: 1.11.9
+    msgpackr: 1.11.10
