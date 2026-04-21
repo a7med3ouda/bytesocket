@@ -40,11 +40,32 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 	 */
 	readonly rooms: {
 		/**
-		 * Send a raw message (already encoded) to a specific room.
-		 * @param room - The room name.
-		 * @param message - The raw string or binary data.
+		 * Publishes a raw message to a specific room without applying any serialization or encoding.
+		 *
+		 * This method is useful for sending custom protocol messages or pre-encoded data directly
+		 * to all sockets subscribed to the given room. It bypasses the built‑in serialization layer,
+		 * so you are responsible for ensuring that the message format matches what the clients expect.
+		 *
+		 * If the socket has been closed, this method does nothing.
+		 *
+		 * @param room - The name of the room to publish the message to.
+		 * @param message - The raw message to send. Can be a `string` (UTF‑8 text) or an `ArrayBuffer` / `Buffer` (binary data).
+		 * @param isBinary - Optional. If `true`, the message is sent as a binary WebSocket frame.
+		 *                   If `false` or omitted, the frame type is inferred from the type of `message`
+		 *                   (`string` → text frame, `ArrayBuffer`/`Buffer` → binary frame).
+		 * @param compress - Optional. If `true`, the message will be compressed using the WebSocket
+		 *                   permessage‑deflate extension (if negotiated with the client).
+		 *
+		 * @example
+		 * // Send a JSON string to all sockets in the "lobby" room
+		 * socket.rooms.emitRaw("lobby", JSON.stringify({ type: "announcement", text: "Hello!" }));
+		 *
+		 * @example
+		 * // Send pre‑encoded binary data (e.g., MessagePack) to the "game" room
+		 * const packedData = msgpack.encode({ event: "move", x: 10, y: 20 });
+		 * socket.rooms.emitRaw("game", packedData, true);
 		 */
-		emitRaw: (room: string, message: RecognizedString) => void;
+		emitRaw: (room: string, message: RecognizedString, isBinary?: boolean, compress?: boolean) => void;
 		/**
 		 * Emit a typed event to a specific room.
 		 * @typeParam R - Room name (must be a key in `TEvents['emitRoom']`).
@@ -275,9 +296,9 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 	 *
 	 * @example socket.sendRaw(JSON.stringify({ custom: "data" }));
 	 */
-	sendRaw(payload: RecognizedString): void {
+	sendRaw(payload: RecognizedString, isBinary?: boolean, compress?: boolean): void {
 		if (this.#closed) return;
-		this.#ws.send(payload);
+		this.#ws.send(payload, isBinary, compress);
 	}
 
 	/**
@@ -289,7 +310,8 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 	send<R extends string, E extends string | number, D>(payload: LifecycleMessage<R, D> | UserMessage<R, E, D>) {
 		if (this.#closed) return;
 		const message = this.#encode(payload);
-		this.#ws.send(message);
+		const isBinary = typeof message !== "string";
+		this.sendRaw(message, isBinary);
 	}
 
 	/**
@@ -302,12 +324,12 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 		if (this.#closed) return;
 		const message = this.#encode({ event, data });
 		const isBinary = typeof message !== "string";
-		this.#ws.publish(this.#broadcastRoom, message, isBinary);
+		this.#publishRaw(this.#broadcastRoom, message, isBinary);
 	}
 
-	#publishRaw(room: string, message: RecognizedString): void {
-		const isBinary = typeof message !== "string";
-		this.#ws.publish(room, message, isBinary);
+	#publishRaw(room: string, message: RecognizedString, isBinary?: boolean, compress?: boolean): void {
+		if (this.#closed) return;
+		this.#ws.publish(room, message, isBinary, compress);
 	}
 
 	#publish<
@@ -318,7 +340,7 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 		if (this.#closed) return;
 		const message = this.#encode({ room, event, data });
 		const isBinary = typeof message !== "string";
-		this.#ws.publish(room, message, isBinary);
+		this.#publishRaw(room, message, isBinary);
 	}
 
 	#publishMany<
@@ -330,8 +352,14 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 		const message = this.#encode({ rooms, event, data });
 		const isBinary = typeof message !== "string";
 		for (const room of rooms) {
-			this.#ws.publish(room, message, isBinary);
+			this.#publishRaw(room, message, isBinary);
 		}
+	}
+
+	/** @internal */
+	_markClosed(): void {
+		this.#closed = true;
+		this.#clearAuthTimer();
 	}
 
 	/**
@@ -342,8 +370,7 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 	 */
 	close(code: number = 1000, reason: string = "normal"): void {
 		if (this.#closed) return;
-		this.#clearAuthTimer();
-		this.#closed = true;
+		this._markClosed();
 		this.#ws.end(code, reason);
 	}
 

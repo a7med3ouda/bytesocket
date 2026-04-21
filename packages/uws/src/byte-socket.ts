@@ -11,7 +11,7 @@ import {
 } from "@bytesocket/types";
 import { FLOAT32_OPTIONS, Packr } from "msgpackr";
 import { randomUUID } from "node:crypto";
-import type { HttpRequest, HttpResponse, TemplatedApp, us_socket_context_t, WebSocket, WebSocketBehavior } from "uWebSockets.js";
+import type { HttpRequest, HttpResponse, RecognizedString, TemplatedApp, us_socket_context_t, WebSocket, WebSocketBehavior } from "uWebSockets.js";
 import { Socket } from "./socket";
 import type { ByteSocketOptions, EventCallback, Middleware, MiddlewareNext, RoomEventMiddleware, SocketData } from "./types";
 
@@ -109,6 +109,40 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	 * });
 	 */
 	readonly rooms: {
+		/**
+		 * Publishes a raw message to all sockets subscribed to the given room.
+		 *
+		 * This method sends data directly to uWebSockets.js's publish system **without** applying
+		 * any encoding, serialization, or lifecycle processing. It is useful for broadcasting
+		 * custom‑formatted messages, pre‑encoded payloads, or implementing custom protocols.
+		 *
+		 * If the server instance has been destroyed, this method does nothing.
+		 *
+		 * @param room - The room name to publish the message to. All sockets that have joined this
+		 *               room (including the global broadcast room) will receive the message.
+		 * @param message - The raw data to send. Accepts a `string` (sent as a UTF‑8 text frame) or
+		 *                  an `ArrayBuffer` / `Buffer` (sent as a binary frame).
+		 * @param isBinary - Optional. If `true`, forces the message to be sent as a binary WebSocket
+		 *                   frame. If `false` or omitted, the frame type is inferred from the type of
+		 *                   `message` (`string` → text, `ArrayBuffer`/`Buffer` → binary).
+		 * @param compress - Optional. If `true`, the message will be compressed using the WebSocket
+		 *                   permessage‑deflate extension (if negotiated with the clients).
+		 *
+		 * @example
+		 * // Broadcast a JSON string to the "lobby" room
+		 * io.emitRaw("lobby", JSON.stringify({ type: "announcement", text: "Server restart in 5m" }));
+		 *
+		 * @example
+		 * // Broadcast pre‑encoded MessagePack data to the global room
+		 * const packed = msgpack.encode({ event: "system", status: "ok" });
+		 * io.emitRaw(io.options.broadcastRoom, packed, true);
+		 *
+		 * @example
+		 * // Send compressed binary data
+		 * const buffer = new Uint8Array([1, 2, 3]);
+		 * io.emitRaw("updates", buffer, true, true);
+		 */
+		emitRaw: (room: string, message: RecognizedString, isBinary?: boolean, compress?: boolean) => void;
 		/** Emit a typed event to a specific room (server‑side publish). */
 		emit: <
 			R extends StringKeys<TEvents["emitRoom"]>,
@@ -277,6 +311,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		};
 
 		this.rooms = {
+			emitRaw: this.#publishRaw.bind(this),
 			emit: this.#publish.bind(this),
 			on: this.#onRoom.bind(this),
 			off: this.#offRoom.bind(this),
@@ -325,6 +360,11 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		this.#middlewares = [];
 	}
 
+	#publishRaw(room: string, message: RecognizedString, isBinary?: boolean, compress?: boolean): void {
+		if (this.#destroyed) return;
+		this.#app.publish(room, message, isBinary, compress);
+	}
+
 	/**
 	 * Emit a global event to all connected sockets.
 	 *
@@ -338,7 +378,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		const room = this.#options.broadcastRoom;
 		const message = this.#encode({ event, data });
 		const isBinary = typeof message !== "string";
-		this.#app.publish(room, message, isBinary);
+		this.#publishRaw(room, message, isBinary);
 	}
 
 	#publish<
@@ -349,7 +389,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		if (this.#destroyed) return;
 		const message = this.#encode({ room, event, data });
 		const isBinary = typeof message !== "string";
-		this.#app.publish(room, message, isBinary);
+		this.#publishRaw(room, message, isBinary);
 	}
 
 	#publishMany<
@@ -361,7 +401,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		const message = this.#encode({ rooms, event, data });
 		const isBinary = typeof message !== "string";
 		for (const room of rooms) {
-			this.#app.publish(room, message, isBinary);
+			this.#publishRaw(room, message, isBinary);
 		}
 	}
 
@@ -764,13 +804,12 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 
 	#close(ws: WebSocket<SD>, code: number, message: ArrayBuffer) {
 		const socketKey = ws.getUserData().socketKey;
-		const reason = Buffer.from(message).toString("utf8");
 		if (this.#options.debug && code === 4008) console.warn(`Auth timeout for socket ${socketKey}`);
 		const socket = this.sockets.get(socketKey);
 		if (!socket) return;
 
 		this.sockets.delete(socketKey);
-		socket.close(code, reason);
+		socket._markClosed();
 		this.#runSyncHooks(this.#lifecycleCallbacksMap.get(LifecycleTypes.close), [socket, code, message], (error) => {
 			if (error != null) {
 				this.#triggerCallbacks(this.#lifecycleCallbacksMap.get(LifecycleTypes.error), socket, { phase: "onClose", error });
