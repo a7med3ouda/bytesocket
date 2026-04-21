@@ -31,31 +31,70 @@ type RequiredOptions =
  * Manages WebSocket connections, rooms, middleware, and event routing.
  * Provides a fully typed event system via a user‑supplied event map (`TEvents`).
  *
- * @typeParam SD - The socket data type (must extend `SocketData`).
  * @typeParam TEvents - A type extending `SocketEvents` that defines the shape of
  *                      all emit/listen events (global and room‑scoped).
+ * @typeParam SD      - The socket data type (must extend `SocketData`).
  *
- * @example
- * // Define your event schema
- * interface MyEvents extends SocketEvents<{
- *   emit: { ping: void };
- *   listen: { pong: number };
- *   emitRoom: { chat: { message: string } };
- *   listenRoom: { chat: { message: string; sender: string } };
- * }> {}
+ * @example Symmetric events (most common)
+ * ```ts
+ * // Define your event map
+ * type MyEvents = SocketEvents<{
+ *   "chat:message": { text: string };
+ *   "user:joined": { userId: string };
+ * }>;
  *
  * // Create a typed server instance
  * const io = new ByteSocket<MyEvents>(app, { debug: true });
  *
- * // Use typed methods
- * io.emit('ping', undefined);
- * io.on('pong', (socket, timestamp) => console.log(timestamp));
+ * // Use typed methods (emit and listen share the same event map)
+ * io.emit('chat:message', { text: 'Server announcement' });
+ * io.on('user:joined', (socket, data) => {
+ *   console.log(`User ${data.userId} joined`);
+ * });
  *
- * io.rooms.emit('chat', 'message', { message: 'Hello!' });
- * io.rooms.on('chat', 'message', (socket, data, next) => {
- *   console.log(`${data.sender}: ${data.message}`);
+ * io.rooms.emit('lobby', 'chat:message', { text: 'Welcome to the lobby' });
+ * io.rooms.on('lobby', 'chat:message', (socket, data, next) => {
+ *   console.log(`${socket.id} said: ${data.text}`);
  *   next();
  * });
+ * ```
+ *
+ * @example Asymmetric events (full control via interface extension)
+ * ```ts
+ * // Extend SocketEvents to differentiate emit/listen/room maps
+ * interface MyEvents extends SocketEvents {
+ *   emit: {
+ *     "server:announce": { message: string };
+ *     "ping": void;
+ *   };
+ *   listen: {
+ *     "client:message": { text: string; sender: string };
+ *     "pong": number;
+ *   };
+ *   emitRoom: {
+ *     chat: { "message": { text: string } };
+ *     game: { "move": { player: string; position: number } };
+ *   };
+ *   listenRoom: {
+ *     chat: { "message": { text: string; sender: string } };
+ *   };
+ * }
+ *
+ * const io = new ByteSocket<MyEvents>(app, { debug: true });
+ *
+ * // Global emits/listens
+ * io.emit('ping', undefined);
+ * io.on('client:message', (socket, data) => {
+ *   console.log(`${data.sender}: ${data.text}`);
+ * });
+ *
+ * // Room‑specific emits/listens
+ * io.rooms.emit('chat', 'message', { text: 'Hello everyone' });
+ * io.rooms.on('chat', 'message', (socket, data, next) => {
+ *   console.log(`${data.sender}: ${data.text}`);
+ *   next();
+ * });
+ * ```
  */
 export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData> {
 	/**
@@ -66,36 +105,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	 * io.lifecycle.onAuthError((socket, ctx) => console.error('Auth failed', ctx.error));
 	 * io.lifecycle.onClose((socket, code, msg) => console.log('Closed', code));
 	 */
-	readonly lifecycle: {
-		/** Register a listener for the HTTP upgrade phase. */
-		onUpgrade: (cb: (res: HttpResponse, req: HttpRequest, userData: SD, context: us_socket_context_t) => void) => void;
-		offUpgrade: (cb?: (res: HttpResponse, req: HttpRequest, userData: SD, context: us_socket_context_t) => void) => void;
-		onceUpgrade: (cb: (res: HttpResponse, req: HttpRequest, userData: SD, context: us_socket_context_t) => void) => void;
-		/** Register a listener for socket open (after successful auth). */
-		onOpen: (cb: (socket: Socket<TEvents, SD>) => void) => void;
-		offOpen: (cb?: (socket: Socket<TEvents, SD>) => void) => void;
-		onceOpen: (cb: (socket: Socket<TEvents, SD>) => void) => void;
-		/** Register a listener for authentication success. */
-		onAuthSuccess: (cb: (socket: Socket<TEvents, SD>) => void) => void;
-		offAuthSuccess: (cb?: (socket: Socket<TEvents, SD>) => void) => void;
-		onceAuthSuccess: (cb: (socket: Socket<TEvents, SD>) => void) => void;
-		/** Register a listener for authentication failure. */
-		onAuthError: (cb: (socket: Socket<TEvents, SD>, ctx: ErrorContext) => void) => void;
-		offAuthError: (cb?: (socket: Socket<TEvents, SD>, ctx: ErrorContext) => void) => void;
-		onceAuthError: (cb: (socket: Socket<TEvents, SD>, ctx: ErrorContext) => void) => void;
-		/** Register a listener for raw incoming messages. */
-		onMessage: (cb: (socket: Socket<TEvents, SD>, parsed: any, message: ArrayBuffer, isBinary: boolean) => void) => void;
-		offMessage: (cb?: (socket: Socket<TEvents, SD>, parsed: any, message: ArrayBuffer, isBinary: boolean) => void) => void;
-		onceMessage: (cb: (socket: Socket<TEvents, SD>, parsed: any, message: ArrayBuffer, isBinary: boolean) => void) => void;
-		/** Register a listener for socket close. */
-		onClose: (cb: (socket: Socket<TEvents, SD>, code: number, message: ArrayBuffer) => void) => void;
-		offClose: (cb?: (socket: Socket<TEvents, SD>, code: number, message: ArrayBuffer) => void) => void;
-		onceClose: (cb: (socket: Socket<TEvents, SD>, code: number, message: ArrayBuffer) => void) => void;
-		/** Register a listener for errors. */
-		onError: (cb: (socket: Socket<TEvents, SD> | null, ctx: ErrorContext) => void) => void;
-		offError: (cb?: (socket: Socket<TEvents, SD> | null, ctx: ErrorContext) => void) => void;
-		onceError: (cb: (socket: Socket<TEvents, SD> | null, ctx: ErrorContext) => void) => void;
-	};
+	readonly lifecycle;
 
 	/**
 	 * Room management, room‑scoped event emission, and room lifecycle hooks.
@@ -108,113 +118,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	 *   else next();
 	 * });
 	 */
-	readonly rooms: {
-		/**
-		 * Publishes a raw message to all sockets subscribed to the given room.
-		 *
-		 * This method sends data directly to uWebSockets.js's publish system **without** applying
-		 * any encoding, serialization, or lifecycle processing. It is useful for broadcasting
-		 * custom‑formatted messages, pre‑encoded payloads, or implementing custom protocols.
-		 *
-		 * If the server instance has been destroyed, this method does nothing.
-		 *
-		 * @param room - The room name to publish the message to. All sockets that have joined this
-		 *               room (including the global broadcast room) will receive the message.
-		 * @param message - The raw data to send. Accepts a `string` (sent as a UTF‑8 text frame) or
-		 *                  an `ArrayBuffer` / `Buffer` (sent as a binary frame).
-		 * @param isBinary - Optional. If `true`, forces the message to be sent as a binary WebSocket
-		 *                   frame. If `false` or omitted, the frame type is inferred from the type of
-		 *                   `message` (`string` → text, `ArrayBuffer`/`Buffer` → binary).
-		 * @param compress - Optional. If `true`, the message will be compressed using the WebSocket
-		 *                   permessage‑deflate extension (if negotiated with the clients).
-		 *
-		 * @example
-		 * // Broadcast a JSON string to the "lobby" room
-		 * io.emitRaw("lobby", JSON.stringify({ type: "announcement", text: "Server restart in 5m" }));
-		 *
-		 * @example
-		 * // Broadcast pre‑encoded MessagePack data to the global room
-		 * const packed = msgpack.encode({ event: "system", status: "ok" });
-		 * io.emitRaw(io.options.broadcastRoom, packed, true);
-		 *
-		 * @example
-		 * // Send compressed binary data
-		 * const buffer = new Uint8Array([1, 2, 3]);
-		 * io.emitRaw("updates", buffer, true, true);
-		 */
-		emitRaw: (room: string, message: RecognizedString, isBinary?: boolean, compress?: boolean) => void;
-		/** Emit a typed event to a specific room (server‑side publish). */
-		emit: <
-			R extends StringKeys<TEvents["emitRoom"]>,
-			E extends StringNumberKeys<NonNullable<TEvents["emitRoom"]>[R]>,
-			D extends NonNullable<TEvents["emitRoom"]>[R][E],
-		>(
-			room: R,
-			event: E,
-			data: D,
-		) => void;
-		/** Register a room event middleware. */
-		on: <
-			R extends StringKeys<TEvents["listenRoom"]>,
-			E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
-			D extends NonNullable<TEvents["listenRoom"]>[R][E],
-		>(
-			room: R,
-			event: E,
-			callback: RoomEventMiddleware<TEvents, SD, D>,
-		) => void;
-		/** Remove a room event middleware. */
-		off: <
-			R extends StringKeys<TEvents["listenRoom"]>,
-			E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
-			D extends NonNullable<TEvents["listenRoom"]>[R][E],
-		>(
-			room: R,
-			event?: E,
-			callback?: RoomEventMiddleware<TEvents, SD, D>,
-		) => void;
-		/** Register a one‑time room event middleware. */
-		once: <
-			R extends StringKeys<TEvents["listenRoom"]>,
-			E extends StringNumberKeys<NonNullable<TEvents["listenRoom"]>[R]>,
-			D extends NonNullable<TEvents["listenRoom"]>[R][E],
-		>(
-			room: R,
-			event: E,
-			callback: RoomEventMiddleware<TEvents, SD, D>,
-		) => void;
-		/** Lifecycle hooks for room join/leave (single rooms). */
-		lifecycle: {
-			onJoin: (callback: (socket: Socket<TEvents, SD>, room: string, next: MiddlewareNext) => void) => void;
-			offJoin: (callback?: (socket: Socket<TEvents, SD>, room: string, next: MiddlewareNext) => void) => void;
-			onceJoin: (callback: (socket: Socket<TEvents, SD>, room: string, next: MiddlewareNext) => void) => void;
-			onLeave: (callback: (socket: Socket<TEvents, SD>, room: string, next: MiddlewareNext) => void) => void;
-			offLeave: (callback?: (socket: Socket<TEvents, SD>, room: string, next: MiddlewareNext) => void) => void;
-			onceLeave: (callback: (socket: Socket<TEvents, SD>, room: string, next: MiddlewareNext) => void) => void;
-		};
-		/** Bulk operations for multiple rooms. */
-		bulk: {
-			/** Emit a typed event to multiple rooms. */
-			emit: <
-				Rs extends NonNullable<TEvents["emitRooms"]>["rooms"],
-				E extends StringNumberKeys<EventsForRooms<NonNullable<TEvents["emitRooms"]>, Rs>>,
-				D extends NonNullable<EventsForRooms<NonNullable<TEvents["emitRooms"]>, Rs>>[E],
-			>(
-				rooms: Rs,
-				event: E,
-				data: D,
-			) => void;
-			/** Lifecycle hooks for bulk room operations. */
-			lifecycle: {
-				onJoin: (callback: (socket: Socket<TEvents, SD>, rooms: string[], next: MiddlewareNext) => void) => void;
-				offJoin: (callback?: (socket: Socket<TEvents, SD>, rooms: string[], next: MiddlewareNext) => void) => void;
-				onceJoin: (callback: (socket: Socket<TEvents, SD>, rooms: string[], next: MiddlewareNext) => void) => void;
-				onLeave: (callback: (socket: Socket<TEvents, SD>, rooms: string[], next: MiddlewareNext) => void) => void;
-				offLeave: (callback?: (socket: Socket<TEvents, SD>, rooms: string[], next: MiddlewareNext) => void) => void;
-				onceLeave: (callback: (socket: Socket<TEvents, SD>, rooms: string[], next: MiddlewareNext) => void) => void;
-			};
-		};
-	};
+	readonly rooms;
 
 	#callbacksMap = new Map<string | number, Set<AnyCallback>>();
 	#onceCallbacksMap = new Map<string | number, Map<AnyCallback, Set<AnyCallback>>>();
@@ -242,6 +146,11 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 
 	/**
 	 * Map of all currently connected sockets, keyed by socket ID.
+	 *
+	 * @example
+	 * for (const [id, socket] of io.sockets) {
+	 *   socket.emit('ping', undefined);
+	 * }
 	 */
 	readonly sockets = new Map<string, Socket<TEvents, SD>>();
 	#destroyed = false;
@@ -256,6 +165,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	 * import uWS from 'uWebSockets.js';
 	 * const app = uWS.App();
 	 * const io = new ByteSocket(app, { debug: true });
+	 * app.ws("/socket", io.handler);
 	 * app.listen(3000, (token) => { if (token) console.log('Listening'); });
 	 */
 	constructor(app: TemplatedApp, options: ByteSocketOptions<TEvents, SD> = {}) {
@@ -287,52 +197,182 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		});
 
 		this.lifecycle = {
-			onUpgrade: (cb) => this.#onLifecycle(LifecycleTypes.upgrade, cb),
-			offUpgrade: (cb) => this.#offLifecycle(LifecycleTypes.upgrade, cb),
-			onceUpgrade: (cb) => this.#onceLifecycle(LifecycleTypes.upgrade, cb),
-			onOpen: (cb) => this.#onLifecycle(LifecycleTypes.open, cb),
-			offOpen: (cb) => this.#offLifecycle(LifecycleTypes.open, cb),
-			onceOpen: (cb) => this.#onceLifecycle(LifecycleTypes.open, cb),
-			onAuthSuccess: (cb) => this.#onLifecycle(LifecycleTypes.auth_success, cb),
-			offAuthSuccess: (cb) => this.#offLifecycle(LifecycleTypes.auth_success, cb),
-			onceAuthSuccess: (cb) => this.#onceLifecycle(LifecycleTypes.auth_success, cb),
-			onAuthError: (cb) => this.#onLifecycle(LifecycleTypes.auth_error, cb),
-			offAuthError: (cb) => this.#offLifecycle(LifecycleTypes.auth_error, cb),
-			onceAuthError: (cb) => this.#onceLifecycle(LifecycleTypes.auth_error, cb),
-			onMessage: (cb) => this.#onLifecycle(LifecycleTypes.message, cb),
-			offMessage: (cb) => this.#offLifecycle(LifecycleTypes.message, cb),
-			onceMessage: (cb) => this.#onceLifecycle(LifecycleTypes.message, cb),
-			onClose: (cb) => this.#onLifecycle(LifecycleTypes.close, cb),
-			offClose: (cb) => this.#offLifecycle(LifecycleTypes.close, cb),
-			onceClose: (cb) => this.#onceLifecycle(LifecycleTypes.close, cb),
-			onError: (cb) => this.#onLifecycle(LifecycleTypes.error, cb),
-			offError: (cb) => this.#offLifecycle(LifecycleTypes.error, cb),
-			onceError: (cb) => this.#onceLifecycle(LifecycleTypes.error, cb),
+			/** Register a listener for the HTTP upgrade phase. */
+			onUpgrade: (callback: (res: HttpResponse, req: HttpRequest, userData: SD, context: us_socket_context_t) => void) =>
+				this.#onLifecycle(LifecycleTypes.upgrade, callback),
+			/** Remove a listener for the HTTP upgrade phase. */
+			offUpgrade: (callback?: (res: HttpResponse, req: HttpRequest, userData: SD, context: us_socket_context_t) => void) =>
+				this.#offLifecycle(LifecycleTypes.upgrade, callback),
+			/** Register a one‑time listener for the HTTP upgrade phase. */
+			onceUpgrade: (callback: (res: HttpResponse, req: HttpRequest, userData: SD, context: us_socket_context_t) => void) =>
+				this.#onceLifecycle(LifecycleTypes.upgrade, callback),
+			/** Register a listener for socket open (after successful auth). */
+			onOpen: (callback: (socket: Socket<TEvents, SD>) => void) => this.#onLifecycle(LifecycleTypes.open, callback),
+			/** Remove a listener for socket open. */
+			offOpen: (callback?: (socket: Socket<TEvents, SD>) => void) => this.#offLifecycle(LifecycleTypes.open, callback),
+			/** Register a one‑time listener for socket open. */
+			onceOpen: (callback: (socket: Socket<TEvents, SD>) => void) => this.#onceLifecycle(LifecycleTypes.open, callback),
+			/** Register a listener for authentication success. */
+			onAuthSuccess: (callback: (socket: Socket<TEvents, SD>) => void) => this.#onLifecycle(LifecycleTypes.auth_success, callback),
+			/** Remove a listener for authentication success. */
+			offAuthSuccess: (callback?: (socket: Socket<TEvents, SD>) => void) => this.#offLifecycle(LifecycleTypes.auth_success, callback),
+			/** Register a one‑time listener for authentication success. */
+			onceAuthSuccess: (callback: (socket: Socket<TEvents, SD>) => void) => this.#onceLifecycle(LifecycleTypes.auth_success, callback),
+			/** Register a listener for authentication failure. */
+			onAuthError: (callback: (socket: Socket<TEvents, SD>, ctx: ErrorContext) => void) =>
+				this.#onLifecycle(LifecycleTypes.auth_error, callback),
+			/** Remove a listener for authentication failure. */
+			offAuthError: (callback?: (socket: Socket<TEvents, SD>, ctx: ErrorContext) => void) =>
+				this.#offLifecycle(LifecycleTypes.auth_error, callback),
+			/** Register a one‑time listener for authentication failure. */
+			onceAuthError: (callback: (socket: Socket<TEvents, SD>, ctx: ErrorContext) => void) =>
+				this.#onceLifecycle(LifecycleTypes.auth_error, callback),
+			/** Register a listener for raw incoming messages. */
+			onMessage: (callback: (socket: Socket<TEvents, SD>, message: ArrayBuffer, isBinary: boolean) => void) =>
+				this.#onLifecycle(LifecycleTypes.message, callback),
+			/** Remove a listener for raw incoming messages. */
+			offMessage: (callback?: (socket: Socket<TEvents, SD>, message: ArrayBuffer, isBinary: boolean) => void) =>
+				this.#offLifecycle(LifecycleTypes.message, callback),
+			/** Register a one‑time listener for raw incoming messages. */
+			onceMessage: (callback: (socket: Socket<TEvents, SD>, message: ArrayBuffer, isBinary: boolean) => void) =>
+				this.#onceLifecycle(LifecycleTypes.message, callback),
+			/** Register a listener for socket close. */
+			onClose: (callback: (socket: Socket<TEvents, SD>, code: number, message: ArrayBuffer) => void) =>
+				this.#onLifecycle(LifecycleTypes.close, callback),
+			/** Remove a listener for socket close. */
+			offClose: (callback?: (socket: Socket<TEvents, SD>, code: number, message: ArrayBuffer) => void) =>
+				this.#offLifecycle(LifecycleTypes.close, callback),
+			/** Register a one‑time listener for socket close. */
+			onceClose: (callback: (socket: Socket<TEvents, SD>, code: number, message: ArrayBuffer) => void) =>
+				this.#onceLifecycle(LifecycleTypes.close, callback),
+			/** Register a listener for errors. */
+			onError: (callback: (socket: Socket<TEvents, SD> | null, ctx: ErrorContext) => void) => this.#onLifecycle(LifecycleTypes.error, callback),
+			/** Remove a listener for errors. */
+			offError: (callback?: (socket: Socket<TEvents, SD> | null, ctx: ErrorContext) => void) =>
+				this.#offLifecycle(LifecycleTypes.error, callback),
+			/** Register a one‑time listener for errors. */
+			onceError: (callback: (socket: Socket<TEvents, SD> | null, ctx: ErrorContext) => void) =>
+				this.#onceLifecycle(LifecycleTypes.error, callback),
 		};
 
 		this.rooms = {
-			emitRaw: this.#publishRaw.bind(this),
+			/**
+			 * Publishes a raw message to all sockets subscribed to the given room.
+			 *
+			 * This method sends data directly to uWebSockets.js's publish system **without** applying
+			 * any encoding, serialization, or lifecycle processing. It is useful for broadcasting
+			 * custom‑formatted messages, pre‑encoded payloads, or implementing custom protocols.
+			 *
+			 * If the server instance has been destroyed, this method does nothing.
+			 *
+			 * @param room - The room name to publish the message to. All sockets that have joined this
+			 *               room (including the global broadcast room) will receive the message.
+			 * @param message - The raw data to send. Accepts a `string` (sent as a UTF‑8 text frame) or
+			 *                  an `ArrayBuffer` / `Buffer` (sent as a binary frame).
+			 * @param isBinary - Optional. If `true`, forces the message to be sent as a binary WebSocket
+			 *                   frame. If `false` or omitted, the frame type is inferred from the type of
+			 *                   `message` (`string` → text, `ArrayBuffer`/`Buffer` → binary).
+			 * @param compress - Optional. If `true`, the message will be compressed using the WebSocket
+			 *                   permessage‑deflate extension (if negotiated with the clients).
+			 *
+			 * @example
+			 * // Broadcast a JSON string to the "lobby" room
+			 * io.rooms.publishRaw("lobby", JSON.stringify({ type: "announcement", text: "Server restart in 5m" }));
+			 *
+			 * @example
+			 * // Broadcast pre‑encoded MessagePack data to the global room
+			 * const packed = msgpack.encode({ event: "system", status: "ok" });
+			 * io.rooms.publishRaw(io.options.broadcastRoom, packed, true);
+			 *
+			 * @example
+			 * // Send compressed binary data
+			 * const buffer = new Uint8Array([1, 2, 3]);
+			 * io.rooms.publishRaw("updates", buffer, true, true);
+			 */
+			publishRaw: this.#publishRaw.bind(this),
+			/**
+			 * Emit a typed event to a specific room (server‑side publish).
+			 *
+			 * @typeParam R - Room name (must be a key in `TEvents['emitRoom']`).
+			 * @typeParam E - Event name.
+			 * @typeParam D - Event data type.
+			 *
+			 * @example
+			 * io.rooms.emit('chat', 'message', { text: 'Hello everyone' });
+			 */
 			emit: this.#publish.bind(this),
+			/** Register a room event middleware. */
 			on: this.#onRoom.bind(this),
+			/** Remove a room event middleware. */
 			off: this.#offRoom.bind(this),
+			/** Register a one‑time room event middleware. */
 			once: this.#onceRoom.bind(this),
+			/** Lifecycle hooks for room join/leave (single rooms). */
 			lifecycle: {
-				onJoin: (cb) => this.#onLifecycle(LifecycleTypes.join_room, cb),
-				offJoin: (cb) => this.#offLifecycle(LifecycleTypes.join_room, cb),
-				onceJoin: (cb) => this.#onceLifecycle(LifecycleTypes.join_room, cb),
-				onLeave: (cb) => this.#onLifecycle(LifecycleTypes.leave_room, cb),
-				offLeave: (cb) => this.#offLifecycle(LifecycleTypes.leave_room, cb),
-				onceLeave: (cb) => this.#onceLifecycle(LifecycleTypes.leave_room, cb),
+				/**
+				 * Register a guard for single room join requests.
+				 * Call `next()` to allow, `next(error)` to reject.
+				 *
+				 * @example
+				 * io.rooms.lifecycle.onJoin((socket, room, next) => {
+				 *   if (room === 'admin' && !socket.payload?.isAdmin) {
+				 *     next(new Error('Not authorized'));
+				 *   } else {
+				 *     next();
+				 *   }
+				 * });
+				 */
+				onJoin: (callback: (socket: Socket<TEvents, SD>, room: string, next: MiddlewareNext) => void) =>
+					this.#onLifecycle(LifecycleTypes.join_room, callback),
+				/** Remove a guard for single room join requests. */
+				offJoin: (callback?: (socket: Socket<TEvents, SD>, room: string, next: MiddlewareNext) => void) =>
+					this.#offLifecycle(LifecycleTypes.join_room, callback),
+				/** Register a one‑time guard for single room join requests. */
+				onceJoin: (callback: (socket: Socket<TEvents, SD>, room: string, next: MiddlewareNext) => void) =>
+					this.#onceLifecycle(LifecycleTypes.join_room, callback),
+				/** Register a guard for single room leave requests. */
+				onLeave: (callback: (socket: Socket<TEvents, SD>, room: string, next: MiddlewareNext) => void) =>
+					this.#onLifecycle(LifecycleTypes.leave_room, callback),
+				/** Remove a guard for single room leave requests. */
+				offLeave: (callback?: (socket: Socket<TEvents, SD>, room: string, next: MiddlewareNext) => void) =>
+					this.#offLifecycle(LifecycleTypes.leave_room, callback),
+				/** Register a one‑time guard for single room leave requests. */
+				onceLeave: (callback: (socket: Socket<TEvents, SD>, room: string, next: MiddlewareNext) => void) =>
+					this.#onceLifecycle(LifecycleTypes.leave_room, callback),
 			},
+			/** Bulk operations for multiple rooms. */
 			bulk: {
+				/**
+				 * Emit a typed event to multiple rooms at once.
+				 *
+				 * @typeParam Rs - The array of room names.
+				 * @typeParam E - Event name.
+				 * @typeParam D - Event data type.
+				 *
+				 * @example
+				 * io.rooms.bulk.emit(['room1', 'room2'], 'alert', { msg: 'Hello both!' });
+				 */
 				emit: this.#publishMany.bind(this),
+				/** Lifecycle hooks for bulk room operations. */
 				lifecycle: {
-					onJoin: (cb) => this.#onLifecycle(LifecycleTypes.join_rooms, cb),
-					offJoin: (cb) => this.#offLifecycle(LifecycleTypes.join_rooms, cb),
-					onceJoin: (cb) => this.#onceLifecycle(LifecycleTypes.join_rooms, cb),
-					onLeave: (cb) => this.#onLifecycle(LifecycleTypes.leave_rooms, cb),
-					offLeave: (cb) => this.#offLifecycle(LifecycleTypes.leave_rooms, cb),
-					onceLeave: (cb) => this.#onceLifecycle(LifecycleTypes.leave_rooms, cb),
+					/** Register a guard for bulk room join requests. */
+					onJoin: (callback: (socket: Socket<TEvents, SD>, rooms: string[], next: MiddlewareNext) => void) =>
+						this.#onLifecycle(LifecycleTypes.join_rooms, callback),
+					/** Remove a guard for bulk room join requests. */
+					offJoin: (callback?: (socket: Socket<TEvents, SD>, rooms: string[], next: MiddlewareNext) => void) =>
+						this.#offLifecycle(LifecycleTypes.join_rooms, callback),
+					/** Register a one‑time guard for bulk room join requests. */
+					onceJoin: (callback: (socket: Socket<TEvents, SD>, rooms: string[], next: MiddlewareNext) => void) =>
+						this.#onceLifecycle(LifecycleTypes.join_rooms, callback),
+					/** Register a guard for bulk room leave requests. */
+					onLeave: (callback: (socket: Socket<TEvents, SD>, rooms: string[], next: MiddlewareNext) => void) =>
+						this.#onLifecycle(LifecycleTypes.leave_rooms, callback),
+					/** Remove a guard for bulk room leave requests. */
+					offLeave: (callback?: (socket: Socket<TEvents, SD>, rooms: string[], next: MiddlewareNext) => void) =>
+						this.#offLifecycle(LifecycleTypes.leave_rooms, callback),
+					/** Register a one‑time guard for bulk room leave requests. */
+					onceLeave: (callback: (socket: Socket<TEvents, SD>, rooms: string[], next: MiddlewareNext) => void) =>
+						this.#onceLifecycle(LifecycleTypes.leave_rooms, callback),
 				},
 			},
 		};
@@ -360,7 +400,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		this.#middlewares = [];
 	}
 
-	#publishRaw(room: string, message: RecognizedString, isBinary?: boolean, compress?: boolean): void {
+	#publishRaw(room: string, message: RecognizedString, isBinary: boolean = typeof message !== "string", compress?: boolean): void {
 		if (this.#destroyed) return;
 		this.#app.publish(room, message, isBinary, compress);
 	}
@@ -376,9 +416,8 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	emit<E extends StringNumberKeys<TEvents["emit"]>, D extends NonNullable<TEvents["emit"]>[E]>(event: E, data: D): void {
 		if (this.#destroyed) return;
 		const room = this.#options.broadcastRoom;
-		const message = this.#encode({ event, data });
-		const isBinary = typeof message !== "string";
-		this.#publishRaw(room, message, isBinary);
+		const message = this.encode({ event, data });
+		this.#publishRaw(room, message);
 	}
 
 	#publish<
@@ -387,9 +426,8 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		D extends NonNullable<TEvents["emitRoom"]>[R][E],
 	>(room: R, event: E, data: D) {
 		if (this.#destroyed) return;
-		const message = this.#encode({ room, event, data });
-		const isBinary = typeof message !== "string";
-		this.#publishRaw(room, message, isBinary);
+		const message = this.encode({ room, event, data });
+		this.#publishRaw(room, message);
 	}
 
 	#publishMany<
@@ -398,10 +436,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		D extends NonNullable<EventsForRooms<NonNullable<TEvents["emitRooms"]>, Rs>>[E],
 	>(rooms: Rs, event: E, data: D): void {
 		if (this.#destroyed) return;
-		const message = this.#encode({ rooms, event, data });
-		const isBinary = typeof message !== "string";
+		const message = this.encode({ rooms, event, data });
 		for (const room of rooms) {
-			this.#publishRaw(room, message, isBinary);
+			this.#publishRaw(room, message);
 		}
 	}
 
@@ -746,7 +783,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 			return;
 		}
 		const socketKey = ws.getUserData().socketKey;
-		const socket = new Socket<TEvents, SD>(socketKey, ws, this.#options.broadcastRoom, this.#encode.bind(this));
+		const socket = new Socket<TEvents, SD>(socketKey, ws, this.#options.broadcastRoom, this.encode.bind(this));
 		if (!this.#options.auth)
 			socket._handleAuth(null, this.#options.auth, this.#options.authTimeout, this.#options.broadcastRoom, (err) => {
 				if (err == null)
@@ -763,9 +800,13 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		const socket = this.sockets.get(socketKey);
 		if (!socket || socket.isClosed) return;
 
+		this.#runSyncHooks(this.#lifecycleCallbacksMap.get(LifecycleTypes.message), [socket, message, isBinary], (error) => {
+			if (error != null) this.#triggerCallbacks(this.#lifecycleCallbacksMap.get(LifecycleTypes.error), socket, { phase: "onMessage", error });
+		});
+
 		let parsed;
 		try {
-			parsed = this.#decode(message, isBinary);
+			parsed = this.decode(message, isBinary);
 		} catch (error) {
 			const raw = isBinary ? message.byteLength.toString() : Buffer.from(message).toString("utf8");
 			this.#triggerCallbacks(this.#lifecycleCallbacksMap.get(LifecycleTypes.error), socket, { phase: "decode", raw, error });
@@ -792,10 +833,6 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		if (this.#handleJoinRoomsMessage(socket, parsed)) return;
 		if (this.#handleLeaveRoomsMessage(socket, parsed)) return;
 		this.#runMiddlewares(socket, parsed, () => {
-			this.#runSyncHooks(this.#lifecycleCallbacksMap.get(LifecycleTypes.message), [socket, parsed, message, isBinary], (error) => {
-				if (error != null)
-					this.#triggerCallbacks(this.#lifecycleCallbacksMap.get(LifecycleTypes.error), socket, { phase: "onMessage", error });
-			});
 			if (this.#handleRoomsMessage(socket, parsed)) return;
 			if (this.#handleRoomMessage(socket, parsed)) return;
 			if (this.#handleMessage(socket, parsed)) return;
@@ -817,9 +854,21 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		});
 	}
 
-	#encode<R extends string, E extends string | number, D>(
-		payload: LifecycleMessage<R, D> | UserMessage<R, E, D>,
-	): string | Buffer<ArrayBufferLike> {
+	/**
+	 * Encode a structured payload into a format suitable for sending over the WebSocket.
+	 * Uses the configured serialization (`"json"` or `"binary"`).
+	 *
+	 * **Advanced usage only.** Prefer `emit()` or `send()` for type‑safe communication.
+	 *
+	 * @param payload - A lifecycle message or user event object.
+	 * @returns Encoded string (JSON) or Buffer (MessagePack).
+	 *
+	 * @example
+	 * // Pre‑encode a payload for repeated use
+	 * const encoded = socket.encode({ event: 'chat', data: { text: 'Hello' } });
+	 * socket.sendRaw(encoded);
+	 */
+	encode<R extends string, E extends string | number, D>(payload: LifecycleMessage<R, D> | UserMessage<R, E, D>) {
 		if (this.#options.serialization === "binary") {
 			return this.#packr.pack(payload);
 		} else {
@@ -827,17 +876,26 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		}
 	}
 
-	#decode(message: string | ArrayBuffer, isBinary: boolean) {
-		if (this.#options.serialization === "binary" && (message instanceof ArrayBuffer || Buffer.isBuffer(message))) {
-			if (!isBinary) throw new Error("Expected binary message for msgpack serialization");
-			const uint8 =
-				message instanceof ArrayBuffer ? new Uint8Array(message) : new Uint8Array(message.buffer, message.byteOffset, message.byteLength);
-			return this.#packr.unpack(uint8);
-		} else if (this.#options.serialization === "json" && typeof message === "string") {
-			if (isBinary) throw new Error("Binary message received but serialization is set to JSON");
-			return JSON.parse(message);
-		}
-		throw new Error(`Decode failed: unexpected message type for ${this.#options.serialization} serialization`);
+	/**
+	 * Decode a raw WebSocket message into a structured payload.
+	 * Automatically detects JSON or MessagePack based on the binary flag and message content.
+	 *
+	 * **Advanced usage only.** Normally you should use `on()` listeners to receive typed data.
+	 *
+	 * @param message - Raw string (JSON), ArrayBuffer, or Buffer (MessagePack).
+	 * @param isBinary - Whether the message is binary. If omitted, format is detected from the message type.
+	 * @returns Decoded lifecycle or user message object.
+	 */
+	decode(message: string | ArrayBuffer | Buffer, isBinary?: boolean) {
+		if (typeof message === "string" && (isBinary === false || isBinary === undefined)) return JSON.parse(message);
+
+		if (typeof message !== "string" && (isBinary === true || isBinary === undefined)) return this.#packr.unpack(new Uint8Array(message));
+
+		if (isBinary === true) throw new Error("Received string data but isBinary flag is true — expected binary data");
+
+		if (isBinary === false) throw new Error("Received binary data but isBinary flag is false — expected text message");
+
+		throw new Error("Decode failed: unexpected message type or isBinary combination");
 	}
 
 	#handleAuthMessage<T extends object>(socket: Socket<TEvents, SD>, parsed: T): boolean {
@@ -913,11 +971,11 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 
 	#handleRoomsMessage<T extends object>(socket: Socket<TEvents, SD>, parsed: T): boolean {
 		if (!this.#isRoomsMessage(parsed)) return false;
-		const message = this.#encode({ rooms: parsed.rooms, event: parsed.event, data: parsed.data });
+		const message = this.encode({ rooms: parsed.rooms, event: parsed.event, data: parsed.data });
 		for (const room of parsed.rooms) {
 			this.#runAsyncHooksOrNext(this.#roomCallbacksMap.get(room)?.get(parsed.event), [socket, parsed.data], (error) => {
 				if (error == null) {
-					socket.rooms.emitRaw(room, message);
+					socket.rooms.publishRaw(room, message);
 				} else {
 					this.#triggerCallbacks(this.#lifecycleCallbacksMap.get(LifecycleTypes.error), socket, {
 						phase: "rooms message",
@@ -1057,9 +1115,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	#runSyncHooks<Args extends Array<unknown>>(callbackSet: Set<AnyCallback> | undefined, args: Args, next: MiddlewareNext): void {
 		if (!callbackSet) return next();
 		let firstError: unknown = null;
-		for (const cb of callbackSet) {
+		for (const callback of callbackSet) {
 			try {
-				cb(...args);
+				callback(...args);
 			} catch (err) {
 				if (this.#options.debug) console.error(err);
 				firstError = firstError ?? err;

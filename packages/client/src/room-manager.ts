@@ -72,67 +72,56 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 			 * @param callback - Function invoked with the room name.
 			 */
 			onJoinSuccess: (callback: (room: string) => void) => this.onLifecycle(LifecycleTypes.join_room_success, callback),
-
 			/**
 			 * Remove a listener for successful single‑room join.
 			 * @param callback - Optional; if omitted, all listeners are removed.
 			 */
 			offJoinSuccess: (callback?: (room: string) => void) => this.offLifecycle(LifecycleTypes.join_room_success, callback),
-
 			/**
 			 * Register a one‑time listener for successful single‑room join.
 			 * @param callback - Function invoked once with the room name.
 			 */
 			onceJoinSuccess: (callback: (room: string) => void) => this.onceLifecycle(LifecycleTypes.join_room_success, callback),
-
 			/**
 			 * Register a listener for single‑room join errors.
 			 * @param callback - Function invoked with the room name and error data.
 			 */
 			onJoinError: (callback: (room: string, ctx: ErrorContext) => void) => this.onLifecycle(LifecycleTypes.join_room_error, callback),
-
 			/**
 			 * Remove a listener for single‑room join errors.
 			 * @param callback - Optional; if omitted, all listeners are removed.
 			 */
 			offJoinError: (callback?: (room: string, ctx: ErrorContext) => void) => this.offLifecycle(LifecycleTypes.join_room_error, callback),
-
 			/**
 			 * Register a one‑time listener for single‑room join errors.
 			 * @param callback - Function invoked once with the room name and error data.
 			 */
 			onceJoinError: (callback: (room: string, ctx: ErrorContext) => void) => this.onceLifecycle(LifecycleTypes.join_room_error, callback),
-
 			/**
 			 * Register a listener for successful single‑room leave.
 			 * @param callback - Function invoked with the room name.
 			 */
 			onLeaveSuccess: (callback: (room: string) => void) => this.onLifecycle(LifecycleTypes.leave_room_success, callback),
-
 			/**
 			 * Remove a listener for successful single‑room leave.
 			 * @param callback - Optional; if omitted, all listeners are removed.
 			 */
 			offLeaveSuccess: (callback?: (room: string) => void) => this.offLifecycle(LifecycleTypes.leave_room_success, callback),
-
 			/**
 			 * Register a one‑time listener for successful single‑room leave.
 			 * @param callback - Function invoked once with the room name.
 			 */
 			onceLeaveSuccess: (callback: (room: string) => void) => this.onceLifecycle(LifecycleTypes.leave_room_success, callback),
-
 			/**
 			 * Register a listener for single‑room leave errors.
 			 * @param callback - Function invoked with the room name and error data.
 			 */
 			onLeaveError: (callback: (room: string, ctx: ErrorContext) => void) => this.onLifecycle(LifecycleTypes.leave_room_error, callback),
-
 			/**
 			 * Remove a listener for single‑room leave errors.
 			 * @param callback - Optional; if omitted, all listeners are removed.
 			 */
 			offLeaveError: (callback?: (room: string, ctx: ErrorContext) => void) => this.offLifecycle(LifecycleTypes.leave_room_error, callback),
-
 			/**
 			 * Register a one‑time listener for single‑room leave errors.
 			 * @param callback - Function invoked once with the room name and error data.
@@ -152,7 +141,6 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 			 * socket.rooms.bulk.emit(['roomA', 'roomB'], 'message', { text: 'Hello both!' });
 			 */
 			emit: this.#emitMany.bind(this),
-
 			/**
 			 * Request to join multiple rooms.
 			 * Only rooms not already joined or pending will be sent.
@@ -161,7 +149,6 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 			 * socket.rooms.bulk.join(['lobby', 'notifications']);
 			 */
 			join: this.#joinMany.bind(this),
-
 			/**
 			 * Request to leave multiple rooms.
 			 * Only rooms currently joined will be sent.
@@ -170,78 +157,66 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 			 * socket.rooms.bulk.leave(['lobby', 'notifications']);
 			 */
 			leave: this.#leaveMany.bind(this),
-
 			lifecycle: {
 				/**
 				 * Register a listener for successful bulk join.
 				 * @param callback - Function invoked with the array of room names.
 				 */
 				onJoinSuccess: (callback: (rooms: string[]) => void) => this.onLifecycle(LifecycleTypes.join_rooms_success, callback),
-
 				/**
 				 * Remove a listener for successful bulk join.
 				 * @param callback - Optional; if omitted, all listeners are removed.
 				 */
 				offJoinSuccess: (callback?: (rooms: string[]) => void) => this.offLifecycle(LifecycleTypes.join_rooms_success, callback),
-
 				/**
 				 * Register a one‑time listener for successful bulk join.
 				 * @param callback - Function invoked once with the array of room names.
 				 */
 				onceJoinSuccess: (callback: (rooms: string[]) => void) => this.onceLifecycle(LifecycleTypes.join_rooms_success, callback),
-
 				/**
 				 * Register a listener for bulk join errors.
 				 * @param callback - Function invoked with the array of room names and error data.
 				 */
 				onJoinError: (callback: (rooms: string[], ctx: ErrorContext) => void) => this.onLifecycle(LifecycleTypes.join_rooms_error, callback),
-
 				/**
 				 * Remove a listener for bulk join errors.
 				 * @param callback - Optional; if omitted, all listeners are removed.
 				 */
 				offJoinError: (callback?: (rooms: string[], ctx: ErrorContext) => void) =>
 					this.offLifecycle(LifecycleTypes.join_rooms_error, callback),
-
 				/**
 				 * Register a one‑time listener for bulk join errors.
 				 * @param callback - Function invoked once with the array of room names and error data.
 				 */
 				onceJoinError: (callback: (rooms: string[], ctx: ErrorContext) => void) =>
 					this.onceLifecycle(LifecycleTypes.join_rooms_error, callback),
-
 				/**
 				 * Register a listener for successful bulk leave.
 				 * @param callback - Function invoked with the array of room names.
 				 */
 				onLeaveSuccess: (callback: (rooms: string[]) => void) => this.onLifecycle(LifecycleTypes.leave_rooms_success, callback),
-
 				/**
 				 * Remove a listener for successful bulk leave.
 				 * @param callback - Optional; if omitted, all listeners are removed.
 				 */
 				offLeaveSuccess: (callback?: (rooms: string[]) => void) => this.offLifecycle(LifecycleTypes.leave_rooms_success, callback),
-
 				/**
 				 * Register a one‑time listener for successful bulk leave.
 				 * @param callback - Function invoked once with the array of room names.
 				 */
 				onceLeaveSuccess: (callback: (rooms: string[]) => void) => this.onceLifecycle(LifecycleTypes.leave_rooms_success, callback),
-
 				/**
 				 * Register a listener for bulk leave errors.
 				 * @param callback - Function invoked with the array of room names and error data.
 				 */
 				onLeaveError: (callback: (rooms: string[], ctx: ErrorContext) => void) =>
 					this.onLifecycle(LifecycleTypes.leave_rooms_error, callback),
-
 				/**
 				 * Remove a listener for bulk leave errors.
 				 * @param callback - Optional; if omitted, all listeners are removed.
 				 */
 				offLeaveError: (callback?: (rooms: string[], ctx: ErrorContext) => void) =>
 					this.offLifecycle(LifecycleTypes.leave_rooms_error, callback),
-
 				/**
 				 * Register a one‑time listener for bulk leave errors.
 				 * @param callback - Function invoked once with the array of room names and error data.

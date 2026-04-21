@@ -22,18 +22,13 @@ import type { AuthConfig, ByteSocketOptions, EventCallback } from "./types";
  * @typeParam TEvents - A type extending `SocketEvents` that defines the shape of
  *                      all emit/listen events (global and room‑scoped).
  *
- * @example
- * // Define your event schema
- * interface MyEvents extends SocketEvents<{
- *   emit: { ping: void };
- *   listen: { pong: number };
- *   emitRoom: {
- *     chat: { message: string };
- *   };
- *   listenRoom: {
- *     chat: { message: string; sender: string };
- *   };
- * }> {}
+ * @example Symmetric events (most common)
+ * ```ts
+ * // Define your event map
+ * type MyEvents = SocketEvents<{
+ *   "chat:message": { text: string };
+ *   "user:joined": { userId: string };
+ * }>;
  *
  * // Create a typed socket instance
  * const socket = new ByteSocket<MyEvents>('wss://example.com/socket', {
@@ -41,15 +36,54 @@ import type { AuthConfig, ByteSocketOptions, EventCallback } from "./types";
  *   auth: { token: 'abc123' }
  * });
  *
- * // Use typed methods
- * socket.emit('ping', undefined);
- * socket.on('pong', (timestamp) => console.log(timestamp));
+ * // Use typed methods (emit and listen share the same event map)
+ * socket.emit('chat:message', { text: 'Hello!' });
+ * socket.on('user:joined', (data) => console.log(data.userId));
  *
- * socket.rooms.join('chat');
- * socket.rooms.emit('chat', 'message', { message: 'Hello!' });
- * socket.rooms.on('chat', 'message', (data) => {
- *   console.log(`${data.sender}: ${data.message}`);
+ * socket.rooms.join('lobby');
+ * socket.rooms.emit('lobby', 'chat:message', { text: 'Hi everyone' });
+ * socket.rooms.on('lobby', 'chat:message', (data) => {
+ *   console.log(`Message: ${data.text}`);
  * });
+ * ```
+ *
+ * @example Asymmetric events (full control via interface extension)
+ * ```ts
+ * // Extend SocketEvents to differentiate emit/listen/room maps
+ * interface MyEvents extends SocketEvents {
+ *   emit: {
+ *     "message:send": { text: string };
+ *     "ping": void;
+ *   };
+ *   listen: {
+ *     "message:receive": { text: string; sender: string };
+ *     "pong": number;
+ *   };
+ *   emitRoom: {
+ *     chat: { "message": { text: string } };
+ *     dm:   { "message": { text: string; recipient: string } };
+ *   };
+ *   listenRoom: {
+ *     chat: { "message": { text: string; sender: string } };
+ *   };
+ * }
+ *
+ * const socket = new ByteSocket<MyEvents>('wss://example.com/socket', {
+ *   debug: true,
+ *   auth: { token: 'abc123' }
+ * });
+ *
+ * // Global emits/listens
+ * socket.emit('ping', undefined);
+ * socket.on('message:receive', (data) => console.log(`${data.sender}: ${data.text}`));
+ *
+ * // Room‑specific emits/listens
+ * socket.rooms.join('chat');
+ * socket.rooms.emit('chat', 'message', { text: 'Hello!' });
+ * socket.rooms.on('chat', 'message', (data) => {
+ *   console.log(`${data.sender}: ${data.text}`);
+ * });
+ * ```
  */
 export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends SocketBase {
 	// ────────────────────────────────────────────────────────────────────────────
@@ -105,7 +139,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 	#ws: WebSocket | null = null;
 	#authConfig: AuthConfig | undefined;
 	#authState: AuthState = AuthState.idle;
-	#messageQueue: Array<string | Blob | BufferSource> = [];
+	#messageQueue: Array<string | BufferSource> = [];
 	#reconnectAttempts: number = 0;
 	#flushFailures: number = 0;
 
@@ -155,6 +189,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 			maxReconnectionAttempts: options.maxReconnectionAttempts ?? Infinity,
 			reconnectionDelay: options.reconnectionDelay ?? 1000,
 			reconnectionDelayMax: options.reconnectionDelayMax ?? 5000,
+			reconnectOnNormalClosure: options.reconnectOnNormalClosure ?? true,
 			authTimeout: options.authTimeout ?? 5000,
 			maxQueueSize: options.maxQueueSize ?? 100,
 			serialization: options.serialization ?? "binary",
@@ -190,99 +225,62 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		});
 
 		this.lifecycle = {
-			/**
-			 * Register a listener for socket open.
-			 */
+			/** Register a listener for socket open. */
 			onOpen: (callback: () => void) => this.onLifecycle(LifecycleTypes.open, callback),
-			/**
-			 * Remove a listener for socket open.
-			 */
+			/** Remove a listener for socket open. */
 			offOpen: (callback?: () => void) => this.offLifecycle(LifecycleTypes.open, callback),
-			/**
-			 * Register a one‑time listener for socket open.
-			 */
+			/** Register a one‑time listener for socket open. */
 			onceOpen: (callback: () => void) => this.onceLifecycle(LifecycleTypes.open, callback),
-
 			/**
-			 * Register a listener for socket close.
+			 * Register a listener for raw incoming WebSocket messages.
+			 * Called immediately when a message is received, before any internal processing.
+			 *
+			 * @param callback - Receives the raw data and a boolean indicating if it's binary.
 			 */
+			onMessage: (callback: (data: string | ArrayBuffer) => void) => this.onLifecycle(LifecycleTypes.message, callback),
+			/** Remove a listener for raw messages. */
+			offMessage: (callback?: (data: string | ArrayBuffer) => void) => this.offLifecycle(LifecycleTypes.message, callback),
+			/** Register a one‑time listener for raw incoming WebSocket messages. */
+			onceMessage: (callback: (data: string | ArrayBuffer) => void) => this.onceLifecycle(LifecycleTypes.message, callback),
+			/** Register a listener for socket close. */
 			onClose: (callback: (event: CloseEvent) => void) => this.onLifecycle(LifecycleTypes.close, callback),
-			/**
-			 * Remove a listener for socket close.
-			 */
+			/** Remove a listener for socket close. */
 			offClose: (callback?: (event: CloseEvent) => void) => this.offLifecycle(LifecycleTypes.close, callback),
-			/**
-			 * Register a one‑time listener for socket close.
-			 */
+			/** Register a one‑time listener for socket close. */
 			onceClose: (callback: (event: CloseEvent) => void) => this.onceLifecycle(LifecycleTypes.close, callback),
-
-			/**
-			 * Register a listener for WebSocket errors.
-			 */
+			/** Register a listener for WebSocket errors. */
 			onError: (callback: (event: Event) => void) => this.onLifecycle(LifecycleTypes.error, callback),
-			/**
-			 * Remove a listener for WebSocket errors.
-			 */
+			/** Remove a listener for WebSocket errors. */
 			offError: (callback?: (event: Event) => void) => this.offLifecycle(LifecycleTypes.error, callback),
-			/**
-			 * Register a one‑time listener for WebSocket errors.
-			 */
+			/** Register a one‑time listener for WebSocket errors. */
 			onceError: (callback: (event: Event) => void) => this.onceLifecycle(LifecycleTypes.error, callback),
-
-			/**
-			 * Register a listener for authentication success.
-			 */
+			/** Register a listener for authentication success. */
 			onAuthSuccess: (callback: () => void) => this.onLifecycle(LifecycleTypes.auth_success, callback),
-			/**
-			 * Remove a listener for authentication success.
-			 */
+			/** Remove a listener for authentication success. */
 			offAuthSuccess: (callback?: () => void) => this.offLifecycle(LifecycleTypes.auth_success, callback),
-			/**
-			 * Register a one‑time listener for authentication success.
-			 */
+			/** Register a one‑time listener for authentication success. */
 			onceAuthSuccess: (callback: () => void) => this.onceLifecycle(LifecycleTypes.auth_success, callback),
-
-			/**
-			 * Register a listener for authentication errors.
-			 */
+			/** Register a listener for authentication errors. */
 			onAuthError: (callback: (ctx: ErrorContext) => void) => this.onLifecycle(LifecycleTypes.auth_error, callback),
-			/**
-			 * Remove a listener for authentication errors.
-			 */
+			/** Remove a listener for authentication errors. */
 			offAuthError: (callback?: (ctx: ErrorContext) => void) => this.offLifecycle(LifecycleTypes.auth_error, callback),
-			/**
-			 * Register a one‑time listener for authentication errors.
-			 */
+			/** Register a one‑time listener for authentication errors. */
 			onceAuthError: (callback: (ctx: ErrorContext) => void) => this.onceLifecycle(LifecycleTypes.auth_error, callback),
-
-			/**
-			 * Register a listener for when the message queue becomes full and a message is dropped.
-			 */
+			/** Register a listener for when the message queue becomes full and a message is dropped. */
 			onQueueFull: (callback: () => void) => this.onLifecycle(LifecycleTypes.queue_full, callback),
-			/**
-			 * Remove a listener for queue‑full events.
-			 */
+			/** Remove a listener for queue‑full events. */
 			offQueueFull: (callback?: () => void) => this.offLifecycle(LifecycleTypes.queue_full, callback),
-			/**
-			 * Register a one‑time listener for queue‑full events.
-			 */
+			/** Register a one‑time listener for queue‑full events. */
 			onceQueueFull: (callback: () => void) => this.onceLifecycle(LifecycleTypes.queue_full, callback),
-
-			/**
-			 * Register a listener for when reconnection fails after all attempts.
-			 */
+			/** Register a listener for when reconnection fails after all attempts. */
 			onReconnectFailed: (callback: () => void) => this.onLifecycle(LifecycleTypes.reconnect_failed, callback),
-			/**
-			 * Remove a listener for reconnect‑failed events.
-			 */
+			/** Remove a listener for reconnect‑failed events. */
 			offReconnectFailed: (callback?: () => void) => this.offLifecycle(LifecycleTypes.reconnect_failed, callback),
-			/**
-			 * Register a one‑time listener for reconnect‑failed events.
-			 */
+			/** Register a one‑time listener for reconnect‑failed events. */
 			onceReconnectFailed: (callback: () => void) => this.onceLifecycle(LifecycleTypes.reconnect_failed, callback),
-		} as const;
+		};
 
-		this.rooms = new RoomManager<TEvents>(this.debug, this.#send.bind(this), this.lifecycle.onOpen.bind(this), this.lifecycle.onClose.bind(this));
+		this.rooms = new RoomManager<TEvents>(this.debug, this.send.bind(this), this.lifecycle.onOpen.bind(this), this.lifecycle.onClose.bind(this));
 
 		if (this.#options.autoConnect) this.connect();
 	}
@@ -299,11 +297,40 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		return this.#ws?.readyState ?? WebSocket.CLOSED;
 	}
 
+	/**
+	 * Whether the socket is currently able to send messages.
+	 * Returns `true` if the WebSocket is open and authentication (if configured) has succeeded.
+	 * Useful for checking readiness before calling `sendRaw()`
+	 * No need to use it with `emit()` or `send()` because they already use it under the hood.
+	 *
+	 * @example
+	 * if (socket.canSend) {
+	 *   socket.sendRaw('PROTOCOL: custom-v1');
+	 * }
+	 */
+	get canSend(): boolean {
+		return this.readyState === WebSocket.OPEN && (this.#authState === AuthState.none || this.#authState === AuthState.success);
+	}
+
 	// ────────────────────────────────────────────────────────────────────────────
 	// Encoding / Decoding
 	// ────────────────────────────────────────────────────────────────────────────
 
-	#encode<R extends string, E extends string | number, D>(payload: LifecycleMessage<R, D> | UserMessage<R, E, D>): string | BufferSource {
+	/**
+	 * Encode a structured payload into a format suitable for sending over the WebSocket.
+	 * Uses the configured serialization (`"json"` or `"binary"`).
+	 *
+	 * **Advanced usage only.** Prefer `emit()` or `send()` for type‑safe communication.
+	 *
+	 * @param payload - A lifecycle message or user event object.
+	 * @returns Encoded string (JSON) or Uint8Array (MessagePack).
+	 *
+	 * @example
+	 * // Pre‑encode a payload for repeated use
+	 * const encoded = socket.encode({ event: 'chat', data: { text: 'Hello' } });
+	 * socket.sendRaw(encoded);
+	 */
+	encode<R extends string, E extends string | number, D>(payload: LifecycleMessage<R, D> | UserMessage<R, E, D>) {
 		if (this.#options.serialization === "binary") {
 			return this.#packr.pack(payload);
 		} else {
@@ -311,22 +338,33 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		}
 	}
 
-	#decode(message: string | ArrayBuffer, isBinary: boolean) {
-		if (this.#options.serialization === "binary" && message instanceof ArrayBuffer) {
-			if (!isBinary) throw new Error("Expected binary message for msgpack serialization");
-			return this.#packr.unpack(new Uint8Array(message));
-		} else if (this.#options.serialization === "json" && typeof message === "string") {
-			if (isBinary) throw new Error("Binary message received but serialization is set to JSON");
-			return JSON.parse(message);
-		}
-		throw new Error(`Decode failed: unexpected message type for ${this.#options.serialization} serialization`);
+	/**
+	 * Decode a raw WebSocket message into a structured payload.
+	 * Automatically detects JSON or MessagePack based on the binary flag and message content.
+	 *
+	 * **Advanced usage only.** Normally you should use `on()` listeners to receive typed data.
+	 *
+	 * @param message - Raw string (JSON) or Uint8Array (MessagePack).
+	 * @param isBinary - Whether the message is binary. If omitted, format is detected from the message type.
+	 * @returns Decoded lifecycle or user message object.
+	 */
+	decode(message: string | ArrayBuffer, isBinary?: boolean) {
+		if (typeof message === "string" && (isBinary === false || isBinary === undefined)) return JSON.parse(message);
+
+		if (typeof message !== "string" && (isBinary === true || isBinary === undefined)) return this.#packr.unpack(new Uint8Array(message));
+
+		if (isBinary === true) throw new Error("Received string data but isBinary flag is true — expected binary data");
+
+		if (isBinary === false) throw new Error("Received binary data but isBinary flag is false — expected text message");
+
+		throw new Error("Decode failed: unexpected message type or isBinary combination");
 	}
 
 	// ────────────────────────────────────────────────────────────────────────────
 	// Emits
 	// ────────────────────────────────────────────────────────────────────────────
 
-	#trySend(message: string | Blob | BufferSource): boolean {
+	#trySend(message: string | BufferSource): boolean {
 		if (!this.#ws || this.readyState !== WebSocket.OPEN) return false;
 		try {
 			this.#ws.send(message);
@@ -337,11 +375,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		}
 	}
 
-	#sendOrQueue(message: string | Blob | BufferSource, bypassAuthPending: boolean = false): void {
-		if (this.#canSend(bypassAuthPending) && !this.#flushing) {
-			const sent = this.#trySend(message);
-			if (sent) return;
-		}
+	#enqueue(message: string | BufferSource): void {
 		if (this.#messageQueue.length < this.#options.maxQueueSize) {
 			this.#messageQueue.push(message);
 		} else {
@@ -350,25 +384,50 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		}
 	}
 
-	#send<R extends string, E extends string | number, D>(
-		payload: LifecycleMessage<R, D> | UserMessage<R, E, D>,
-		bypassAuthPending: boolean = false,
-	): void {
-		if (!this.#isOperational()) return;
-		const message = this.#encode(payload);
-		this.#sendOrQueue(message, bypassAuthPending);
+	#sendOrQueue(message: string | BufferSource): void {
+		if (this.canSend && !this.#flushing) {
+			const sent = this.#trySend(message);
+			if (sent) return;
+		}
+		this.#enqueue(message);
 	}
 
 	/**
-	 * Send a raw message (string, Blob, or BufferSource) directly over the WebSocket.
+	 * Send a pre‑serialized payload (LifecycleMessage or UserMessage) over the WebSocket.
+	 * If the socket is not ready, the payload is queued and sent when the connection
+	 * becomes operational and authentication (if required) has succeeded.
+	 *
+	 * @param payload - The structured payload to encode and send.
+	 *
+	 * @example
+	 * // Send a custom lifecycle message (advanced)
+	 * socket.send({ type: LifecycleTypes.ping });
+	 *
+	 * @example
+	 * // Send a raw user event (equivalent to socket.emit('chat', data))
+	 * socket.send({ event: 'chat', data: { text: 'Hello' } });
+	 */
+	send<R extends string, E extends string | number, D>(payload: LifecycleMessage<R, D> | UserMessage<R, E, D>): void {
+		if (!this.#isOperational()) return;
+		const message = this.encode(payload);
+		this.#sendOrQueue(message);
+	}
+
+	/**
+	 * Send a raw message (string or BufferSource) directly over the WebSocket.
 	 * Bypasses serialization and auth checks. If the socket is not open, the message
 	 * is queued and sent when possible (auth state is ignored).
 	 *
 	 * @param message - The raw data to send.
 	 */
-	sendRaw(message: string | Blob | BufferSource): void {
+	sendRaw(message: string | BufferSource): void {
 		if (!this.#isOperational()) return;
-		this.#sendOrQueue(message, true);
+		// Raw messages bypass the auth‑pending check entirely.
+		if (this.readyState === WebSocket.OPEN && !this.#flushing) {
+			const sent = this.#trySend(message);
+			if (sent) return;
+		}
+		this.#enqueue(message);
 	}
 
 	/**
@@ -382,14 +441,37 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 	 * socket.emit('user:typing', { userId: '123' });
 	 */
 	emit<E extends StringNumberKeys<TEvents["emit"]>, D extends NonNullable<TEvents["emit"]>[E]>(event: E, data: D): void {
-		this.#send({ event, data });
+		this.send({ event, data });
 	}
+
+	/**
+	 * Send the auth payload immediately. Does not queue or wait for auth state.
+	 */
+	#sendAuthPayload<D>(data: D): void {
+		if (this.readyState !== WebSocket.OPEN) {
+			if (this.debug) console.warn("ByteSocket: cannot send auth, socket not open");
+			this.#handleAuthError(new Error("Auth failed: socket not open"), false);
+			return;
+		}
+		const message = this.encode({ type: LifecycleTypes.auth, data });
+		const sent = this.#trySend(message);
+		if (!sent) {
+			if (this.debug) console.warn("ByteSocket: auth send failed");
+			this.#handleAuthError(new Error("Auth send failed"), false);
+		} else {
+			if (this.debug) console.log("ByteSocket: auth payload sent");
+		}
+	}
+
+	// ────────────────────────────────────────────────────────────────────────────
+	// Queue Flushing
+	// ────────────────────────────────────────────────────────────────────────────
 
 	#flushQueue(): void {
 		if (this.#flushing) return;
 		this.#flushing = true;
 		try {
-			while (this.#messageQueue.length > 0 && this.#canSend() && this.#isOperational()) {
+			while (this.#messageQueue.length > 0 && this.canSend && this.#isOperational()) {
 				const message = this.#messageQueue.shift();
 				if (message !== undefined) {
 					const sent = this.#trySend(message);
@@ -402,7 +484,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 			}
 		} finally {
 			this.#flushing = false;
-			if (this.#messageQueue.length > 0 && this.#canSend() && this.#isOperational()) {
+			if (this.#messageQueue.length > 0 && this.canSend && this.#isOperational()) {
 				queueMicrotask(() => {
 					if (this.#flushFailures++ > 10) {
 						this.#flushFailures = 0;
@@ -485,20 +567,14 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 	// Helpers
 	// ────────────────────────────────────────────────────────────────────────────
 
-	#canSend(bypassAuthPending: boolean = false): boolean {
-		return (
-			this.readyState === WebSocket.OPEN && (bypassAuthPending || this.#authState === AuthState.none || this.#authState === AuthState.success)
-		);
-	}
-
 	#isOperational(): boolean {
 		if (this.#destroyed) return false;
 		if (this.#manuallyClosed) {
-			if (this.debug) console.warn("ByteSocket: send() called after close() — message dropped");
+			if (this.debug) console.warn("ByteSocket: send() called after close() -- message dropped");
 			return false;
 		}
 		if (this.#authState === AuthState.failed) {
-			if (this.debug) console.warn("ByteSocket: send() called after auth_failed — message dropped");
+			if (this.debug) console.warn("ByteSocket: send() called after auth_failed -- message dropped");
 			return false;
 		}
 		return true;
@@ -628,7 +704,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 			try {
 				config((data) => {
 					try {
-						this.#sendAuthData(data);
+						this.#sendAuthPayload(data);
 					} catch (error) {
 						this.#handleAuthError(error);
 					}
@@ -637,17 +713,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 				this.#handleAuthError(error);
 			}
 		} else {
-			this.#sendAuthData(config.data);
-		}
-	}
-
-	#sendAuthData<D>(data: D): void {
-		if (this.readyState === WebSocket.OPEN) {
-			this.#send({ type: LifecycleTypes.auth, data }, true);
-			if (this.debug) console.log("ByteSocket: auth payload sent");
-		} else {
-			if (this.debug) console.warn("ByteSocket: cannot send auth, socket not open");
-			this.#handleAuthError(new Error("Auth failed: socket not open"), false);
+			this.#sendAuthPayload(config.data);
 		}
 	}
 
@@ -670,11 +736,10 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 
 	#startPingInterval() {
 		if (this.#pingTimer) clearInterval(this.#pingTimer);
-
 		this.#pingTimer = setInterval(() => {
-			if (this.#canSend()) {
+			if (this.canSend) {
 				if (this.debug) console.time("ByteSocket: heartbeat");
-				this.#send({ type: LifecycleTypes.ping });
+				this.send({ type: LifecycleTypes.ping });
 				if (this.debug) console.log("ByteSocket: ping sent");
 				this.#startPongTimeout();
 			}
@@ -768,7 +833,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 			return { success: false };
 		}
 		try {
-			const payload = this.#decode(message.data, message.data instanceof ArrayBuffer);
+			const payload = this.decode(message.data);
 			return { success: true, payload };
 		} catch (error) {
 			if (this.debug) console.error("ByteSocket: decode error", error);
@@ -794,7 +859,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 	#handleHeartbeatMessage(payload: UserMessage): boolean {
 		if ("type" in payload && payload.type === LifecycleTypes.ping) {
 			if (this.debug) console.log("ByteSocket: ping received");
-			this.#send({ type: LifecycleTypes.pong });
+			this.send({ type: LifecycleTypes.pong });
 			return true;
 		}
 		if ("type" in payload && payload.type === LifecycleTypes.pong) {
@@ -812,6 +877,8 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 	}
 
 	#handleMessage(message: MessageEvent): void {
+		this.triggerCallback(this.lifecycleCallbacksMap.get(LifecycleTypes.message), message.data);
+
 		const { success, payload } = this.#parseMessage(message);
 		if (!success) return;
 
@@ -864,8 +931,8 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 	 * Gracefully close the WebSocket connection.
 	 * Automatic reconnection is disabled after a manual close.
 	 *
-	 * @param code - Close code (default none).
-	 * @param reason - Close reason (default none).
+	 * @param code - Close code. @default undefined
+	 * @param reason - Close reason. @default undefined
 	 */
 	close(code?: number, reason?: string): void {
 		if (this.#destroyed) return;
@@ -912,7 +979,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		if (!this.#destroyed) this.triggerCallback(this.lifecycleCallbacksMap.get(LifecycleTypes.close), event);
 		if (this.#destroyed || this.#manuallyClosed || this.#authState === AuthState.failed) return;
 		if (this.#manualReconnect()) return;
-		if (event.code === 1000 || event.code === 1001) {
+		if (!this.#options.reconnectOnNormalClosure && (event.code === 1000 || event.code === 1001)) {
 			if (this.debug) console.log(`ByteSocket: normal closure (code ${event.code}), will not reconnect`);
 			return;
 		}

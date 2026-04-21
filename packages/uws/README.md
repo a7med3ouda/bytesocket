@@ -20,15 +20,15 @@ yarn add @bytesocket/uws
 
 ## Features
 
-- **Room-based pub/sub** — join/leave rooms, scoped middleware, bulk operations
-- **Authentication** — server-side auth function with callback and timeout
-- **Global middleware** — inspect or block any incoming message before processing
-- **Room middleware** — middleware chain per room+event, with `next()` / `next(err)` flow
-- **Lifecycle hooks** — upgrade, open, message, close, error — all typed and cancellable
-- **Server-side broadcast** — emit to all sockets, a room, or multiple rooms
-- **Origin validation** — allowlist origins at the framework level
-- **Full TypeScript** — generic event maps shared with the client for end-to-end type safety
-- **Dual serialization** — JSON or binary MessagePack (`msgpackr`) out of the box
+- **Room-based pub/sub** -- join/leave rooms, scoped middleware, bulk operations
+- **Authentication** -- server-side auth function with callback and timeout
+- **Global middleware** -- inspect or block any incoming message before processing
+- **Room middleware** -- middleware chain per room+event, with `next()` / `next(err)` flow
+- **Lifecycle hooks** -- upgrade, open, message, close, error -- all typed and cancellable
+- **Server-side broadcast** -- emit to all sockets, a room, or multiple rooms
+- **Origin validation** -- allowlist origins at the framework level
+- **Full TypeScript** -- generic event maps shared with the client for end-to-end type safety
+- **Dual serialization** -- JSON or binary MessagePack (`msgpackr`) out of the box
 
 ---
 
@@ -95,51 +95,77 @@ app.listen(3000, (token) => {
 
 ## Type-Safe Events
 
-Share a single event interface between server and client for end-to-end type safety:
+Share a single event interface between server and client for end‑to‑end type safety. You can use **symmetric events** (emit and listen share the same map) or **asymmetric events** (full control via interface extension).
+
+### Symmetric usage (most common)
+
+Use `SocketEvents<T>` directly with a single event map:
 
 ```typescript
 import { ByteSocket, SocketEvents } from "@bytesocket/uws";
 
-// Define once, import on both sides
-export type MyEvents = SocketEvents<{
+type MyEvents = SocketEvents<{
+	"chat:message": { text: string };
+	"user:joined": { userId: string };
+}>;
+
+const io = new ByteSocket<MyEvents>(app);
+
+// Emit and listen share the same typed events
+io.emit("chat:message", { text: "Server announcement" });
+io.on("user:joined", (socket, data) => {
+	console.log(`User ${data.userId} joined`);
+});
+
+// Rooms also use the same map
+io.rooms.emit("lobby", "chat:message", { text: "Welcome to the lobby" });
+io.rooms.on("lobby", "chat:message", (socket, data, next) => {
+	console.log(`${socket.id} said: ${data.text}`);
+	next();
+});
+```
+
+### Asymmetric usage (full control)
+
+Extend `SocketEvents` and override specific properties to differentiate emit/listen/room maps:
+
+```typescript
+import { ByteSocket, SocketEvents } from "@bytesocket/uws";
+
+interface MyEvents extends SocketEvents {
 	emit: {
 		"server:broadcast": { text: string; from: string };
-		"user:joined": { userId: string; name: string };
+		"room:created": { roomId: string };
 	};
 	listen: {
 		"user:message": { text: string };
 		"user:typing": { userId: string };
 	};
 	emitRoom: {
-		chat: {
-			message: { text: string; sender: string; timestamp: number };
-		};
+		chat: { message: { text: string; sender: string } };
 	};
 	listenRoom: {
-		chat: {
-			message: { text: string; sender: string };
-		};
+		chat: { message: { text: string; sender: string } };
 	};
-	emitRooms?: {
-		rooms: ["lobby", "announcements"];
-		events: {
-			alert: { msg: string };
-		};
-	};
-}>;
+}
 
 const io = new ByteSocket<MyEvents>(app);
 
-// Fully typed — wrong event names or payload shapes are compile errors
+// Global emits/listens
+io.emit("server:broadcast", { text: "Hello all", from: "system" });
 io.on("user:message", (socket, data) => {
 	console.log(data.text); // string ✓
 });
 
+// Room‑specific emits/listens (different maps per room)
+io.rooms.emit("chat", "message", { text: "Hello!", sender: "server" });
 io.rooms.on("chat", "message", (socket, data, next) => {
-	console.log(data.sender); // string ✓
+	console.log(`${data.sender}: ${data.text}`);
 	next();
 });
 ```
+
+All server methods (`emit`, `on`, `off`, `once`, `rooms.emit`, `rooms.on`, etc.) are fully typed -- wrong event names or payload shapes become compile‑time errors.
 
 ---
 
@@ -231,7 +257,7 @@ io.rooms.bulk.lifecycle.onJoin((socket, rooms, next) => {
 ### Room event middleware
 
 ```typescript
-// Middleware chain per room + event — call next() to forward, next(err) to block
+// Middleware chain per room + event -- call next() to forward, next(err) to block
 io.rooms.on("chat", "message", (socket, data, next) => {
 	if (data.text.includes("badword")) {
 		next(new Error("Profanity not allowed")); // message is not forwarded
@@ -318,8 +344,8 @@ io.lifecycle.onAuthError((socket, ctx) => {
 });
 
 // Raw incoming message
-io.lifecycle.onMessage((socket, parsed, rawBuffer, isBinary) => {
-	console.log("Raw message received", parsed);
+io.lifecycle.onMessage((socket, rawBuffer, isBinary) => {
+	console.log("Raw message received", rawBuffer);
 });
 
 // Socket closed
@@ -356,7 +382,7 @@ socket.id; // UUID string
 // Auth payload (set by your auth function)
 socket.payload; // any (cast to your type)
 
-// Arbitrary data store — survives across middleware
+// Arbitrary data store -- survives across middleware
 socket.locals.requestId = randomUUID();
 
 // HTTP metadata from upgrade request (convenience getters)
@@ -432,10 +458,10 @@ const io = new ByteSocket(app, {
 ## Serialization
 
 ```typescript
-// Binary (default) — msgpackr, smallest payloads
+// Binary (default) -- msgpackr, smallest payloads
 const io = new ByteSocket(app, { serialization: "binary" });
 
-// JSON — plain text, easier to inspect/debug
+// JSON -- plain text, easier to inspect/debug
 const io = new ByteSocket(app, { serialization: "json" });
 
 // Advanced msgpackr options
@@ -449,6 +475,36 @@ const io = new ByteSocket(app, {
 ```
 
 > The serialization mode must match the client's `serialization` option.
+
+---
+
+## Advanced: Manual Serialization
+
+If you need to inspect, pre‑encode, or bypass the automatic serialization, you can use the `encode()` and `decode()` methods.
+
+> ⚠️ **These are advanced APIs.** Prefer `emit()` and `on()` for type‑safe, automatic encoding/decoding.
+
+```typescript
+// Encode a structured payload (returns a string or Uint8Array)
+const encoded = io.encode({ event: "chat", data: { text: "Hello" } });
+
+// Broadcast the raw encoded payload to a room
+io.rooms.publishRaw("lobby", encoded);
+
+// Or send it to a specific socket
+socket.sendRaw(encoded);
+
+// Decode a raw incoming message (useful in lifecycle.onMessage)
+io.lifecycle.onMessage((socket, rawBuffer, isBinary) => {
+	const decoded = io.decode(rawBuffer, isBinary);
+	console.log("Decoded message:", decoded);
+});
+```
+
+- `encode(payload)` – uses the configured `serialization` (`"json"` or `"binary"`).
+- `decode(message, isBinary?)` – parses a raw WebSocket message back into an object. If `isBinary` is omitted, the format is auto‑detected.
+
+These methods give you full control when integrating with external systems or debugging the wire format.
 
 ---
 
@@ -481,8 +537,8 @@ io.destroy();
 ```typescript
 const io = new ByteSocket(app, {
 	// Authentication
-	auth: (socket, data, cb) => {
-		cb({ userId: 1 });
+	auth: (socket, data, callback) => {
+		callback({ userId: 1 });
 	},
 	authTimeout: 5000,
 

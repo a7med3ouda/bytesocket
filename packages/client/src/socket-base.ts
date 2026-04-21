@@ -16,9 +16,7 @@ export abstract class SocketBase {
 	/** Stores `once` wrappers for lifecycle events. */
 	protected onceLifecycleCallbacksMap = new Map<string | number, Map<AnyCallback, Set<AnyCallback>>>();
 
-	/**
-	 * Adds a callback to a given event in the provided map.
-	 */
+	/** Adds a callback to a given event in the provided map. */
 	protected addCallback<E extends string | number, D>(callbacksMap: Map<string | number, Set<AnyCallback>>, event: E, callback: EventCallback<D>) {
 		let eventCallbackSet = callbacksMap.get(event);
 		if (!eventCallbackSet) {
@@ -28,9 +26,7 @@ export abstract class SocketBase {
 		eventCallbackSet.add(callback);
 	}
 
-	/**
-	 * Registers a one‑time callback by storing the wrapper in a separate map.
-	 */
+	/** Registers a one‑time callback by storing the wrapper in a separate map. */
 	protected addOnceCallback<E extends string | number, D>(
 		onceCallbacksMap: Map<string | number, Map<AnyCallback, Set<AnyCallback>>>,
 		event: E,
@@ -50,9 +46,7 @@ export abstract class SocketBase {
 		wrappersSet.add(callbackWrapper);
 	}
 
-	/**
-	 * Removes a callback from an event map.
-	 */
+	/** Removes a callback from an event map. */
 	protected deleteCallback<E extends string | number, D>(
 		callbacksMap: Map<string | number, Set<AnyCallback>>,
 		event: E,
@@ -67,9 +61,7 @@ export abstract class SocketBase {
 		}
 	}
 
-	/**
-	 * Removes a one‑time callback and its associated wrapper.
-	 */
+	/** Removes a one‑time callback and its associated wrapper. */
 	protected deleteOnceCallback<E extends string | number, D>(
 		onceCallbacksMap: Map<string | number, Map<AnyCallback, Set<AnyCallback>>>,
 		event: E,
@@ -89,9 +81,7 @@ export abstract class SocketBase {
 		}
 	}
 
-	/**
-	 * Registers a permanent listener for a lifecycle event.
-	 */
+	/** Registers a permanent listener for a lifecycle event. */
 	protected onLifecycle<T extends LifecycleTypes>(type: T, callback: AnyCallback) {
 		this.addCallback(this.lifecycleCallbacksMap, type, callback);
 	}
@@ -131,9 +121,7 @@ export abstract class SocketBase {
 		this.addCallback(this.lifecycleCallbacksMap, type, callbackWrapper);
 	}
 
-	/**
-	 * Safely invokes a set of callbacks, catching and logging errors if debug is enabled.
-	 */
+	/** Safely invokes a set of callbacks, catching and logging errors if debug is enabled. */
 	protected triggerCallback<Args extends Array<unknown>>(callbackWrappers?: Set<AnyCallback>, ...args: Args) {
 		if (!callbackWrappers) return;
 		const callbacks = Array.from(callbackWrappers);

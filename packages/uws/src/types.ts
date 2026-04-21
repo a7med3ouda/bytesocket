@@ -72,9 +72,7 @@ export type RoomEventMiddleware<TEvents extends SocketEvents, SD extends SocketD
 	next: MiddlewareNext,
 ) => void | Promise<void>;
 
-/**
- * Next function for middleware chains. Call `next()` to proceed, or `next(error)` to abort.
- */
+/** Next function for middleware chains. Call `next()` to proceed, or `next(error)` to abort. */
 export type MiddlewareNext = (error?: unknown | null) => void;
 
 /**
@@ -126,9 +124,9 @@ export interface SocketData {
  *   authTimeout: 10000,
  *   origins: ["https://example.com"],
  *   serialization: "binary",
- *   auth: (socket, data, cb) => {
+ *   auth: (socket, data, callback) => {
  *     // validate token
- *     cb({ userId: 1 });
+ *     callback({ userId: 1 });
  *   }
  * });
  */
@@ -136,25 +134,25 @@ export interface ByteSocketOptions<TEvents extends SocketEvents = SocketEvents, 
 	WebSocketBehavior<SD>,
 	"upgrade" | "open" | "message" | "close"
 > {
-	/** Enable debug logging to console. Default `false`. */
+	/** Enable debug logging to console. @default false */
 	debug?: boolean;
-	/** Timeout in milliseconds for global middleware execution. Default `5000`. */
+	/** Timeout in milliseconds for global middleware execution. @default 5000 */
 	middlewareTimeout?: number;
-	/** Timeout in milliseconds for room event middleware execution. Default `5000`. */
+	/** Timeout in milliseconds for room event middleware execution. @default 5000 */
 	roomMiddlewareTimeout?: number;
-	/** Timeout for authentication response in milliseconds. Default `5000`. */
+	/** Timeout for authentication response in milliseconds. @default 5000 */
 	authTimeout?: number;
 	/** List of allowed origins for CORS. If empty, all origins are allowed. */
 	origins?: string[];
-	/** Serialization format: `"json"` or `"binary"` (msgpack). Default `"binary"`. */
+	/** Serialization format: `"json"` or `"binary"` (msgpack). @default "binary" */
 	serialization?: "json" | "binary";
-	/** Room name used for global broadcasts. Default `"__bytesocket_broadcast__"`. */
+	/** Room name used for global broadcasts. @default "__bytesocket_broadcast__" */
 	broadcastRoom?: string;
 	/** Options passed directly to the underlying msgpackr Packr instance. */
 	msgpackrOptions?: MsgpackrOptions;
-	/** Action to take when a global middleware error occurs. Default `"ignore"`. */
+	/** Action to take when a global middleware error occurs. @default "ignore" */
 	onMiddlewareError?: "ignore" | "close" | ((error: unknown, socket: Socket<TEvents, SD>) => void);
-	/** Action to take when a global middleware times out. Default `"ignore"`. */
+	/** Action to take when a global middleware times out. @default "ignore" */
 	onMiddlewareTimeout?: "ignore" | "close" | ((error: unknown, socket: Socket<TEvents, SD>) => void);
 	/** Authentication configuration. */
 	auth?: AuthFunction<TEvents, SD>;

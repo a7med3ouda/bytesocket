@@ -1,13 +1,9 @@
 import type { MsgpackrOptions } from "@bytesocket/types";
 
-/**
- * Signature of a callback that receives event data.
- */
+/** Signature of a callback that receives event data. */
 export type EventCallback<D> = (data: D) => void;
 
-/**
- * Internal state tracking for a single room.
- */
+/** Internal state tracking for a single room. */
 export interface RoomState {
 	/** Current pending operation (join/leave) or null. */
 	pending: "join" | "leave" | null;
@@ -29,28 +25,35 @@ export interface RoomState {
  *
  * // Async auth callback
  * const socket = new ByteSocket('ws://localhost:8080', {
- *   auth: (cb) => {
- *     fetch('/api/token').then(res => res.json()).then(cb);
+ *   auth: (callback) => {
+ *     fetch('/api/token').then(res => res.json()).then(callback);
  *   }
  * });
  */
-export type AuthConfig<D = any> = { data: D } | ((cb: (data: D) => void) => void);
+export type AuthConfig<D = any> = { data: D } | ((callback: (data: D) => void) => void);
 
-/**
- * Configuration options for ByteSocket.
- */
+/** Configuration options for ByteSocket. */
 export type ByteSocketOptions = {
-	/** Automatically call `connect()` in the constructor. Default `true`. */
+	/** Automatically call `connect()` in the constructor. @default true */
 	autoConnect?: boolean;
-	/** Enable automatic reconnection on unexpected close. Default `true`. */
+	/** Enable automatic reconnection on unexpected close. @default true */
 	reconnection?: boolean;
-	/** Maximum number of reconnection attempts. Default `Infinity`. */
+	/** Maximum number of reconnection attempts. @default Infinity */
 	maxReconnectionAttempts?: number;
-	/** Base delay in milliseconds before first reconnection attempt. Default `1000`. */
+	/** Base delay in milliseconds before first reconnection attempt. @default 1000 */
 	reconnectionDelay?: number;
-	/** Maximum reconnection delay after exponential backoff. Default `5000`. */
+	/** Maximum reconnection delay after exponential backoff. @default 5000 */
 	reconnectionDelayMax?: number;
-	/** Randomization factor for reconnection delay (0 to 1). Default `0.5`. */
+	/**
+	 * Whether to attempt reconnection after the server sends a normal closure
+	 * (close codes `1000` or `1001`). @default true
+	 *
+	 * Normal closures are typically graceful shutdowns (e.g., server restart,
+	 * idle timeout, load balancer termination). Setting this to `false` will
+	 * prevent automatic reconnection in these cases.
+	 */
+	reconnectOnNormalClosure?: boolean;
+	/** Randomization factor for reconnection delay (0 to 1). @default 0.5 */
 	randomizationFactor?: number;
 	/** WebSocket subprotocols. */
 	protocols?: string | string[];
@@ -58,21 +61,21 @@ export type ByteSocketOptions = {
 	path?: string;
 	/** Query parameters added to the connection URL. */
 	queryParams?: Record<string, string>;
-	/** Enable internal ping/pong heartbeat. Default `true`. */
+	/** Enable internal ping/pong heartbeat. @default true */
 	heartbeatEnabled?: boolean;
-	/** Interval between ping messages in ms. Default `25000`. */
+	/** Interval between ping messages in ms. @default 25000 */
 	pingInterval?: number;
-	/** Time to wait for pong response before closing connection. Default `20000`. */
+	/** Time to wait for pong response before closing connection. @default 20000 */
 	pingTimeout?: number;
 	/** Authentication configuration. */
 	auth?: AuthConfig;
-	/** Timeout for authentication response in ms. Default `5000`. */
+	/** Timeout for authentication response in ms. @default 5000 */
 	authTimeout?: number;
-	/** Maximum number of outgoing messages to queue while offline. Default `100`. */
+	/** Maximum number of outgoing messages to queue while offline. @default 100 */
 	maxQueueSize?: number;
-	/** Serialization format: `"json"` or `"binary"` (msgpack). Default `"binary"`. */
+	/** Serialization format: `"json"` or `"binary"` (msgpack). @default "binary" */
 	serialization?: "json" | "binary";
-	/** Enable debug logging to console. Default `false`. */
+	/** Enable debug logging to console. @default false */
 	debug?: boolean;
 	/** Options passed directly to the underlying msgpackr Packr instance. */
 	msgpackrOptions?: MsgpackrOptions;

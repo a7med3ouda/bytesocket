@@ -1,6 +1,6 @@
 # @bytesocket/types
 
-Shared TypeScript definitions for the ByteSocket ecosystem — used internally by both the client (`@bytesocket/client`) and server (`@bytesocket/uws`) packages.
+Shared TypeScript definitions for the ByteSocket ecosystem -- used internally by both the client (`@bytesocket/client`) and server (`@bytesocket/uws`) packages.
 
 You do not need to install this package directly; it is a dependency of the main packages.
 

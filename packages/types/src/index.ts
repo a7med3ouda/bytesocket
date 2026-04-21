@@ -20,9 +20,7 @@ export type StringKeys<T> = Extract<keyof NonNullable<T>, string>;
  */
 export type StringNumberKeys<T> = Extract<keyof NonNullable<T>, string | number>;
 
-/**
- * Options for the msgpackr serialization library, excluding the internal `useRecords` field must be false.
- */
+/** Options for the msgpackr serialization library, excluding the internal `useRecords` field must be false. */
 export type MsgpackrOptions = Omit<Options, "useRecords">;
 
 /**
@@ -57,9 +55,7 @@ export enum LifecycleTypes {
 	message = 24,
 }
 
-/**
- * Context object passed to error handlers, providing details about where an error occurred.
- */
+/** Context object passed to error handlers, providing details about where an error occurred. */
 export type ErrorContext = {
 	/** The phase or component where the error originated (e.g., "decode", "auth", "middleware") */
 	phase: string;
@@ -75,66 +71,50 @@ export type ErrorContext = {
 	bytes?: number;
 };
 
-/**
- * Lifecycle message shape for events without additional data.
- */
+/** Lifecycle message shape for events without additional data. */
 export type LifecycleType = {
 	type: LifecycleTypes.open | LifecycleTypes.close | LifecycleTypes.ping | LifecycleTypes.pong | LifecycleTypes.auth_success;
 };
 
-/**
- * Lifecycle message shape for single-room operations (join/leave request/success).
- */
+/** Lifecycle message shape for single-room operations (join/leave request/success). */
 export type LifecycleRoomType<R extends string> = {
 	type: LifecycleTypes.join_room | LifecycleTypes.join_room_success | LifecycleTypes.leave_room | LifecycleTypes.leave_room_success;
 	room: R;
 };
 
-/**
- * Lifecycle message shape for bulk room operations (join/leave multiple rooms request/success).
- */
+/** Lifecycle message shape for bulk room operations (join/leave multiple rooms request/success). */
 export type LifecycleRoomsType<Rs extends readonly string[]> = {
 	type: LifecycleTypes.join_rooms | LifecycleTypes.join_rooms_success | LifecycleTypes.leave_rooms | LifecycleTypes.leave_rooms_success;
 	rooms: Rs;
 };
 
-/**
- * Lifecycle message shape for events that carry generic data (error, auth, auth_error).
- */
+/** Lifecycle message shape for events that carry generic data (error, auth, auth_error). */
 export type LifecyclePayload<D> = {
 	type: LifecycleTypes.auth;
 	data: D;
 };
 
-/**
- * Lifecycle message shape for events that carry generic data (error, auth, auth_error).
- */
+/** Lifecycle message shape for events that carry generic data (error, auth, auth_error). */
 export type LifecycleError = {
 	type: LifecycleTypes.error | LifecycleTypes.auth_error;
 	data: ErrorContext;
 };
 
-/**
- * Lifecycle error message for a single room.
- */
+/** Lifecycle error message for a single room. */
 export type LifecycleRoomError<R extends string> = {
 	type: LifecycleTypes.join_room_error | LifecycleTypes.leave_room_error;
 	room: R;
 	data: ErrorContext;
 };
 
-/**
- * Lifecycle error message for multiple rooms.
- */
+/** Lifecycle error message for multiple rooms. */
 export type LifecycleRoomsError<Rs extends readonly string[]> = {
 	type: LifecycleTypes.join_rooms_error | LifecycleTypes.leave_rooms_error;
 	rooms: Rs;
 	data: ErrorContext;
 };
 
-/**
- * Union of all possible lifecycle messages that ByteSocket may send or receive.
- */
+/** Union of all possible lifecycle messages that ByteSocket may send or receive. */
 export type LifecycleMessage<R extends string, D> =
 	| LifecycleType
 	| LifecycleRoomType<R>
@@ -181,9 +161,7 @@ export type GeneralEvent<E extends string | number, D> = {
 	data: D;
 };
 
-/**
- * Union of all possible user messages that can be emitted or listened to.
- */
+/** Union of all possible user messages that can be emitted or listened to. */
 export type UserMessage<R extends string = string, E extends string | number = string | number, D = unknown> =
 	| GeneralEvent<E, D>
 	| RoomEvent<R, E, D>
@@ -195,9 +173,7 @@ export type UserMessage<R extends string = string, E extends string | number = s
  */
 export type AnyCallback = (...args: any[]) => Promise<void> | void;
 
-/**
- * Authentication state of a socket.
- */
+/** Authentication state of a socket. */
 export enum AuthState {
 	/** Initial state before any connection attempt. */
 	idle = 1,
@@ -214,34 +190,57 @@ export enum AuthState {
 /**
  * Defines the shape of event maps for a type‑safe ByteSocket instance.
  *
- * @typeParam T - A map of event names to their payload types.
+ * This type supports two usage patterns:
  *
- * @example
- * interface MyEvents extends SocketEvents<{
+ * 1. **Symmetric events (direct generic):** Provide a single event map where
+ *    emit and listen share the same event names and payloads.
+ *
+ * 2. **Asymmetric events (interface extension):** Extend this type and override
+ *    individual properties to define different maps for emit, listen, rooms, etc.
+ *
+ * @typeParam T - A map of event names to their payload types. Defaults to
+ *                `Record<string, unknown>`.
+ *
+ * @example Symmetric usage (most common)
+ * ```ts
+ * type MyEvents = SocketEvents<{
+ *   "chat:message": { text: string };
+ *   "user:joined": { userId: string };
+ * }>;
+ *
+ * const socket = new ByteSocket<MyEvents>('ws://...');
+ *
+ * socket.emit('chat:message', { text: 'Hello' });          // ✅ typed
+ * socket.on('user:joined', (data) => console.log(data.userId)); // ✅ typed
+ * socket.rooms.emit('lobby', 'chat:message', { text: 'Hi' }); // ✅ typed
+ * ```
+ *
+ * @example Asymmetric usage (full control)
+ * ```ts
+ * interface MyEvents extends SocketEvents {
  *   emit: {
- *     message: { text: string };
- *     'user:typing': { userId: string };
+ *     "message:send": { text: string };
+ *     "room:create": { name: string };
  *   };
  *   listen: {
- *     message: { text: string; sender: string };
- *     connected: { userId: string };
+ *     "message:receive": { text: string; sender: string };
+ *     "user:joined": { userId: string; name: string };
  *   };
  *   emitRoom: {
- *     chat: { message: string };
- *     private: { whisper: string };
+ *     chat: { "message": { text: string } };
+ *     dm:   { "message": { text: string; recipient: string } };
  *   };
  *   listenRoom: {
- *     chat: { message: string; sender: string };
+ *     chat: { "message": { text: string; sender: string } };
  *   };
- * }> {}
+ * }
  *
- * const io = new ByteSocket<MyEvents>('ws://...');     // for client
- * const io = new ByteSocket<MyEvents>(app);            // for server
+ * const socket = new ByteSocket<MyEvents>('ws://...');
  *
- * io.emit('message', { text: 'hello' });               // typed
- * io.emit('chat', { message: 'hi' });                  // typed room emit
- * io.on('message', (data) => { data.sender });         // typed
- * io.rooms.on('chat', 'message', (data) => {});        // typed room listen
+ * socket.emit('room:create', { name: 'general' });				// ✅ global emit
+ * socket.on('message:receive', (data) => data.sender);			// ✅ global listen
+ * socket.rooms.emit('chat', 'message', { text: 'Hello' });		// ✅ room emit
+ * ```
  */
 export type SocketEvents<T extends { [event: string | number]: unknown } = { [event: string | number]: unknown }> = {
 	/** Events that can be emitted globally. */
@@ -253,10 +252,8 @@ export type SocketEvents<T extends { [event: string | number]: unknown } = { [ev
 	/** Events that can be listened to on a specific room, keyed by room name. */
 	listenRoom?: { [room: string]: T };
 	/** Events that can be emitted to multiple rooms at once. */
-	emitRooms?: { rooms: string[]; events: T };
+	emitRooms?: { rooms: string[]; event: T };
 };
 
-/**
- * Extracts the event map for a specific set of rooms from `emitRooms`.
- */
-export type EventsForRooms<T extends NonNullable<SocketEvents["emitRooms"]>, R> = Extract<T, { rooms: R }>["events"];
+/** Extracts the event map for a specific set of rooms from `emitRooms`. */
+export type EventsForRooms<T extends NonNullable<SocketEvents["emitRooms"]>, R> = Extract<T, { rooms: R }>["event"];

@@ -1,6 +1,6 @@
 # ByteSocket
 
-A modern WebSocket client for [ByteSocket](https://github.com/a7med3ouda/bytesocket/tree/main/packages/client) with automatic reconnection, room management, authentication, heartbeat, and pluggable serialization — fully typed with TypeScript.
+A modern WebSocket client for [ByteSocket](https://github.com/a7med3ouda/bytesocket/tree/main/packages/client) with automatic reconnection, room management, authentication, heartbeat, and pluggable serialization -- fully typed with TypeScript.
 
 ```bash
 npm install @bytesocket/client
@@ -15,12 +15,12 @@ yarn add @bytesocket/client
 ## Features
 
 - **Automatic reconnection** with exponential backoff and jitter
-- **Room management** — join/leave rooms, scoped event listeners, bulk operations
-- **Authentication** — static or async token injection with timeout
-- **Heartbeat** — configurable ping/pong keepalive
-- **Message queue** — outgoing messages are buffered while offline and flushed on reconnect
-- **Dual serialization** — JSON or binary MessagePack (`msgpackr`) out of the box
-- **Fully typed** — generic event maps for compile-time safety on all emit/listen calls
+- **Room management** -- join/leave rooms, scoped event listeners, bulk operations
+- **Authentication** -- static or async token injection with timeout
+- **Heartbeat** -- configurable ping/pong keepalive
+- **Message queue** -- outgoing messages are buffered while offline and flushed on reconnect
+- **Dual serialization** -- JSON or binary MessagePack (`msgpackr`) out of the box
+- **Fully typed** -- generic event maps for compile-time safety on all emit/listen calls
 - **Zero runtime dependencies** beyond `msgpackr` (for binary mode)
 
 ---
@@ -52,15 +52,45 @@ socket.on("welcome", (data) => console.log(data));
 
 ## Type-Safe Events
 
-Define your event schema once and get full inference everywhere:
+Define your event schema once and get full inference everywhere. You can use **symmetric events** (emit and listen share the same map) or **asymmetric events** (full control via interface extension).
+
+### Symmetric usage (most common)
+
+Use `SocketEvents<T>` directly with a single event map:
 
 ```typescript
 import { ByteSocket, SocketEvents } from "@bytesocket/client";
 
-export type MyEvents = SocketEvents<{
+type MyEvents = SocketEvents<{
+	"chat:message": { text: string };
+	"user:joined": { userId: string };
+}>;
+
+const socket = new ByteSocket<MyEvents>("wss://example.com/socket");
+
+// Emit and listen share the same typed events
+socket.emit("chat:message", { text: "Hello!" });
+socket.on("user:joined", (data) => console.log(data.userId));
+
+// Rooms also use the same map
+socket.rooms.join("lobby");
+socket.rooms.emit("lobby", "chat:message", { text: "Hi room!" });
+socket.rooms.on("lobby", "chat:message", (data) => {
+	console.log(`Message: ${data.text}`);
+});
+```
+
+### Asymmetric usage (full control)
+
+Extend `SocketEvents` and override specific properties to differentiate emit/listen/room maps:
+
+```typescript
+import { ByteSocket, SocketEvents } from "@bytesocket/client";
+
+interface MyEvents extends SocketEvents {
 	emit: {
 		"user:message": { text: string };
-		"user:typing": { userId: string };
+		"room:created": { roomId: string };
 	};
 	listen: {
 		"server:broadcast": { text: string; from: string };
@@ -76,16 +106,22 @@ export type MyEvents = SocketEvents<{
 			"user:left": { userId: string };
 		};
 	};
-}>;
+}
 
 const socket = new ByteSocket<MyEvents>("wss://example.com/socket");
 
-// All of these are fully typed — wrong event names or payload shapes are compile errors
-socket.emit("user:message", { text: "Hello!" });
-socket.on("user:joined", (data) => console.log(data.name)); // data is typed
-socket.rooms.emit("chat", "message", { text: "Hi room!" });
-socket.rooms.on("chat", "message", (data) => console.log(data.sender));
+// Global emits/listens
+socket.emit("room:created", { roomId: "abc" });
+socket.on("user:joined", (data) => console.log(data.name));
+
+// Room‑specific emits/listens (different maps per room)
+socket.rooms.emit("chat", "message", { text: "Hello!" });
+socket.rooms.on("chat", "message", (data) => {
+	console.log(`${data.sender}: ${data.text}`);
+});
 ```
+
+All methods (`emit`, `on`, `off`, `once`, `rooms.emit`, `rooms.on`, etc.) are fully typed -- wrong event names or payload shapes become compile‑time errors.
 
 ---
 
@@ -106,15 +142,15 @@ socket.lifecycle.onAuthError((err) => console.error("Auth failed", err));
 
 ```typescript
 const socket = new ByteSocket("wss://example.com/socket", {
-	auth: async (cb) => {
+	auth: async (callback) => {
 		const { token } = await fetch("/api/token").then((r) => r.json());
-		cb({ token });
+		callback({ token });
 	},
 	authTimeout: 8000, // ms to wait for server to confirm auth
 });
 ```
 
-> When auth is configured, `onOpen` fires only after the server confirms authentication — your callbacks and queued messages are safe.
+> When auth is configured, `onOpen` fires only after the server confirms authentication -- your callbacks and queued messages are safe.
 
 ---
 
@@ -203,12 +239,17 @@ const socket = new ByteSocket("wss://example.com/socket", {
 	reconnectionDelay: 1000, // initial delay in ms
 	reconnectionDelayMax: 30000, // cap delay at 30s
 	randomizationFactor: 0.5, // ±50% jitter
+	reconnectOnNormalClosure: true, // default true – reconnect after server sends 1000/1001
 });
 
 socket.lifecycle.onReconnectFailed(() => {
 	console.error("All reconnection attempts exhausted");
 });
 ```
+
+### reconnectOnNormalClosure
+
+By default, ByteSocket will attempt to reconnect even when the server closes the connection gracefully (close codes `1000` or `1001`). This is useful when the server restarts or a load balancer terminates the connection for maintenance. Set `reconnectOnNormalClosure: false` to disable reconnection for normal closures.
 
 ### Manual reconnect
 
@@ -219,7 +260,7 @@ socket.reconnect();
 
 ### Rooms on reconnect
 
-Rooms you joined are automatically re-joined after reconnection — no extra code needed. The server is assumed to clear room membership on disconnect, and ByteSocket handles the rejoin handshake transparently.
+Rooms you joined are automatically re-joined after reconnection -- no extra code needed. The server is assumed to clear room membership on disconnect, and ByteSocket handles the rejoin handshake transparently.
 
 ---
 
@@ -249,7 +290,7 @@ const socket = new ByteSocket("wss://example.com/socket", {
 });
 
 socket.lifecycle.onQueueFull(() => {
-	console.warn("Queue full — some messages will be dropped");
+	console.warn("Queue full -- some messages will be dropped");
 });
 ```
 
@@ -258,12 +299,12 @@ socket.lifecycle.onQueueFull(() => {
 ## Serialization
 
 ```typescript
-// Binary (default) — uses msgpackr, smaller payloads
+// Binary (default) -- uses msgpackr, smaller payloads
 const socket = new ByteSocket("wss://example.com/socket", {
 	serialization: "binary",
 });
 
-// JSON — plain text, easier to inspect
+// JSON -- plain text, easier to inspect
 const socket = new ByteSocket("wss://example.com/socket", {
 	serialization: "json",
 });
@@ -280,6 +321,34 @@ const socket = new ByteSocket("wss://example.com/socket", {
 	},
 });
 ```
+
+---
+
+## Advanced: Manual Serialization
+
+If you need to inspect, pre‑encode, or bypass the automatic serialization, you can use the `encode()` and `decode()` methods.
+
+> ⚠️ **These are advanced APIs.** Prefer `emit()` and `on()` for type‑safe, automatic encoding/decoding.
+
+```typescript
+// Encode a structured payload (returns a string or Uint8Array)
+const encoded = socket.encode({ event: "chat", data: { text: "Hello" } });
+socket.sendRaw(encoded);
+
+// Decode a raw incoming message (auto‑detects format)
+socket.lifecycle.onMessage((raw) => {
+	const decoded = socket.decode(raw);
+	console.log("Decoded message:", decoded);
+});
+
+// You can also pass the binary flag explicitly
+const decoded = socket.decode(someArrayBuffer, true);
+```
+
+- `encode(payload)` – uses the configured `serialization` (`"json"` or `"binary"`). Returns a `string` (JSON) or `Uint8Array` (MessagePack).
+- `decode(message, isBinary?)` – parses a raw WebSocket message back into an object. If `isBinary` is omitted, the format is auto‑detected.
+
+These methods give you full control when integrating with external systems or debugging the wire format.
 
 ---
 
@@ -336,6 +405,11 @@ socket.lifecycle.onError((event) => {}); // WebSocket error
 // Authentication
 socket.lifecycle.onAuthSuccess(() => {});
 socket.lifecycle.onAuthError((err) => {});
+
+// Raw incoming message (before parsing)
+socket.lifecycle.onMessage((raw) => {
+	console.log("Raw message received", raw);
+});
 
 // Queue
 socket.lifecycle.onQueueFull(() => {});
@@ -396,6 +470,7 @@ const socket = new ByteSocket("wss://example.com/socket", {
 	maxReconnectionAttempts: Infinity,
 	reconnectionDelay: 1000,
 	reconnectionDelayMax: 5000,
+	reconnectOnNormalClosure: true, // default true – reconnect after server‑initiated 1000/1001
 	randomizationFactor: 0.5, // 0 = no jitter, 1 = maximum jitter
 
 	// URL
@@ -404,7 +479,7 @@ const socket = new ByteSocket("wss://example.com/socket", {
 	protocols: "v1",
 
 	// Auth
-	auth: { token: "abc" }, // or async (cb) => cb(data)
+	auth: { token: "abc" }, // or async (callback) => callback(data)
 	authTimeout: 5000,
 
 	// Heartbeat
