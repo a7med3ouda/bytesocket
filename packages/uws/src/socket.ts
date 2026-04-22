@@ -69,6 +69,7 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 	#authState: AuthState = AuthState.idle;
 	#authTimer: ReturnType<typeof setTimeout> | null = null;
 	#closed: boolean = false;
+	#rooms = new Set<string>();
 
 	/** Whether the socket has completed authentication (or auth is disabled). */
 	get isAuthenticated(): boolean {
@@ -86,6 +87,19 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 	 */
 	get userData(): SD {
 		return this.#ws.getUserData();
+	}
+
+	/**
+	 * The full URL requested by the client during the WebSocket upgrade.
+	 * This includes the path and query string.
+	 *
+	 * @example
+	 * // If the client connected to `wss://example.com/socket?room=lobby`,
+	 * // this will be `"wss://example.com/socket?room=lobby"`.
+	 * console.log(socket.url);
+	 */
+	get url(): string {
+		return this.userData.url;
 	}
 
 	/**
@@ -225,9 +239,20 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 			leave: this.#leaveRoom.bind(this),
 			/**
 			 * Get a list of rooms this socket is currently subscribed to.
+			 * By default, the internal broadcast room is excluded.
+			 *
+			 * @param includeBroadcast - If `true`, includes the broadcast room in the result.
 			 * @returns Array of room names.
+			 *
+			 * @example
+			 * socket.rooms.list(); // ['chat', 'lobby']
+			 * socket.rooms.list(true); // ['chat', 'lobby', '__bytesocket_broadcast__']
 			 */
-			list: this.#ws.getTopics.bind(this),
+			list: (includeBroadcast = false) => {
+				if (this.#closed) return includeBroadcast ? [...this.#rooms] : [...this.#rooms].filter((r) => r !== this.#broadcastRoom);
+				const topics = this.#ws.getTopics();
+				return includeBroadcast ? topics : topics.filter((t) => t !== this.#broadcastRoom);
+			},
 			/** Bulk operations for multiple rooms. */
 			bulk: {
 				/**
@@ -341,11 +366,13 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 	#joinRoom(room: string) {
 		if (this.#ws.isSubscribed(room)) return;
 		this.#ws.subscribe(room);
+		this.#rooms.add(room);
 	}
 
 	#leaveRoom(room: string) {
 		if (!this.#ws.isSubscribed(room)) return;
 		this.#ws.unsubscribe(room);
+		this.#rooms.delete(room);
 	}
 
 	#joinRooms(rooms: string[]) {

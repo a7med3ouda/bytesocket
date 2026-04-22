@@ -607,7 +607,7 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 	}
 
 	#handleRoomsMessage(payload: UserMessage): boolean {
-		if (!("type" in payload) || !("rooms" in payload) || payload.rooms == null || payload.event == null) return false;
+		if ("type" in payload || !("rooms" in payload) || payload.rooms == null || payload.event == null) return false;
 		for (const room of payload.rooms) {
 			this.triggerCallback(this.#roomCallbacksMap.get(room)?.get(payload.event), payload.data);
 		}
@@ -615,7 +615,7 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 	}
 
 	#handleRoomMessage(payload: UserMessage): boolean {
-		if (!("type" in payload) || !("room" in payload) || payload.room == null || payload.event == null) return false;
+		if ("type" in payload || !("room" in payload) || payload.room == null || payload.event == null) return false;
 		this.triggerCallback(this.#roomCallbacksMap.get(payload.room)?.get(payload.event), payload.data);
 		return true;
 	}

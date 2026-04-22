@@ -752,12 +752,13 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		}
 		const userData = {
 			socketKey: randomUUID(),
-			query: req.getQuery(),
-			host: req.getHeader("host"),
-			cookie: req.getHeader("cookie"),
-			userAgent: req.getHeader("user-agent"),
-			authorization: req.getHeader("authorization"),
-			xForwardedFor: req.getHeader("x-forwarded-for"),
+			url: req.getUrl() ?? "",
+			query: req.getQuery() ?? "",
+			host: req.getHeader("host") ?? "",
+			cookie: req.getHeader("cookie") ?? "",
+			userAgent: req.getHeader("user-agent") ?? "",
+			authorization: req.getHeader("authorization") ?? "",
+			xForwardedFor: req.getHeader("x-forwarded-for") ?? "",
 		} as SD;
 
 		this.#runSyncHooks(this.#lifecycleCallbacksMap.get(LifecycleTypes.upgrade), [res, req, userData, context], (error) => {
@@ -844,13 +845,10 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		if (this.#options.debug && code === 4008) console.warn(`Auth timeout for socket ${socketKey}`);
 		const socket = this.sockets.get(socketKey);
 		if (!socket) return;
-
 		this.sockets.delete(socketKey);
 		socket._markClosed();
 		this.#runSyncHooks(this.#lifecycleCallbacksMap.get(LifecycleTypes.close), [socket, code, message], (error) => {
-			if (error != null) {
-				this.#triggerCallbacks(this.#lifecycleCallbacksMap.get(LifecycleTypes.error), socket, { phase: "onClose", error });
-			}
+			if (error != null) this.#triggerCallbacks(this.#lifecycleCallbacksMap.get(LifecycleTypes.error), socket, { phase: "onClose", error });
 		});
 	}
 
@@ -891,9 +889,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 
 		if (typeof message !== "string" && (isBinary === true || isBinary === undefined)) return this.#packr.unpack(new Uint8Array(message));
 
-		if (isBinary === true) throw new Error("Received string data but isBinary flag is true — expected binary data");
+		if (isBinary === true) throw new Error("Received string data but isBinary flag is true -- expected binary data");
 
-		if (isBinary === false) throw new Error("Received binary data but isBinary flag is false — expected text message");
+		if (isBinary === false) throw new Error("Received binary data but isBinary flag is false -- expected text message");
 
 		throw new Error("Decode failed: unexpected message type or isBinary combination");
 	}

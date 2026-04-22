@@ -99,6 +99,8 @@ export type Middleware<TEvents extends SocketEvents = SocketEvents, SD extends S
 export interface SocketData {
 	/** Unique identifier for the socket (UUID v4). */
 	socketKey: UUID;
+	/** The url string from the upgrade request. */
+	url: string;
 	/** The query string from the upgrade request. */
 	query: string;
 	/** The `Host` header value. */

@@ -353,9 +353,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 
 		if (typeof message !== "string" && (isBinary === true || isBinary === undefined)) return this.#packr.unpack(new Uint8Array(message));
 
-		if (isBinary === true) throw new Error("Received string data but isBinary flag is true — expected binary data");
+		if (isBinary === true) throw new Error("Received string data but isBinary flag is true -- expected binary data");
 
-		if (isBinary === false) throw new Error("Received binary data but isBinary flag is false — expected text message");
+		if (isBinary === false) throw new Error("Received binary data but isBinary flag is false -- expected text message");
 
 		throw new Error("Decode failed: unexpected message type or isBinary combination");
 	}
@@ -444,9 +444,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		this.send({ event, data });
 	}
 
-	/**
-	 * Send the auth payload immediately. Does not queue or wait for auth state.
-	 */
+	/** Send the auth payload immediately. Does not queue or wait for auth state. */
 	#sendAuthPayload<D>(data: D): void {
 		if (this.readyState !== WebSocket.OPEN) {
 			if (this.debug) console.warn("ByteSocket: cannot send auth, socket not open");
@@ -871,7 +869,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 	}
 
 	#handleEventMessage(payload: UserMessage): boolean {
-		if (payload.event == null) return false;
+		if ("type" in payload || "room" in payload || "rooms" in payload || payload.event == null) return false;
 		this.triggerCallback(this.#callbacksMap.get(payload.event), payload.data);
 		return true;
 	}
