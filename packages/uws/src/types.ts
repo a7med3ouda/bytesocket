@@ -45,7 +45,7 @@ export type AuthFunction<TEvents extends SocketEvents, SD extends SocketData, D 
 export type EventCallback<TEvents extends SocketEvents, SD extends SocketData, D> = (socket: Socket<TEvents, SD>, data: D) => void;
 
 /**
- * Middleware function for room‑scoped events. Can inspect or block the broadcast.
+ * Middleware function for room-scoped events. Can inspect or block the broadcast.
  *
  * @typeParam SD - The socket data type.
  * @typeParam D - The type of the event data.
@@ -62,7 +62,9 @@ export type EventCallback<TEvents extends SocketEvents, SD extends SocketData, D
  * // Also supports async functions / Promises
  * io.rooms.on("chat", "message", async (socket, data, next) => {
  *   const isValid = await validateMessage(data);
- *   if (!isValid) return next(new Error("Invalid"));
+ *   if (!isValid) {
+ * 		return next(new Error("Invalid"));
+ *	 }
  *   next();
  * });
  */

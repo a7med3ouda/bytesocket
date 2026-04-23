@@ -95,7 +95,7 @@ app.listen(3000, (token) => {
 
 ## Type-Safe Events
 
-Share a single event interface between server and client for end‑to‑end type safety. You can use **symmetric events** (emit and listen share the same map) or **asymmetric events** (full control via interface extension).
+Share a single event interface between server and client for end-to-end type safety. You can use **symmetric events** (emit and listen share the same map) or **asymmetric events** (full control via interface extension).
 
 ### Symmetric usage (most common)
 
@@ -157,7 +157,7 @@ io.on("user:message", (socket, data) => {
 	console.log(data.text); // string ✓
 });
 
-// Room‑specific emits/listens (different maps per room)
+// Room-specific emits/listens (different maps per room)
 io.rooms.emit("chat", "message", { text: "Hello!", sender: "server" });
 io.rooms.on("chat", "message", (socket, data, next) => {
 	console.log(`${data.sender}: ${data.text}`);
@@ -165,7 +165,7 @@ io.rooms.on("chat", "message", (socket, data, next) => {
 });
 ```
 
-All server methods (`emit`, `on`, `off`, `once`, `rooms.emit`, `rooms.on`, etc.) are fully typed -- wrong event names or payload shapes become compile‑time errors.
+All server methods (`emit`, `on`, `off`, `once`, `rooms.emit`, `rooms.on`, etc.) are fully typed -- wrong event names or payload shapes become compile-time errors.
 
 ---
 
@@ -480,9 +480,9 @@ const io = new ByteSocket(app, {
 
 ## Advanced: Manual Serialization
 
-If you need to inspect, pre‑encode, or bypass the automatic serialization, you can use the `encode()` and `decode()` methods.
+If you need to inspect, pre-encode, or bypass the automatic serialization, you can use the `encode()` and `decode()` methods.
 
-> ⚠️ **These are advanced APIs.** Prefer `emit()` and `on()` for type‑safe, automatic encoding/decoding.
+> ⚠️ **These are advanced APIs.** Prefer `emit()` and `on()` for type-safe, automatic encoding/decoding.
 
 ```typescript
 // Encode a structured payload (returns a string or Uint8Array)
@@ -501,8 +501,8 @@ io.lifecycle.onMessage((socket, rawBuffer, isBinary) => {
 });
 ```
 
-- `encode(payload)` – uses the configured `serialization` (`"json"` or `"binary"`).
-- `decode(message, isBinary?)` – parses a raw WebSocket message back into an object. If `isBinary` is omitted, the format is auto‑detected.
+- `encode(payload)` - uses the configured `serialization` (`"json"` or `"binary"`).
+- `decode(message, isBinary?)` - parses a raw WebSocket message back into an object. If `isBinary` is omitted, the format is auto-detected.
 
 These methods give you full control when integrating with external systems or debugging the wire format.
 

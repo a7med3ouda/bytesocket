@@ -26,7 +26,7 @@ export abstract class SocketBase {
 		eventCallbackSet.add(callback);
 	}
 
-	/** Registers a one‑time callback by storing the wrapper in a separate map. */
+	/** Registers a one-time callback by storing the wrapper in a separate map. */
 	protected addOnceCallback<E extends string | number, D>(
 		onceCallbacksMap: Map<string | number, Map<AnyCallback, Set<AnyCallback>>>,
 		event: E,
@@ -61,7 +61,7 @@ export abstract class SocketBase {
 		}
 	}
 
-	/** Removes a one‑time callback and its associated wrapper. */
+	/** Removes a one-time callback and its associated wrapper. */
 	protected deleteOnceCallback<E extends string | number, D>(
 		onceCallbacksMap: Map<string | number, Map<AnyCallback, Set<AnyCallback>>>,
 		event: E,
@@ -108,7 +108,7 @@ export abstract class SocketBase {
 	}
 
 	/**
-	 * Registers a one‑time listener for a lifecycle event.
+	 * Registers a one-time listener for a lifecycle event.
 	 * The callback is automatically removed after the first invocation.
 	 */
 	protected onceLifecycle<T extends LifecycleTypes>(type: T, callback: AnyCallback) {
@@ -123,14 +123,20 @@ export abstract class SocketBase {
 
 	/** Safely invokes a set of callbacks, catching and logging errors if debug is enabled. */
 	protected triggerCallback<Args extends Array<unknown>>(callbackWrappers?: Set<AnyCallback>, ...args: Args) {
-		if (!callbackWrappers) return;
+		if (!callbackWrappers) {
+			return;
+		}
 		const callbacks = Array.from(callbackWrappers);
 		for (const callback of callbacks) {
-			if (!callbackWrappers.has(callback)) continue;
+			if (!callbackWrappers.has(callback)) {
+				continue;
+			}
 			try {
 				callback(...args);
 			} catch (error) {
-				if (this.debug) console.error(error);
+				if (this.debug) {
+					console.error(error);
+				}
 			}
 		}
 	}

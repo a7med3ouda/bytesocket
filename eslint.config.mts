@@ -1,13 +1,14 @@
 import js from "@eslint/js";
+import prettier from "eslint-config-prettier";
+import unusedImports from "eslint-plugin-unused-imports";
+import { defineConfig } from "eslint/config";
 import globals from "globals";
 import tseslint from "typescript-eslint";
-import { defineConfig } from "eslint/config";
-import unusedImports from "eslint-plugin-unused-imports";
-import prettier from "eslint-config-prettier";
 
 export default defineConfig([
 	js.configs.recommended,
 	...tseslint.configs.strict,
+	prettier,
 	{
 		files: ["**/*.{js,mjs,cjs,ts,mts,cts}"],
 		languageOptions: { globals: { ...globals.browser, ...globals.node } },
@@ -16,6 +17,7 @@ export default defineConfig([
 		files: ["**/*.{ts,js,mts,cts}"],
 		plugins: { "unused-imports": unusedImports },
 		rules: {
+			curly: ["error", "all"],
 			"@typescript-eslint/no-unused-vars": "off",
 			"@typescript-eslint/no-explicit-any": "warn",
 			"unused-imports/no-unused-imports": "error",
@@ -34,7 +36,6 @@ export default defineConfig([
 			],
 		},
 	},
-	prettier,
 	{
 		ignores: ["**/dist", "**/node_modules"],
 	},

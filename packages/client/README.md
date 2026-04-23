@@ -114,14 +114,14 @@ const socket = new ByteSocket<MyEvents>("wss://example.com/socket");
 socket.emit("room:created", { roomId: "abc" });
 socket.on("user:joined", (data) => console.log(data.name));
 
-// Room‑specific emits/listens (different maps per room)
+// Room-specific emits/listens (different maps per room)
 socket.rooms.emit("chat", "message", { text: "Hello!" });
 socket.rooms.on("chat", "message", (data) => {
 	console.log(`${data.sender}: ${data.text}`);
 });
 ```
 
-All methods (`emit`, `on`, `off`, `once`, `rooms.emit`, `rooms.on`, etc.) are fully typed -- wrong event names or payload shapes become compile‑time errors.
+All methods (`emit`, `on`, `off`, `once`, `rooms.emit`, `rooms.on`, etc.) are fully typed -- wrong event names or payload shapes become compile-time errors.
 
 ---
 
@@ -239,7 +239,7 @@ const socket = new ByteSocket("wss://example.com/socket", {
 	reconnectionDelay: 1000, // initial delay in ms
 	reconnectionDelayMax: 30000, // cap delay at 30s
 	randomizationFactor: 0.5, // ±50% jitter
-	reconnectOnNormalClosure: true, // default true – reconnect after server sends 1000/1001
+	reconnectOnNormalClosure: true, // default true - reconnect after server sends 1000/1001
 });
 
 socket.lifecycle.onReconnectFailed(() => {
@@ -326,16 +326,16 @@ const socket = new ByteSocket("wss://example.com/socket", {
 
 ## Advanced: Manual Serialization
 
-If you need to inspect, pre‑encode, or bypass the automatic serialization, you can use the `encode()` and `decode()` methods.
+If you need to inspect, pre-encode, or bypass the automatic serialization, you can use the `encode()` and `decode()` methods.
 
-> ⚠️ **These are advanced APIs.** Prefer `emit()` and `on()` for type‑safe, automatic encoding/decoding.
+> ⚠️ **These are advanced APIs.** Prefer `emit()` and `on()` for type-safe, automatic encoding/decoding.
 
 ```typescript
 // Encode a structured payload (returns a string or Uint8Array)
 const encoded = socket.encode({ event: "chat", data: { text: "Hello" } });
 socket.sendRaw(encoded);
 
-// Decode a raw incoming message (auto‑detects format)
+// Decode a raw incoming message (auto-detects format)
 socket.lifecycle.onMessage((raw) => {
 	const decoded = socket.decode(raw);
 	console.log("Decoded message:", decoded);
@@ -345,8 +345,8 @@ socket.lifecycle.onMessage((raw) => {
 const decoded = socket.decode(someArrayBuffer, true);
 ```
 
-- `encode(payload)` – uses the configured `serialization` (`"json"` or `"binary"`). Returns a `string` (JSON) or `Uint8Array` (MessagePack).
-- `decode(message, isBinary?)` – parses a raw WebSocket message back into an object. If `isBinary` is omitted, the format is auto‑detected.
+- `encode(payload)` - uses the configured `serialization` (`"json"` or `"binary"`). Returns a `string` (JSON) or `Uint8Array` (MessagePack).
+- `decode(message, isBinary?)` - parses a raw WebSocket message back into an object. If `isBinary` is omitted, the format is auto-detected.
 
 These methods give you full control when integrating with external systems or debugging the wire format.
 
@@ -470,7 +470,7 @@ const socket = new ByteSocket("wss://example.com/socket", {
 	maxReconnectionAttempts: Infinity,
 	reconnectionDelay: 1000,
 	reconnectionDelayMax: 5000,
-	reconnectOnNormalClosure: true, // default true – reconnect after server‑initiated 1000/1001
+	reconnectOnNormalClosure: true, // default true - reconnect after server-initiated 1000/1001
 	randomizationFactor: 0.5, // 0 = no jitter, 1 = maximum jitter
 
 	// URL

@@ -20,7 +20,7 @@ import type { AuthFunction, MiddlewareNext, SocketData } from "./types";
  * middleware, and event listeners.
  *
  * @typeParam SD - The socket data type (must extend `SocketData`).
- * @typeParam TEvents - The event map type (from `SocketEvents`) for type‑safe emits.
+ * @typeParam TEvents - The event map type (from `SocketEvents`) for type-safe emits.
  *
  * @example
  * io.lifecycle.onOpen((socket) => {
@@ -31,7 +31,7 @@ import type { AuthFunction, MiddlewareNext, SocketData } from "./types";
  */
 export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData> {
 	/**
-	 * Room management and room‑scoped event emission.
+	 * Room management and room-scoped event emission.
 	 *
 	 * @example
 	 * socket.rooms.join("chat");
@@ -79,6 +79,21 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 	/** Whether the socket has been closed. */
 	get isClosed(): boolean {
 		return this.#closed;
+	}
+
+	/**
+	 * Whether the socket is currently able to send messages.
+	 * Returns `true` if the WebSocket is open and authentication (if configured) has succeeded.
+	 * Useful for checking readiness before calling `sendRaw()` or `rooms.publishRaw()`
+	 * No need to use it with `emit()` or `send()` because they already use it under the hood.
+	 *
+	 * @example
+	 * if (socket.canSend) {
+	 *   socket.sendRaw('PROTOCOL: custom-v1');
+	 * }
+	 */
+	get canSend(): boolean {
+		return !this.#closed && this.isAuthenticated;
 	}
 
 	/**
@@ -196,25 +211,25 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 			 * Publishes a raw message to a specific room without applying any serialization or encoding.
 			 *
 			 * This method is useful for sending custom protocol messages or pre-encoded data directly
-			 * to all sockets subscribed to the given room. It bypasses the built‑in serialization layer,
+			 * to all sockets subscribed to the given room. It bypasses the built-in serialization layer,
 			 * so you are responsible for ensuring that the message format matches what the clients expect.
 			 *
 			 * If the socket has been closed, this method does nothing.
 			 *
 			 * @param room - The name of the room to publish the message to.
-			 * @param message - The raw message to send. Can be a `string` (UTF‑8 text) or an `ArrayBuffer` / `Buffer` (binary data).
+			 * @param message - The raw message to send. Can be a `string` (UTF-8 text) or an `ArrayBuffer` / `Buffer` (binary data).
 			 * @param isBinary - Optional. If `true`, the message is sent as a binary WebSocket frame.
 			 *                   If `false` or omitted, the frame type is inferred from the type of `message`
 			 *                   (`string` → text frame, `ArrayBuffer`/`Buffer` → binary frame).
 			 * @param compress - Optional. If `true`, the message will be compressed using the WebSocket
-			 *                   permessage‑deflate extension (if negotiated with the client).
+			 *                   permessage-deflate extension (if negotiated with the client).
 			 *
 			 * @example
 			 * // Send a JSON string to all sockets in the "lobby" room
 			 * socket.rooms.publishRaw("lobby", JSON.stringify({ type: "announcement", text: "Hello!" }));
 			 *
 			 * @example
-			 * // Send pre‑encoded binary data (e.g., MessagePack) to the "game" room
+			 * // Send pre-encoded binary data (e.g., MessagePack) to the "game" room
 			 * const packedData = msgpack.encode({ event: "move", x: 10, y: 20 });
 			 * socket.rooms.publishRaw("game", packedData, true);
 			 */
@@ -249,7 +264,9 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 			 * socket.rooms.list(true); // ['chat', 'lobby', '__bytesocket_broadcast__']
 			 */
 			list: (includeBroadcast = false) => {
-				if (this.#closed) return includeBroadcast ? [...this.#rooms] : [...this.#rooms].filter((r) => r !== this.#broadcastRoom);
+				if (this.#closed) {
+					return includeBroadcast ? [...this.#rooms] : [...this.#rooms].filter((r) => r !== this.#broadcastRoom);
+				}
 				const topics = this.#ws.getTopics();
 				return includeBroadcast ? topics : topics.filter((t) => t !== this.#broadcastRoom);
 			},
@@ -290,7 +307,9 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 	 * @example socket.sendRaw(JSON.stringify({ custom: "data" }));
 	 */
 	sendRaw(message: RecognizedString, isBinary: boolean = typeof message !== "string", compress?: boolean): void {
-		if (this.#closed) return;
+		if (this.#closed) {
+			return;
+		}
 		this.#ws.send(message, isBinary, compress);
 	}
 
@@ -301,26 +320,45 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 	 * You typically use `emit()` or `broadcast()` instead.
 	 */
 	send<R extends string, E extends string | number, D>(payload: LifecycleMessage<R, D> | UserMessage<R, E, D>) {
-		if (this.#closed) return;
+		if (!this.canSend) {
+			return;
+		}
 		const message = this.#encode(payload);
 		this.sendRaw(message);
 	}
 
 	/**
-	 * Broadcast a global event to all connected sockets (including this one).
-	 * This is a convenience method equivalent to publishing to the broadcast room.
+	 * Broadcast a global event to all **other** connected sockets.
+	 * The publishing socket does **not** receive the message.
 	 *
 	 * @example socket.broadcast("userJoined", { userId: socket.id });
 	 */
 	broadcast<E extends StringNumberKeys<TEvents["emit"]>, D extends NonNullable<TEvents["emit"]>[E]>(event: E, data: D): void {
-		if (this.#closed) return;
+		if (!this.canSend) {
+			return;
+		}
 		const message = this.#encode({ event, data });
 		this.#publishRaw(this.#broadcastRoom, message);
 	}
 
 	#publishRaw(room: string, message: RecognizedString, isBinary: boolean = typeof message !== "string", compress?: boolean): void {
-		if (this.#closed) return;
+		if (this.#closed) {
+			return;
+		}
 		this.#ws.publish(room, message, isBinary, compress);
+	}
+
+	/**
+	 * Sends an encoded payload to this socket, bypassing the `canSend` authentication check.
+	 * Used internally for lifecycle messages (auth_success, auth_error, etc.) that must be
+	 * delivered regardless of the current authentication state, as long as the socket is open.
+	 */
+	#sendUnchecked<R extends string, E extends string | number, D>(payload: LifecycleMessage<R, D> | UserMessage<R, E, D>): void {
+		if (this.#closed) {
+			return;
+		}
+		const message = this.#encode(payload);
+		this.sendRaw(message);
 	}
 
 	#publish<
@@ -328,7 +366,9 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 		E extends StringNumberKeys<NonNullable<TEvents["emitRoom"]>[R]>,
 		D extends NonNullable<TEvents["emitRoom"]>[R][E],
 	>(room: R, event: E, data: D): void {
-		if (this.#closed) return;
+		if (!this.canSend) {
+			return;
+		}
 		const message = this.#encode({ room, event, data });
 		this.#publishRaw(room, message);
 	}
@@ -338,7 +378,9 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 		E extends StringNumberKeys<EventsForRooms<NonNullable<TEvents["emitRooms"]>, Rs>>,
 		D extends NonNullable<EventsForRooms<NonNullable<TEvents["emitRooms"]>, Rs>>[E],
 	>(rooms: Rs, event: E, data: D): void {
-		if (this.#closed) return;
+		if (!this.canSend) {
+			return;
+		}
 		const message = this.#encode({ rooms, event, data });
 		for (const room of rooms) {
 			this.#publishRaw(room, message);
@@ -358,30 +400,48 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 	 * @param reason - Close reason string. @default "normal"
 	 */
 	close(code: number = 1000, reason: string = "normal"): void {
-		if (this.#closed) return;
+		if (this.#closed) {
+			return;
+		}
 		this._markClosed();
 		this.#ws.end(code, reason);
 	}
 
 	#joinRoom(room: string) {
-		if (this.#ws.isSubscribed(room)) return;
+		if (!this.canSend) {
+			return;
+		}
+		if (this.#ws.isSubscribed(room)) {
+			return;
+		}
 		this.#ws.subscribe(room);
 		this.#rooms.add(room);
 	}
 
 	#leaveRoom(room: string) {
-		if (!this.#ws.isSubscribed(room)) return;
+		if (!this.canSend) {
+			return;
+		}
+		if (!this.#ws.isSubscribed(room)) {
+			return;
+		}
 		this.#ws.unsubscribe(room);
 		this.#rooms.delete(room);
 	}
 
 	#joinRooms(rooms: string[]) {
+		if (!this.canSend) {
+			return;
+		}
 		for (const room of rooms) {
 			this.#joinRoom(room);
 		}
 	}
 
 	#leaveRooms(rooms: string[]) {
+		if (!this.canSend) {
+			return;
+		}
 		for (const room of rooms) {
 			this.#leaveRoom(room);
 		}
@@ -396,7 +456,9 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 		next: MiddlewareNext,
 	) {
 		if (auth && parsed !== null) {
-			if (this.#authState !== AuthState.idle) return;
+			if (this.#authState !== AuthState.idle) {
+				return;
+			}
 			this.#authState = AuthState.pending;
 			this.#authTimer = setTimeout(() => {
 				if (!this.isClosed && !this.isAuthenticated) {
@@ -413,8 +475,8 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 						next(err);
 						return;
 					}
-					this.rooms.join(broadcastRoom);
 					this.#setAuthSuccess(payload);
+					this.rooms.join(broadcastRoom);
 					next();
 				});
 			} catch (err) {
@@ -428,27 +490,30 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 	}
 
 	#handleNoAuth(broadcastRoom: string) {
-		if (this.#closed) return;
-		if (this.#authState !== AuthState.idle) return;
+		if (this.#closed || this.#authState !== AuthState.idle) {
+			return;
+		}
 		this.#authState = AuthState.none;
 		this.rooms.join(broadcastRoom);
 	}
 
 	#setAuthSuccess<P>(payload: P): void {
-		if (this.#closed) return;
-		if (this.#authState !== AuthState.pending) return;
+		if (this.#closed || this.#authState !== AuthState.pending) {
+			return;
+		}
 		this.#clearAuthTimer();
 		this.#authState = AuthState.success;
 		this.payload = payload;
-		this.send({ type: LifecycleTypes.auth_success });
+		this.#sendUnchecked({ type: LifecycleTypes.auth_success });
 	}
 
 	#setAuthFailed(ctx: ErrorContext): void {
-		if (this.#closed) return;
-		if (this.#authState !== AuthState.pending) return;
+		if (this.#closed || this.#authState !== AuthState.pending) {
+			return;
+		}
 		this.#clearAuthTimer();
 		this.#authState = AuthState.failed;
-		this.send({ type: LifecycleTypes.auth_error, data: ctx });
+		this.#sendUnchecked({ type: LifecycleTypes.auth_error, data: ctx });
 		this.close(ctx.code, ctx.phase);
 	}
 

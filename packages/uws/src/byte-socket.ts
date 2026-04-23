@@ -29,10 +29,10 @@ type RequiredOptions =
  * ByteSocket server instance.
  *
  * Manages WebSocket connections, rooms, middleware, and event routing.
- * Provides a fully typed event system via a user‑supplied event map (`TEvents`).
+ * Provides a fully typed event system via a user-supplied event map (`TEvents`).
  *
  * @typeParam TEvents - A type extending `SocketEvents` that defines the shape of
- *                      all emit/listen events (global and room‑scoped).
+ *                      all emit/listen events (global and room-scoped).
  * @typeParam SD      - The socket data type (must extend `SocketData`).
  *
  * @example Symmetric events (most common)
@@ -88,7 +88,7 @@ type RequiredOptions =
  *   console.log(`${data.sender}: ${data.text}`);
  * });
  *
- * // Room‑specific emits/listens
+ * // Room-specific emits/listens
  * io.rooms.emit('chat', 'message', { text: 'Hello everyone' });
  * io.rooms.on('chat', 'message', (socket, data, next) => {
  *   console.log(`${data.sender}: ${data.text}`);
@@ -97,6 +97,8 @@ type RequiredOptions =
  * ```
  */
 export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData> {
+	// ──── Namespaces ────────────────────────────────────────────────────────────────────────
+
 	/**
 	 * Lifecycle event listeners for connection, authentication, and errors.
 	 *
@@ -108,7 +110,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	readonly lifecycle;
 
 	/**
-	 * Room management, room‑scoped event emission, and room lifecycle hooks.
+	 * Room management, room-scoped event emission, and room lifecycle hooks.
 	 *
 	 * @example
 	 * io.rooms.emit('lobby', 'announcement', { text: 'Welcome!' });
@@ -120,15 +122,21 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	 */
 	readonly rooms;
 
-	#callbacksMap = new Map<string | number, Set<AnyCallback>>();
-	#onceCallbacksMap = new Map<string | number, Map<AnyCallback, Set<AnyCallback>>>();
-	#roomCallbacksMap = new Map<string, Map<string | number, Set<AnyCallback>>>();
-	#onceRoomCallbacksMap = new Map<string, Map<string | number, Map<AnyCallback, Set<AnyCallback>>>>();
-	#lifecycleCallbacksMap = new Map<string | number, Set<AnyCallback>>();
-	#onceLifecycleCallbacksMap = new Map<string | number, Map<AnyCallback, Set<AnyCallback>>>();
-	#middlewares: Middleware<TEvents, SD>[] = [];
+	/**
+	 * Map of all currently connected sockets, keyed by socket ID.
+	 *
+	 * **Do not modify this map directly** - it is managed internally.
+	 *
+	 * @example
+	 * for (const [id, socket] of io.sockets) {
+	 *   socket.emit('ping', undefined);
+	 * }
+	 */
+	readonly sockets = new Map<string, Socket<TEvents, SD>>();
 
-	static readonly #DEFAULT_STRUCTURES: Array<Array<string>> = [
+	// ──── States ────────────────────────────────────────────────────────────────────────
+
+	readonly #defaultStructures: Array<Array<string>> = [
 		["type"],
 		["type", "room"],
 		["type", "rooms"],
@@ -139,21 +147,20 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		["rooms", "event", "data"],
 		["event", "data"],
 	];
-
-	readonly #app: TemplatedApp;
-	readonly #packr: Packr;
-	readonly #options: Omit<ByteSocketOptions<TEvents, SD>, RequiredOptions> & Pick<Required<ByteSocketOptions<TEvents, SD>>, RequiredOptions>;
-
-	/**
-	 * Map of all currently connected sockets, keyed by socket ID.
-	 *
-	 * @example
-	 * for (const [id, socket] of io.sockets) {
-	 *   socket.emit('ping', undefined);
-	 * }
-	 */
-	readonly sockets = new Map<string, Socket<TEvents, SD>>();
+	#app: TemplatedApp;
+	#packr: Packr;
+	#options: Omit<ByteSocketOptions<TEvents, SD>, RequiredOptions> & Pick<Required<ByteSocketOptions<TEvents, SD>>, RequiredOptions>;
+	#middlewares: Middleware<TEvents, SD>[] = [];
 	#destroyed = false;
+
+	// ──── Callbacks ────────────────────────────────────────────────────────────────────────
+
+	#callbacksMap = new Map<string | number, Set<AnyCallback>>();
+	#onceCallbacksMap = new Map<string | number, Map<AnyCallback, Set<AnyCallback>>>();
+	#roomCallbacksMap = new Map<string, Map<string | number, Set<AnyCallback>>>();
+	#onceRoomCallbacksMap = new Map<string, Map<string | number, Map<AnyCallback, Set<AnyCallback>>>>();
+	#lifecycleCallbacksMap = new Map<string | number, Set<AnyCallback>>();
+	#onceLifecycleCallbacksMap = new Map<string | number, Map<AnyCallback, Set<AnyCallback>>>();
 
 	/**
 	 * Creates a new ByteSocket server instance.
@@ -187,9 +194,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		this.#packr = new Packr({
 			...msgpackrOptions,
 			useRecords: false,
-			structures: msgpackrOptions?.structures?.length
-				? [...ByteSocket.#DEFAULT_STRUCTURES, ...msgpackrOptions.structures]
-				: ByteSocket.#DEFAULT_STRUCTURES,
+			structures: msgpackrOptions?.structures?.length ? [...this.#defaultStructures, ...msgpackrOptions.structures] : this.#defaultStructures,
 			useFloat32: msgpackrOptions?.useFloat32 ?? FLOAT32_OPTIONS.DECIMAL_FIT,
 			copyBuffers: msgpackrOptions?.copyBuffers ?? false,
 			int64AsType: msgpackrOptions?.int64AsType ?? "bigint",
@@ -203,20 +208,20 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 			/** Remove a listener for the HTTP upgrade phase. */
 			offUpgrade: (callback?: (res: HttpResponse, req: HttpRequest, userData: SD, context: us_socket_context_t) => void) =>
 				this.#offLifecycle(LifecycleTypes.upgrade, callback),
-			/** Register a one‑time listener for the HTTP upgrade phase. */
+			/** Register a one-time listener for the HTTP upgrade phase. */
 			onceUpgrade: (callback: (res: HttpResponse, req: HttpRequest, userData: SD, context: us_socket_context_t) => void) =>
 				this.#onceLifecycle(LifecycleTypes.upgrade, callback),
 			/** Register a listener for socket open (after successful auth). */
 			onOpen: (callback: (socket: Socket<TEvents, SD>) => void) => this.#onLifecycle(LifecycleTypes.open, callback),
 			/** Remove a listener for socket open. */
 			offOpen: (callback?: (socket: Socket<TEvents, SD>) => void) => this.#offLifecycle(LifecycleTypes.open, callback),
-			/** Register a one‑time listener for socket open. */
+			/** Register a one-time listener for socket open. */
 			onceOpen: (callback: (socket: Socket<TEvents, SD>) => void) => this.#onceLifecycle(LifecycleTypes.open, callback),
 			/** Register a listener for authentication success. */
 			onAuthSuccess: (callback: (socket: Socket<TEvents, SD>) => void) => this.#onLifecycle(LifecycleTypes.auth_success, callback),
 			/** Remove a listener for authentication success. */
 			offAuthSuccess: (callback?: (socket: Socket<TEvents, SD>) => void) => this.#offLifecycle(LifecycleTypes.auth_success, callback),
-			/** Register a one‑time listener for authentication success. */
+			/** Register a one-time listener for authentication success. */
 			onceAuthSuccess: (callback: (socket: Socket<TEvents, SD>) => void) => this.#onceLifecycle(LifecycleTypes.auth_success, callback),
 			/** Register a listener for authentication failure. */
 			onAuthError: (callback: (socket: Socket<TEvents, SD>, ctx: ErrorContext) => void) =>
@@ -224,7 +229,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 			/** Remove a listener for authentication failure. */
 			offAuthError: (callback?: (socket: Socket<TEvents, SD>, ctx: ErrorContext) => void) =>
 				this.#offLifecycle(LifecycleTypes.auth_error, callback),
-			/** Register a one‑time listener for authentication failure. */
+			/** Register a one-time listener for authentication failure. */
 			onceAuthError: (callback: (socket: Socket<TEvents, SD>, ctx: ErrorContext) => void) =>
 				this.#onceLifecycle(LifecycleTypes.auth_error, callback),
 			/** Register a listener for raw incoming messages. */
@@ -233,7 +238,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 			/** Remove a listener for raw incoming messages. */
 			offMessage: (callback?: (socket: Socket<TEvents, SD>, message: ArrayBuffer, isBinary: boolean) => void) =>
 				this.#offLifecycle(LifecycleTypes.message, callback),
-			/** Register a one‑time listener for raw incoming messages. */
+			/** Register a one-time listener for raw incoming messages. */
 			onceMessage: (callback: (socket: Socket<TEvents, SD>, message: ArrayBuffer, isBinary: boolean) => void) =>
 				this.#onceLifecycle(LifecycleTypes.message, callback),
 			/** Register a listener for socket close. */
@@ -242,7 +247,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 			/** Remove a listener for socket close. */
 			offClose: (callback?: (socket: Socket<TEvents, SD>, code: number, message: ArrayBuffer) => void) =>
 				this.#offLifecycle(LifecycleTypes.close, callback),
-			/** Register a one‑time listener for socket close. */
+			/** Register a one-time listener for socket close. */
 			onceClose: (callback: (socket: Socket<TEvents, SD>, code: number, message: ArrayBuffer) => void) =>
 				this.#onceLifecycle(LifecycleTypes.close, callback),
 			/** Register a listener for errors. */
@@ -250,7 +255,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 			/** Remove a listener for errors. */
 			offError: (callback?: (socket: Socket<TEvents, SD> | null, ctx: ErrorContext) => void) =>
 				this.#offLifecycle(LifecycleTypes.error, callback),
-			/** Register a one‑time listener for errors. */
+			/** Register a one-time listener for errors. */
 			onceError: (callback: (socket: Socket<TEvents, SD> | null, ctx: ErrorContext) => void) =>
 				this.#onceLifecycle(LifecycleTypes.error, callback),
 		};
@@ -261,26 +266,26 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 			 *
 			 * This method sends data directly to uWebSockets.js's publish system **without** applying
 			 * any encoding, serialization, or lifecycle processing. It is useful for broadcasting
-			 * custom‑formatted messages, pre‑encoded payloads, or implementing custom protocols.
+			 * custom-formatted messages, pre-encoded payloads, or implementing custom protocols.
 			 *
 			 * If the server instance has been destroyed, this method does nothing.
 			 *
 			 * @param room - The room name to publish the message to. All sockets that have joined this
 			 *               room (including the global broadcast room) will receive the message.
-			 * @param message - The raw data to send. Accepts a `string` (sent as a UTF‑8 text frame) or
+			 * @param message - The raw data to send. Accepts a `string` (sent as a UTF-8 text frame) or
 			 *                  an `ArrayBuffer` / `Buffer` (sent as a binary frame).
 			 * @param isBinary - Optional. If `true`, forces the message to be sent as a binary WebSocket
 			 *                   frame. If `false` or omitted, the frame type is inferred from the type of
 			 *                   `message` (`string` → text, `ArrayBuffer`/`Buffer` → binary).
 			 * @param compress - Optional. If `true`, the message will be compressed using the WebSocket
-			 *                   permessage‑deflate extension (if negotiated with the clients).
+			 *                   permessage-deflate extension (if negotiated with the clients).
 			 *
 			 * @example
 			 * // Broadcast a JSON string to the "lobby" room
 			 * io.rooms.publishRaw("lobby", JSON.stringify({ type: "announcement", text: "Server restart in 5m" }));
 			 *
 			 * @example
-			 * // Broadcast pre‑encoded MessagePack data to the global room
+			 * // Broadcast pre-encoded MessagePack data to the global room
 			 * const packed = msgpack.encode({ event: "system", status: "ok" });
 			 * io.rooms.publishRaw(io.options.broadcastRoom, packed, true);
 			 *
@@ -291,7 +296,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 			 */
 			publishRaw: this.#publishRaw.bind(this),
 			/**
-			 * Emit a typed event to a specific room (server‑side publish).
+			 * Emit a typed event to a specific room (server-side publish).
 			 *
 			 * @typeParam R - Room name (must be a key in `TEvents['emitRoom']`).
 			 * @typeParam E - Event name.
@@ -305,7 +310,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 			on: this.#onRoom.bind(this),
 			/** Remove a room event middleware. */
 			off: this.#offRoom.bind(this),
-			/** Register a one‑time room event middleware. */
+			/** Register a one-time room event middleware. */
 			once: this.#onceRoom.bind(this),
 			/** Lifecycle hooks for room join/leave (single rooms). */
 			lifecycle: {
@@ -327,7 +332,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 				/** Remove a guard for single room join requests. */
 				offJoin: (callback?: (socket: Socket<TEvents, SD>, room: string, next: MiddlewareNext) => void) =>
 					this.#offLifecycle(LifecycleTypes.join_room, callback),
-				/** Register a one‑time guard for single room join requests. */
+				/** Register a one-time guard for single room join requests. */
 				onceJoin: (callback: (socket: Socket<TEvents, SD>, room: string, next: MiddlewareNext) => void) =>
 					this.#onceLifecycle(LifecycleTypes.join_room, callback),
 				/** Register a guard for single room leave requests. */
@@ -336,7 +341,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 				/** Remove a guard for single room leave requests. */
 				offLeave: (callback?: (socket: Socket<TEvents, SD>, room: string, next: MiddlewareNext) => void) =>
 					this.#offLifecycle(LifecycleTypes.leave_room, callback),
-				/** Register a one‑time guard for single room leave requests. */
+				/** Register a one-time guard for single room leave requests. */
 				onceLeave: (callback: (socket: Socket<TEvents, SD>, room: string, next: MiddlewareNext) => void) =>
 					this.#onceLifecycle(LifecycleTypes.leave_room, callback),
 			},
@@ -361,7 +366,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 					/** Remove a guard for bulk room join requests. */
 					offJoin: (callback?: (socket: Socket<TEvents, SD>, rooms: string[], next: MiddlewareNext) => void) =>
 						this.#offLifecycle(LifecycleTypes.join_rooms, callback),
-					/** Register a one‑time guard for bulk room join requests. */
+					/** Register a one-time guard for bulk room join requests. */
 					onceJoin: (callback: (socket: Socket<TEvents, SD>, rooms: string[], next: MiddlewareNext) => void) =>
 						this.#onceLifecycle(LifecycleTypes.join_rooms, callback),
 					/** Register a guard for bulk room leave requests. */
@@ -370,7 +375,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 					/** Remove a guard for bulk room leave requests. */
 					offLeave: (callback?: (socket: Socket<TEvents, SD>, rooms: string[], next: MiddlewareNext) => void) =>
 						this.#offLifecycle(LifecycleTypes.leave_rooms, callback),
-					/** Register a one‑time guard for bulk room leave requests. */
+					/** Register a one-time guard for bulk room leave requests. */
 					onceLeave: (callback: (socket: Socket<TEvents, SD>, rooms: string[], next: MiddlewareNext) => void) =>
 						this.#onceLifecycle(LifecycleTypes.leave_rooms, callback),
 				},
@@ -383,11 +388,15 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	 * cleaning up resources. The instance cannot be reused.
 	 */
 	destroy(): void {
-		if (this.#destroyed) return;
+		if (this.#destroyed) {
+			return;
+		}
 		this.#destroyed = true;
 
 		for (const socket of this.sockets.values()) {
-			if (!socket.isClosed) socket.close(1001, "server destroy");
+			if (!socket.isClosed) {
+				socket.close(1001, "server destroy");
+			}
 		}
 		this.sockets.clear();
 
@@ -401,7 +410,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	}
 
 	#publishRaw(room: string, message: RecognizedString, isBinary: boolean = typeof message !== "string", compress?: boolean): void {
-		if (this.#destroyed) return;
+		if (this.#destroyed) {
+			return;
+		}
 		this.#app.publish(room, message, isBinary, compress);
 	}
 
@@ -414,7 +425,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	 * @example io.emit('userJoined', { userId: '123' });
 	 */
 	emit<E extends StringNumberKeys<TEvents["emit"]>, D extends NonNullable<TEvents["emit"]>[E]>(event: E, data: D): void {
-		if (this.#destroyed) return;
+		if (this.#destroyed) {
+			return;
+		}
 		const room = this.#options.broadcastRoom;
 		const message = this.encode({ event, data });
 		this.#publishRaw(room, message);
@@ -425,7 +438,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		E extends StringNumberKeys<NonNullable<TEvents["emitRoom"]>[R]>,
 		D extends NonNullable<TEvents["emitRoom"]>[R][E],
 	>(room: R, event: E, data: D) {
-		if (this.#destroyed) return;
+		if (this.#destroyed) {
+			return;
+		}
 		const message = this.encode({ room, event, data });
 		this.#publishRaw(room, message);
 	}
@@ -435,7 +450,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		E extends StringNumberKeys<EventsForRooms<NonNullable<TEvents["emitRooms"]>, Rs>>,
 		D extends NonNullable<EventsForRooms<NonNullable<TEvents["emitRooms"]>, Rs>>[E],
 	>(rooms: Rs, event: E, data: D): void {
-		if (this.#destroyed) return;
+		if (this.#destroyed) {
+			return;
+		}
 		const message = this.encode({ rooms, event, data });
 		for (const room of rooms) {
 			this.#publishRaw(room, message);
@@ -483,7 +500,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	}
 
 	/**
-	 * Register a one‑time listener for a global event.
+	 * Register a one-time listener for a global event.
 	 * The callback is removed after the first invocation.
 	 *
 	 * @example io.once('userJoined', (socket, data) => { console.log('First join'); });
@@ -515,7 +532,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		D extends NonNullable<TEvents["listenRoom"]>[R][E],
 	>(room: R, event?: E, callback?: RoomEventMiddleware<TEvents, SD, D>): void {
 		const roomMap = this.#roomCallbacksMap.get(room);
-		if (!roomMap) return;
+		if (!roomMap) {
+			return;
+		}
 		if (event === undefined) {
 			this.#roomCallbacksMap.delete(room);
 			this.#onceRoomCallbacksMap.delete(room);
@@ -564,7 +583,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		const roomMap = this.#roomCallbacksMap.get(room);
 		if (roomMap) {
 			this.#deleteCallback(roomMap, event, callback);
-			if (roomMap.size === 0) this.#roomCallbacksMap.delete(room);
+			if (roomMap.size === 0) {
+				this.#roomCallbacksMap.delete(room);
+			}
 		}
 	}
 
@@ -576,7 +597,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		const onceRoomMap = this.#onceRoomCallbacksMap.get(room);
 		if (onceRoomMap) {
 			this.#deleteOnceCallback(onceRoomMap, event, callback, callbackWrapper);
-			if (onceRoomMap?.size === 0) this.#onceRoomCallbacksMap.delete(room);
+			if (onceRoomMap?.size === 0) {
+				this.#onceRoomCallbacksMap.delete(room);
+			}
 		}
 	}
 
@@ -631,7 +654,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		const stack = Array.from(this.#middlewares);
 
 		const next: MiddlewareNext = (error) => {
-			if (aborted) return;
+			if (aborted) {
+				return;
+			}
 			if (error) {
 				aborted = true;
 				const isTimeout = error instanceof Error && error.name === "TimeoutError";
@@ -663,10 +688,15 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 			const execution = new Promise<void>((resolve, reject) => {
 				try {
 					const result = middleware(socket, ctx, (err) => {
-						if (called) return;
+						if (called) {
+							return;
+						}
 						called = true;
-						if (err) reject(err);
-						else resolve();
+						if (err) {
+							reject(err);
+						} else {
+							resolve();
+						}
 					});
 
 					if (result instanceof Promise) {
@@ -708,11 +738,28 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 				.then(() => next())
 				.catch((err) => next(err))
 				.finally(() => {
-					if (timeoutId) clearTimeout(timeoutId);
+					if (timeoutId) {
+						clearTimeout(timeoutId);
+					}
 				});
 		};
 
 		next();
+	}
+
+	/**
+	 * Indicates whether the server instance has been permanently destroyed.
+	 *
+	 * Once `true`, the instance cannot be reused; all connections have been closed and
+	 * internal resources released. Use {@link destroy} to initiate shutdown.
+	 *
+	 * @example
+	 * if (io.destroyed) {
+	 *   console.log('Server is shut down');
+	 * }
+	 */
+	get destroyed(): boolean {
+		return this.#destroyed;
 	}
 
 	/**
@@ -785,24 +832,31 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		}
 		const socketKey = ws.getUserData().socketKey;
 		const socket = new Socket<TEvents, SD>(socketKey, ws, this.#options.broadcastRoom, this.encode.bind(this));
-		if (!this.#options.auth)
+		if (!this.#options.auth) {
 			socket._handleAuth(null, this.#options.auth, this.#options.authTimeout, this.#options.broadcastRoom, (err) => {
-				if (err == null)
+				if (err == null) {
 					this.#runSyncHooks(this.#lifecycleCallbacksMap.get(LifecycleTypes.open), [socket], (error) => {
-						if (error != null)
+						if (error != null) {
 							this.#triggerCallbacks(this.#lifecycleCallbacksMap.get(LifecycleTypes.error), socket, { phase: "onOpen", error });
+						}
 					});
+				}
 			});
+		}
 		this.sockets.set(socketKey, socket);
 	}
 
 	#message(ws: WebSocket<SD>, message: ArrayBuffer, isBinary: boolean) {
 		const socketKey = ws.getUserData().socketKey;
 		const socket = this.sockets.get(socketKey);
-		if (!socket || socket.isClosed) return;
+		if (!socket || socket.isClosed) {
+			return;
+		}
 
 		this.#runSyncHooks(this.#lifecycleCallbacksMap.get(LifecycleTypes.message), [socket, message, isBinary], (error) => {
-			if (error != null) this.#triggerCallbacks(this.#lifecycleCallbacksMap.get(LifecycleTypes.error), socket, { phase: "onMessage", error });
+			if (error != null) {
+				this.#triggerCallbacks(this.#lifecycleCallbacksMap.get(LifecycleTypes.error), socket, { phase: "onMessage", error });
+			}
 		});
 
 		let parsed;
@@ -826,48 +880,77 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 			return;
 		}
 
-		if (this.#handleAuthMessage(socket, parsed)) return;
-		if (!socket.isAuthenticated) return;
-		if (this.#handlePingMessage(socket, parsed)) return;
-		if (this.#handleJoinRoomMessage(socket, parsed)) return;
-		if (this.#handleLeaveRoomMessage(socket, parsed)) return;
-		if (this.#handleJoinRoomsMessage(socket, parsed)) return;
-		if (this.#handleLeaveRoomsMessage(socket, parsed)) return;
+		if (this.#handleAuthMessage(socket, parsed)) {
+			return;
+		}
+		if (!socket.isAuthenticated) {
+			return;
+		}
+		if (this.#handlePingMessage(socket, parsed)) {
+			return;
+		}
+		if (this.#handleJoinRoomMessage(socket, parsed)) {
+			return;
+		}
+		if (this.#handleLeaveRoomMessage(socket, parsed)) {
+			return;
+		}
+		if (this.#handleJoinRoomsMessage(socket, parsed)) {
+			return;
+		}
+		if (this.#handleLeaveRoomsMessage(socket, parsed)) {
+			return;
+		}
 		this.#runMiddlewares(socket, parsed, () => {
-			if (this.#handleRoomsMessage(socket, parsed)) return;
-			if (this.#handleRoomMessage(socket, parsed)) return;
-			if (this.#handleMessage(socket, parsed)) return;
+			if (this.#handleRoomsMessage(socket, parsed)) {
+				return;
+			}
+			if (this.#handleRoomMessage(socket, parsed)) {
+				return;
+			}
+			if (this.#handleMessage(socket, parsed)) {
+				return;
+			}
 		});
 	}
 
 	#close(ws: WebSocket<SD>, code: number, message: ArrayBuffer) {
 		const socketKey = ws.getUserData().socketKey;
-		if (this.#options.debug && code === 4008) console.warn(`Auth timeout for socket ${socketKey}`);
+		if (this.#options.debug && code === 4008) {
+			console.warn(`Auth timeout for socket ${socketKey}`);
+		}
 		const socket = this.sockets.get(socketKey);
-		if (!socket) return;
+		if (!socket) {
+			return;
+		}
 		this.sockets.delete(socketKey);
 		socket._markClosed();
 		this.#runSyncHooks(this.#lifecycleCallbacksMap.get(LifecycleTypes.close), [socket, code, message], (error) => {
-			if (error != null) this.#triggerCallbacks(this.#lifecycleCallbacksMap.get(LifecycleTypes.error), socket, { phase: "onClose", error });
+			if (error != null) {
+				this.#triggerCallbacks(this.#lifecycleCallbacksMap.get(LifecycleTypes.error), socket, { phase: "onClose", error });
+			}
 		});
 	}
 
 	/**
 	 * Encode a structured payload into a format suitable for sending over the WebSocket.
-	 * Uses the configured serialization (`"json"` or `"binary"`).
 	 *
-	 * **Advanced usage only.** Prefer `emit()` or `send()` for type‑safe communication.
+	 * **Advanced usage only.** Prefer `emit()` or `send()` for type-safe communication.
 	 *
 	 * @param payload - A lifecycle message or user event object.
+	 * @param serialization - Serialization format: "json" or "binary".
 	 * @returns Encoded string (JSON) or Buffer (MessagePack).
 	 *
 	 * @example
-	 * // Pre‑encode a payload for repeated use
+	 * // Pre-encode a payload for repeated use
 	 * const encoded = socket.encode({ event: 'chat', data: { text: 'Hello' } });
 	 * socket.sendRaw(encoded);
 	 */
-	encode<R extends string, E extends string | number, D>(payload: LifecycleMessage<R, D> | UserMessage<R, E, D>) {
-		if (this.#options.serialization === "binary") {
+	encode<R extends string, E extends string | number, D>(
+		payload: LifecycleMessage<R, D> | UserMessage<R, E, D>,
+		serialization = this.#options.serialization,
+	) {
+		if (serialization === "binary") {
 			return this.#packr.pack(payload);
 		} else {
 			return JSON.stringify(payload);
@@ -880,29 +963,52 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	 *
 	 * **Advanced usage only.** Normally you should use `on()` listeners to receive typed data.
 	 *
-	 * @param message - Raw string (JSON), ArrayBuffer, or Buffer (MessagePack).
+	 * @param message - Raw string (JSON) or ArrayBuffer (MessagePack).
 	 * @param isBinary - Whether the message is binary. If omitted, format is detected from the message type.
 	 * @returns Decoded lifecycle or user message object.
 	 */
-	decode(message: string | ArrayBuffer | Buffer, isBinary?: boolean) {
-		if (typeof message === "string" && (isBinary === false || isBinary === undefined)) return JSON.parse(message);
+	decode(message: string | ArrayBuffer, isBinary?: boolean) {
+		if (typeof message === "string") {
+			if (isBinary === true) {
+				throw new Error("Received string but expected binary");
+			}
+			return JSON.parse(message);
+		}
 
-		if (typeof message !== "string" && (isBinary === true || isBinary === undefined)) return this.#packr.unpack(new Uint8Array(message));
+		if (isBinary === false) {
+			const text = Buffer.from(message).toString("utf8");
+			return JSON.parse(text);
+		}
 
-		if (isBinary === true) throw new Error("Received string data but isBinary flag is true -- expected binary data");
-
-		if (isBinary === false) throw new Error("Received binary data but isBinary flag is false -- expected text message");
-
-		throw new Error("Decode failed: unexpected message type or isBinary combination");
+		return this.#packr.unpack(new Uint8Array(message));
 	}
 
 	#handleAuthMessage<T extends object>(socket: Socket<TEvents, SD>, parsed: T): boolean {
-		if (!this.#isAuthMessage(parsed)) return false;
+		if (!this.#isAuthMessage(parsed)) {
+			return false;
+		}
 		socket._handleAuth(parsed, this.#options.auth, this.#options.authTimeout, this.#options.broadcastRoom, (err) => {
 			if (err == null) {
+				this.#runSyncHooks(this.#lifecycleCallbacksMap.get(LifecycleTypes.auth_success), [socket], (error) => {
+					if (error != null) {
+						this.#triggerCallbacks(this.#lifecycleCallbacksMap.get(LifecycleTypes.error), socket, { phase: "onAuthSuccess", error });
+					}
+				});
 				this.#runSyncHooks(this.#lifecycleCallbacksMap.get(LifecycleTypes.open), [socket], (error) => {
-					if (error != null)
+					if (error != null) {
 						this.#triggerCallbacks(this.#lifecycleCallbacksMap.get(LifecycleTypes.error), socket, { phase: "onOpen", error });
+					}
+				});
+			} else {
+				const ctx: ErrorContext = {
+					phase: "auth",
+					error: err instanceof Error ? err : new Error(String(err)),
+					code: 4003,
+				};
+				this.#runSyncHooks(this.#lifecycleCallbacksMap.get(LifecycleTypes.auth_error), [socket, ctx], (error) => {
+					if (error != null) {
+						this.#triggerCallbacks(this.#lifecycleCallbacksMap.get(LifecycleTypes.error), socket, { phase: "onAuthError", error });
+					}
 				});
 			}
 		});
@@ -910,65 +1016,77 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	}
 
 	#handlePingMessage<T extends object>(socket: Socket<TEvents, SD>, parsed: T): boolean {
-		if (!this.#isPingMessage(parsed)) return false;
+		if (!this.#isPingMessage(parsed)) {
+			return false;
+		}
 		socket.send({ type: LifecycleTypes.pong });
 		return true;
 	}
 
 	#handleJoinRoomMessage<T extends object>(socket: Socket<TEvents, SD>, parsed: T): boolean {
-		if (!this.#isJoinRoomMessage(parsed)) return false;
+		if (!this.#isJoinRoomMessage(parsed)) {
+			return false;
+		}
 		this.#runAsyncHooksOrNext(this.#lifecycleCallbacksMap.get(LifecycleTypes.join_room), [socket, parsed.room], (error) => {
 			if (error == null) {
 				socket.rooms.join(parsed.room);
 				socket.send({ type: LifecycleTypes.join_room_success, room: parsed.room });
 			} else {
-				socket.send({ type: LifecycleTypes.join_room_error, room: parsed.room, data: { phase: "joinRoom", error } });
+				socket.send({ type: LifecycleTypes.join_room_error, room: parsed.room, data: { phase: "onJoinRoom", error } });
 			}
 		});
 		return true;
 	}
 
 	#handleLeaveRoomMessage<T extends object>(socket: Socket<TEvents, SD>, parsed: T): boolean {
-		if (!this.#isLeaveRoomMessage(parsed)) return false;
+		if (!this.#isLeaveRoomMessage(parsed)) {
+			return false;
+		}
 		this.#runAsyncHooksOrNext(this.#lifecycleCallbacksMap.get(LifecycleTypes.leave_room), [socket, parsed.room], (error) => {
 			if (error == null) {
 				socket.rooms.leave(parsed.room);
 				socket.send({ type: LifecycleTypes.leave_room_success, room: parsed.room });
 			} else {
-				socket.send({ type: LifecycleTypes.leave_room_error, room: parsed.room, data: { phase: "leaveRoom", error } });
+				socket.send({ type: LifecycleTypes.leave_room_error, room: parsed.room, data: { phase: "onLeaveRoom", error } });
 			}
 		});
 		return true;
 	}
 
 	#handleJoinRoomsMessage<T extends object>(socket: Socket<TEvents, SD>, parsed: T): boolean {
-		if (!this.#isJoinRoomsMessage(parsed)) return false;
+		if (!this.#isJoinRoomsMessage(parsed)) {
+			return false;
+		}
 		this.#runAsyncHooksOrNext(this.#lifecycleCallbacksMap.get(LifecycleTypes.join_rooms), [socket, parsed.rooms], (error) => {
 			if (error == null) {
 				socket.rooms.bulk.join(parsed.rooms);
 				socket.send({ type: LifecycleTypes.join_rooms_success, rooms: parsed.rooms });
 			} else {
-				socket.send({ type: LifecycleTypes.join_rooms_error, rooms: parsed.rooms, data: { phase: "joinRooms", error } });
+				socket.send({ type: LifecycleTypes.join_rooms_error, rooms: parsed.rooms, data: { phase: "onJoinRooms", error } });
 			}
 		});
 		return true;
 	}
 
 	#handleLeaveRoomsMessage<T extends object>(socket: Socket<TEvents, SD>, parsed: T): boolean {
-		if (!this.#isLeaveRoomsMessage(parsed)) return false;
+		if (!this.#isLeaveRoomsMessage(parsed)) {
+			return false;
+		}
 		this.#runAsyncHooksOrNext(this.#lifecycleCallbacksMap.get(LifecycleTypes.leave_rooms), [socket, parsed.rooms], (error) => {
 			if (error == null) {
 				socket.rooms.bulk.leave(parsed.rooms);
 				socket.send({ type: LifecycleTypes.leave_rooms_success, rooms: parsed.rooms });
 			} else {
-				socket.send({ type: LifecycleTypes.leave_rooms_error, rooms: parsed.rooms, data: { phase: "leaveRooms", error } });
+				socket.send({ type: LifecycleTypes.leave_rooms_error, rooms: parsed.rooms, data: { phase: "onLeaveRooms", error } });
 			}
 		});
 		return true;
 	}
 
 	#handleRoomsMessage<T extends object>(socket: Socket<TEvents, SD>, parsed: T): boolean {
-		if (!this.#isRoomsMessage(parsed)) return false;
+		if (!this.#isRoomsMessage(parsed)) {
+			return false;
+		}
 		const message = this.encode({ rooms: parsed.rooms, event: parsed.event, data: parsed.data });
 		for (const room of parsed.rooms) {
 			this.#runAsyncHooksOrNext(this.#roomCallbacksMap.get(room)?.get(parsed.event), [socket, parsed.data], (error) => {
@@ -987,7 +1105,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	}
 
 	#handleRoomMessage<T extends object>(socket: Socket<TEvents, SD>, parsed: T): boolean {
-		if (!this.#isRoomMessage(parsed)) return false;
+		if (!this.#isRoomMessage(parsed)) {
+			return false;
+		}
 		this.#runAsyncHooksOrNext(this.#roomCallbacksMap.get(parsed.room)?.get(parsed.event), [socket, parsed.data], (error) => {
 			if (error == null) {
 				socket.rooms.emit(parsed.room, parsed.event, parsed.data);
@@ -1003,7 +1123,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	}
 
 	#handleMessage<T extends object>(socket: Socket<TEvents, SD>, parsed: T): boolean {
-		if (!this.#isMessage(parsed)) return false;
+		if (!this.#isMessage(parsed)) {
+			return false;
+		}
 		this.#triggerCallbacks(this.#callbacksMap.get(parsed.event), socket, parsed.data);
 		return true;
 	}
@@ -1098,26 +1220,36 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	}
 
 	#triggerCallbacks<Args extends Array<unknown>>(callbackSet?: Set<AnyCallback>, ...args: Args): void {
-		if (!callbackSet) return;
+		if (!callbackSet) {
+			return;
+		}
 		const callbacks = Array.from(callbackSet);
 		for (const callback of callbacks) {
-			if (!callbackSet.has(callback)) continue;
+			if (!callbackSet.has(callback)) {
+				continue;
+			}
 			try {
 				callback(...args);
 			} catch (error) {
-				if (this.#options.debug) console.error(error);
+				if (this.#options.debug) {
+					console.error(error);
+				}
 			}
 		}
 	}
 
 	#runSyncHooks<Args extends Array<unknown>>(callbackSet: Set<AnyCallback> | undefined, args: Args, next: MiddlewareNext): void {
-		if (!callbackSet) return next();
+		if (!callbackSet) {
+			return next();
+		}
 		let firstError: unknown = null;
 		for (const callback of callbackSet) {
 			try {
 				callback(...args);
 			} catch (err) {
-				if (this.#options.debug) console.error(err);
+				if (this.#options.debug) {
+					console.error(err);
+				}
 				firstError = firstError ?? err;
 			}
 		}
@@ -1159,10 +1291,15 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 			const execution = new Promise<void>((resolve, reject) => {
 				try {
 					const result = callback(...args, (err?: unknown) => {
-						if (called) return;
+						if (called) {
+							return;
+						}
 						called = true;
-						if (err) reject(err);
-						else resolve();
+						if (err) {
+							reject(err);
+						} else {
+							resolve();
+						}
 					});
 
 					if (result instanceof Promise) {
@@ -1204,7 +1341,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 				.then(() => next())
 				.catch((err) => next(err))
 				.finally(() => {
-					if (timeoutId) clearTimeout(timeoutId);
+					if (timeoutId) {
+						clearTimeout(timeoutId);
+					}
 				});
 		};
 

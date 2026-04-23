@@ -13,7 +13,7 @@ import { SocketBase } from "./socket-base";
 import type { EventCallback, RoomState } from "./types";
 
 /**
- * Manages room membership and room‑scoped event listeners.
+ * Manages room membership and room-scoped event listeners.
  *
  * You should not instantiate this class directly; it is accessible via
  * `socket.rooms` on a ByteSocket instance.
@@ -22,7 +22,7 @@ import type { EventCallback, RoomState } from "./types";
  */
 export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 	/**
-	 * Lifecycle event listeners for single‑room operations.
+	 * Lifecycle event listeners for single-room operations.
 	 *
 	 * @example
 	 * socket.rooms.lifecycle.onJoinSuccess((room) => {
@@ -68,62 +68,62 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 
 		this.lifecycle = {
 			/**
-			 * Register a listener for successful single‑room join.
+			 * Register a listener for successful single-room join.
 			 * @param callback - Function invoked with the room name.
 			 */
 			onJoinSuccess: (callback: (room: string) => void) => this.onLifecycle(LifecycleTypes.join_room_success, callback),
 			/**
-			 * Remove a listener for successful single‑room join.
+			 * Remove a listener for successful single-room join.
 			 * @param callback - Optional; if omitted, all listeners are removed.
 			 */
 			offJoinSuccess: (callback?: (room: string) => void) => this.offLifecycle(LifecycleTypes.join_room_success, callback),
 			/**
-			 * Register a one‑time listener for successful single‑room join.
+			 * Register a one-time listener for successful single-room join.
 			 * @param callback - Function invoked once with the room name.
 			 */
 			onceJoinSuccess: (callback: (room: string) => void) => this.onceLifecycle(LifecycleTypes.join_room_success, callback),
 			/**
-			 * Register a listener for single‑room join errors.
+			 * Register a listener for single-room join errors.
 			 * @param callback - Function invoked with the room name and error data.
 			 */
 			onJoinError: (callback: (room: string, ctx: ErrorContext) => void) => this.onLifecycle(LifecycleTypes.join_room_error, callback),
 			/**
-			 * Remove a listener for single‑room join errors.
+			 * Remove a listener for single-room join errors.
 			 * @param callback - Optional; if omitted, all listeners are removed.
 			 */
 			offJoinError: (callback?: (room: string, ctx: ErrorContext) => void) => this.offLifecycle(LifecycleTypes.join_room_error, callback),
 			/**
-			 * Register a one‑time listener for single‑room join errors.
+			 * Register a one-time listener for single-room join errors.
 			 * @param callback - Function invoked once with the room name and error data.
 			 */
 			onceJoinError: (callback: (room: string, ctx: ErrorContext) => void) => this.onceLifecycle(LifecycleTypes.join_room_error, callback),
 			/**
-			 * Register a listener for successful single‑room leave.
+			 * Register a listener for successful single-room leave.
 			 * @param callback - Function invoked with the room name.
 			 */
 			onLeaveSuccess: (callback: (room: string) => void) => this.onLifecycle(LifecycleTypes.leave_room_success, callback),
 			/**
-			 * Remove a listener for successful single‑room leave.
+			 * Remove a listener for successful single-room leave.
 			 * @param callback - Optional; if omitted, all listeners are removed.
 			 */
 			offLeaveSuccess: (callback?: (room: string) => void) => this.offLifecycle(LifecycleTypes.leave_room_success, callback),
 			/**
-			 * Register a one‑time listener for successful single‑room leave.
+			 * Register a one-time listener for successful single-room leave.
 			 * @param callback - Function invoked once with the room name.
 			 */
 			onceLeaveSuccess: (callback: (room: string) => void) => this.onceLifecycle(LifecycleTypes.leave_room_success, callback),
 			/**
-			 * Register a listener for single‑room leave errors.
+			 * Register a listener for single-room leave errors.
 			 * @param callback - Function invoked with the room name and error data.
 			 */
 			onLeaveError: (callback: (room: string, ctx: ErrorContext) => void) => this.onLifecycle(LifecycleTypes.leave_room_error, callback),
 			/**
-			 * Remove a listener for single‑room leave errors.
+			 * Remove a listener for single-room leave errors.
 			 * @param callback - Optional; if omitted, all listeners are removed.
 			 */
 			offLeaveError: (callback?: (room: string, ctx: ErrorContext) => void) => this.offLifecycle(LifecycleTypes.leave_room_error, callback),
 			/**
-			 * Register a one‑time listener for single‑room leave errors.
+			 * Register a one-time listener for single-room leave errors.
 			 * @param callback - Function invoked once with the room name and error data.
 			 */
 			onceLeaveError: (callback: (room: string, ctx: ErrorContext) => void) => this.onceLifecycle(LifecycleTypes.leave_room_error, callback),
@@ -169,7 +169,7 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 				 */
 				offJoinSuccess: (callback?: (rooms: string[]) => void) => this.offLifecycle(LifecycleTypes.join_rooms_success, callback),
 				/**
-				 * Register a one‑time listener for successful bulk join.
+				 * Register a one-time listener for successful bulk join.
 				 * @param callback - Function invoked once with the array of room names.
 				 */
 				onceJoinSuccess: (callback: (rooms: string[]) => void) => this.onceLifecycle(LifecycleTypes.join_rooms_success, callback),
@@ -185,7 +185,7 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 				offJoinError: (callback?: (rooms: string[], ctx: ErrorContext) => void) =>
 					this.offLifecycle(LifecycleTypes.join_rooms_error, callback),
 				/**
-				 * Register a one‑time listener for bulk join errors.
+				 * Register a one-time listener for bulk join errors.
 				 * @param callback - Function invoked once with the array of room names and error data.
 				 */
 				onceJoinError: (callback: (rooms: string[], ctx: ErrorContext) => void) =>
@@ -201,7 +201,7 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 				 */
 				offLeaveSuccess: (callback?: (rooms: string[]) => void) => this.offLifecycle(LifecycleTypes.leave_rooms_success, callback),
 				/**
-				 * Register a one‑time listener for successful bulk leave.
+				 * Register a one-time listener for successful bulk leave.
 				 * @param callback - Function invoked once with the array of room names.
 				 */
 				onceLeaveSuccess: (callback: (rooms: string[]) => void) => this.onceLifecycle(LifecycleTypes.leave_rooms_success, callback),
@@ -218,7 +218,7 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 				offLeaveError: (callback?: (rooms: string[], ctx: ErrorContext) => void) =>
 					this.offLifecycle(LifecycleTypes.leave_rooms_error, callback),
 				/**
-				 * Register a one‑time listener for bulk leave errors.
+				 * Register a one-time listener for bulk leave errors.
 				 * @param callback - Function invoked once with the array of room names and error data.
 				 */
 				onceLeaveError: (callback: (rooms: string[], ctx: ErrorContext) => void) =>
@@ -230,9 +230,7 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 		onClose(() => this.#onSocketClose());
 	}
 
-	// ────────────────────────────────────────────────────────────────────────────
-	// Emitters
-	// ────────────────────────────────────────────────────────────────────────────
+	// ──── Emitters ────────────────────────────────────────────────────────────────────────
 
 	/**
 	 * Emit an event to a specific room.
@@ -255,14 +253,16 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 
 	/**
 	 * Request to join a single room.
-	 * Idempotent – calling multiple times for the same room has no extra effect.
+	 * Idempotent - calling multiple times for the same room has no extra effect.
 	 *
 	 * @example
 	 * socket.rooms.join('chat');
 	 */
 	join(room: string): void {
 		const state = this.#getOrCreateRoomState(room);
-		if (state.joined || state.pending === "join") return;
+		if (state.joined || state.pending === "join") {
+			return;
+		}
 		state.wanted = true;
 		state.pending = "join";
 		this.#send({ type: LifecycleTypes.join_room, room });
@@ -276,7 +276,9 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 	 */
 	leave(room: string): void {
 		const state = this.#getOrCreateRoomState(room);
-		if (!state.joined || state.pending === "leave") return;
+		if (!state.joined || state.pending === "leave") {
+			return;
+		}
 		state.wanted = false;
 		state.pending = "leave";
 		this.#send({ type: LifecycleTypes.leave_room, room });
@@ -292,19 +294,25 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 
 	#joinMany(rooms: string[]): void {
 		if (rooms.length === 0) {
-			if (this.debug) console.warn("ByteSocket: can't join empty array of rooms - ignored");
+			if (this.debug) {
+				console.warn("ByteSocket: can't join empty array of rooms - ignored");
+			}
 			return;
 		}
 		const toJoin = [];
 		for (const room of rooms) {
 			const state = this.#getOrCreateRoomState(room);
-			if (state.joined || state.pending === "join") continue;
+			if (state.joined || state.pending === "join") {
+				continue;
+			}
 			state.wanted = true;
 			state.pending = "join";
 			toJoin.push(room);
 		}
 		if (toJoin.length === 0) {
-			if (this.debug) console.warn("ByteSocket: all rooms you requested to join are joined or pending joining already - ignored");
+			if (this.debug) {
+				console.warn("ByteSocket: all rooms you requested to join are joined or pending joining already - ignored");
+			}
 			return;
 		}
 		this.#send({ type: LifecycleTypes.join_rooms, rooms: toJoin });
@@ -312,27 +320,44 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 
 	#leaveMany(rooms: string[]): void {
 		if (rooms.length === 0) {
-			if (this.debug) console.warn("ByteSocket: can't leave empty array of rooms - ignored");
+			if (this.debug) {
+				console.warn("ByteSocket: can't leave empty array of rooms - ignored");
+			}
 			return;
 		}
 		const toLeave = [];
 		for (const room of rooms) {
 			const state = this.#getOrCreateRoomState(room);
-			if (!state.joined || state.pending === "leave") continue;
+			if (!state.joined || state.pending === "leave") {
+				continue;
+			}
 			state.wanted = false;
 			state.pending = "leave";
 			toLeave.push(room);
 		}
 		if (toLeave.length === 0) {
-			if (this.debug) console.warn("ByteSocket: all rooms you requested to leave are left or pending leaving already - ignored");
+			if (this.debug) {
+				console.warn("ByteSocket: all rooms you requested to leave are left or pending leaving already - ignored");
+			}
 			return;
 		}
 		this.#send({ type: LifecycleTypes.leave_rooms, rooms: toLeave });
 	}
 
-	// ────────────────────────────────────────────────────────────────────────────
-	// Listeners
-	// ────────────────────────────────────────────────────────────────────────────
+	/**
+	 * Get a list of rooms this socket is currently subscribed to.
+	 * The internal broadcast room is excluded.
+	 *
+	 * @returns Array of room names.
+	 *
+	 * @example
+	 * socket.rooms.list(); // ['chat', 'lobby']
+	 */
+	list() {
+		return [...this.#roomStateMap].filter(([_room, state]) => state.joined).map(([room]) => room);
+	}
+
+	// ──── Listeners ────────────────────────────────────────────────────────────────────────
 
 	/**
 	 * Register a permanent listener for events on a specific room.
@@ -373,7 +398,9 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 		D extends NonNullable<TEvents["listenRoom"]>[R][E],
 	>(room: R, event?: E, callback?: EventCallback<D>): void {
 		const roomMap = this.#roomCallbacksMap.get(room);
-		if (!roomMap) return;
+		if (!roomMap) {
+			return;
+		}
 		if (event === undefined) {
 			this.#roomCallbacksMap.delete(room);
 			this.#onceRoomCallbacksMap.delete(room);
@@ -401,7 +428,7 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 	}
 
 	/**
-	 * Register a one‑time listener for an event on a specific room.
+	 * Register a one-time listener for an event on a specific room.
 	 * The callback is removed after its first invocation.
 	 *
 	 * @example
@@ -431,7 +458,9 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 		const roomMap = this.#roomCallbacksMap.get(room);
 		if (roomMap) {
 			this.deleteCallback(roomMap, event, callback);
-			if (roomMap.size === 0) this.#roomCallbacksMap.delete(room);
+			if (roomMap.size === 0) {
+				this.#roomCallbacksMap.delete(room);
+			}
 		}
 	}
 
@@ -443,7 +472,9 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 		const onceRoomMap = this.#onceRoomCallbacksMap.get(room);
 		if (onceRoomMap) {
 			this.deleteOnceCallback(onceRoomMap, event, callback, callbackWrapper);
-			if (onceRoomMap?.size === 0) this.#onceRoomCallbacksMap.delete(room);
+			if (onceRoomMap?.size === 0) {
+				this.#onceRoomCallbacksMap.delete(room);
+			}
 		}
 	}
 
@@ -473,9 +504,7 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 		this.addOnceCallback(onceRoomMap, event, callback, callbackWrapper);
 	}
 
-	// ────────────────────────────────────────────────────────────────────────────
-	// Message Handling (internal)
-	// ────────────────────────────────────────────────────────────────────────────
+	// ──── Message Handling (internal) ────────────────────────────────────────────────────────────────────────
 
 	/**
 	 * @internal
@@ -483,41 +512,65 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 	 * @returns `true` if the message was handled, otherwise `false`.
 	 */
 	_handleMessage(payload: UserMessage): boolean {
-		if (this.#handleJoinRoomSuccessMessage(payload)) return true;
-		if (this.#handleLeaveRoomSuccessMessage(payload)) return true;
-		if (this.#handleRoomErrorMessage(payload)) return true;
-		if (this.#handleJoinRoomsSuccessMessage(payload)) return true;
-		if (this.#handleLeaveRoomsSuccessMessage(payload)) return true;
-		if (this.#handleRoomsErrorMessage(payload)) return true;
-		if (this.#handleRoomsMessage(payload)) return true;
-		if (this.#handleRoomMessage(payload)) return true;
+		if (this.#handleJoinRoomSuccessMessage(payload)) {
+			return true;
+		}
+		if (this.#handleLeaveRoomSuccessMessage(payload)) {
+			return true;
+		}
+		if (this.#handleRoomErrorMessage(payload)) {
+			return true;
+		}
+		if (this.#handleJoinRoomsSuccessMessage(payload)) {
+			return true;
+		}
+		if (this.#handleLeaveRoomsSuccessMessage(payload)) {
+			return true;
+		}
+		if (this.#handleRoomsErrorMessage(payload)) {
+			return true;
+		}
+		if (this.#handleRoomsMessage(payload)) {
+			return true;
+		}
+		if (this.#handleRoomMessage(payload)) {
+			return true;
+		}
 		return false;
 	}
 
 	#handleJoinRoomSuccessMessage(payload: UserMessage): boolean {
-		if (!("type" in payload) || !("room" in payload) || payload.type !== LifecycleTypes.join_room_success) return false;
+		if (!("type" in payload) || !("room" in payload) || payload.type !== LifecycleTypes.join_room_success) {
+			return false;
+		}
 		const state = this.#roomStateMap.get(payload.room);
 		if (!state) {
-			if (this.debug) console.warn(`ByteSocket: stale ${LifecycleTypes[payload.type]} for "${payload.room}" - ignored`);
+			if (this.debug) {
+				console.warn(`ByteSocket: stale ${LifecycleTypes[payload.type]} for "${payload.room}" - ignored`);
+			}
 			return true;
 		}
 		state.joined = true;
 		state.pending = null;
-		this.triggerCallback(this.lifecycleCallbacksMap.get(payload.type), payload.room, payload.data);
+		this.triggerCallback(this.lifecycleCallbacksMap.get(payload.type), payload.room);
 		return true;
 	}
 
 	#handleLeaveRoomSuccessMessage(payload: UserMessage): boolean {
-		if (!("type" in payload) || !("room" in payload) || payload.type !== LifecycleTypes.leave_room_success) return false;
+		if (!("type" in payload) || !("room" in payload) || payload.type !== LifecycleTypes.leave_room_success) {
+			return false;
+		}
 		const state = this.#roomStateMap.get(payload.room);
 		if (!state) {
-			if (this.debug) console.warn(`ByteSocket: stale ${LifecycleTypes[payload.type]} for "${payload.room}" - ignored`);
+			if (this.debug) {
+				console.warn(`ByteSocket: stale ${LifecycleTypes[payload.type]} for "${payload.room}" - ignored`);
+			}
 			return true;
 		}
 		state.joined = false;
 		state.pending = null;
 		this.#cleanRoomState(payload.room);
-		this.triggerCallback(this.lifecycleCallbacksMap.get(payload.type), payload.room, payload.data);
+		this.triggerCallback(this.lifecycleCallbacksMap.get(payload.type), payload.room);
 		return true;
 	}
 
@@ -526,11 +579,14 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 			!("type" in payload) ||
 			!("room" in payload) ||
 			(payload.type !== LifecycleTypes.join_room_error && payload.type !== LifecycleTypes.leave_room_error)
-		)
+		) {
 			return false;
+		}
 		const state = this.#roomStateMap.get(payload.room);
 		if (!state) {
-			if (this.debug) console.warn(`ByteSocket: stale ${LifecycleTypes[payload.type]} for "${payload.room}" - ignored`);
+			if (this.debug) {
+				console.warn(`ByteSocket: stale ${LifecycleTypes[payload.type]} for "${payload.room}" - ignored`);
+			}
 			return true;
 		}
 		state.pending = null;
@@ -539,7 +595,9 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 	}
 
 	#handleJoinRoomsSuccessMessage(payload: UserMessage): boolean {
-		if (!("type" in payload) || !("rooms" in payload) || payload.type !== LifecycleTypes.join_rooms_success) return false;
+		if (!("type" in payload) || !("rooms" in payload) || payload.type !== LifecycleTypes.join_rooms_success) {
+			return false;
+		}
 		const staleRooms = [];
 		const actualRooms = [];
 		for (const room of payload.rooms) {
@@ -552,15 +610,20 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 			state.pending = null;
 			actualRooms.push(room);
 		}
-		if (this.debug && staleRooms.length)
+		if (this.debug && staleRooms.length) {
 			console.warn(`ByteSocket: stale ${LifecycleTypes[payload.type]} for "${staleRooms.join(", ")}" - ignored`);
-		if (actualRooms.length === 0) return true;
-		this.triggerCallback(this.lifecycleCallbacksMap.get(payload.type), actualRooms, payload.data);
+		}
+		if (actualRooms.length === 0) {
+			return true;
+		}
+		this.triggerCallback(this.lifecycleCallbacksMap.get(payload.type), actualRooms);
 		return true;
 	}
 
 	#handleLeaveRoomsSuccessMessage(payload: UserMessage): boolean {
-		if (!("type" in payload) || !("rooms" in payload) || payload.type !== LifecycleTypes.leave_rooms_success) return false;
+		if (!("type" in payload) || !("rooms" in payload) || payload.type !== LifecycleTypes.leave_rooms_success) {
+			return false;
+		}
 		const staleRooms = [];
 		const actualRooms = [];
 		for (const room of payload.rooms) {
@@ -574,10 +637,13 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 			actualRooms.push(room);
 			this.#cleanRoomState(room);
 		}
-		if (this.debug && staleRooms.length)
+		if (this.debug && staleRooms.length) {
 			console.warn(`ByteSocket: stale ${LifecycleTypes[payload.type]} for "${staleRooms.join(", ")}" - ignored`);
-		if (actualRooms.length === 0) return true;
-		this.triggerCallback(this.lifecycleCallbacksMap.get(payload.type), actualRooms, payload.data);
+		}
+		if (actualRooms.length === 0) {
+			return true;
+		}
+		this.triggerCallback(this.lifecycleCallbacksMap.get(payload.type), actualRooms);
 		return true;
 	}
 
@@ -586,8 +652,9 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 			!("type" in payload) ||
 			!("rooms" in payload) ||
 			(payload.type !== LifecycleTypes.join_rooms_error && payload.type !== LifecycleTypes.leave_rooms_error)
-		)
+		) {
 			return false;
+		}
 		const staleRooms = [];
 		const actualRooms = [];
 		for (const room of payload.rooms) {
@@ -599,15 +666,20 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 			state.pending = null;
 			actualRooms.push(room);
 		}
-		if (this.debug && staleRooms.length)
+		if (this.debug && staleRooms.length) {
 			console.warn(`ByteSocket: stale ${LifecycleTypes[payload.type]} for "${staleRooms.join(", ")}" - ignored`);
-		if (actualRooms.length === 0) return true;
+		}
+		if (actualRooms.length === 0) {
+			return true;
+		}
 		this.triggerCallback(this.lifecycleCallbacksMap.get(payload.type), actualRooms, payload.data);
 		return true;
 	}
 
 	#handleRoomsMessage(payload: UserMessage): boolean {
-		if ("type" in payload || !("rooms" in payload) || payload.rooms == null || payload.event == null) return false;
+		if ("type" in payload || !("rooms" in payload) || payload.rooms == null || payload.event == null) {
+			return false;
+		}
 		for (const room of payload.rooms) {
 			this.triggerCallback(this.#roomCallbacksMap.get(room)?.get(payload.event), payload.data);
 		}
@@ -615,14 +687,14 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 	}
 
 	#handleRoomMessage(payload: UserMessage): boolean {
-		if ("type" in payload || !("room" in payload) || payload.room == null || payload.event == null) return false;
+		if ("type" in payload || !("room" in payload) || payload.room == null || payload.event == null) {
+			return false;
+		}
 		this.triggerCallback(this.#roomCallbacksMap.get(payload.room)?.get(payload.event), payload.data);
 		return true;
 	}
 
-	// ────────────────────────────────────────────────────────────────────────────
-	// Helpers
-	// ────────────────────────────────────────────────────────────────────────────
+	// ──── Helpers ────────────────────────────────────────────────────────────────────────
 
 	/**
 	 * @internal
@@ -649,8 +721,12 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 
 	#cleanRoomState(room: string): void {
 		const state = this.#roomStateMap.get(room);
-		if (!state) return;
-		if (state.wanted === false && state.joined === false && state.pending === null) this.#roomStateMap.delete(room);
+		if (!state) {
+			return;
+		}
+		if (state.wanted === false && state.joined === false && state.pending === null) {
+			this.#roomStateMap.delete(room);
+		}
 	}
 
 	#onSocketOpen(): void {
@@ -666,8 +742,12 @@ export class RoomManager<TEvents extends SocketEvents> extends SocketBase {
 				toClean.push(room);
 			}
 		});
-		for (const room of toClean) this.#cleanRoomState(room);
-		if (rooms.length === 0) return;
+		for (const room of toClean) {
+			this.#cleanRoomState(room);
+		}
+		if (rooms.length === 0) {
+			return;
+		}
 		if (rooms.length === 1) {
 			this.#send({ type: LifecycleTypes.join_room, room: rooms[0] });
 		} else {

@@ -53,7 +53,7 @@ The `SocketEvents` interface is the single source of truth for your event schema
 ```typescript
 import type { SocketEvents } from "@bytesocket/client";
 
-// Asymmetric usage (full control) – override specific event categories
+// Asymmetric usage (full control) - override specific event categories
 export interface ChatEvents extends SocketEvents {
 	listen: {
 		"user:joined": { userId: string; name: string };

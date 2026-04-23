@@ -77,19 +77,19 @@ export type LifecycleType = {
 };
 
 /** Lifecycle message shape for single-room operations (join/leave request/success). */
-export type LifecycleRoomType<R extends string> = {
+export type LifecycleRoomType<R extends string = string> = {
 	type: LifecycleTypes.join_room | LifecycleTypes.join_room_success | LifecycleTypes.leave_room | LifecycleTypes.leave_room_success;
 	room: R;
 };
 
 /** Lifecycle message shape for bulk room operations (join/leave multiple rooms request/success). */
-export type LifecycleRoomsType<Rs extends readonly string[]> = {
+export type LifecycleRoomsType<Rs extends readonly string[] = string[]> = {
 	type: LifecycleTypes.join_rooms | LifecycleTypes.join_rooms_success | LifecycleTypes.leave_rooms | LifecycleTypes.leave_rooms_success;
 	rooms: Rs;
 };
 
 /** Lifecycle message shape for events that carry generic data (error, auth, auth_error). */
-export type LifecyclePayload<D> = {
+export type LifecyclePayload<D = unknown> = {
 	type: LifecycleTypes.auth;
 	data: D;
 };
@@ -101,21 +101,21 @@ export type LifecycleError = {
 };
 
 /** Lifecycle error message for a single room. */
-export type LifecycleRoomError<R extends string> = {
+export type LifecycleRoomError<R extends string = string> = {
 	type: LifecycleTypes.join_room_error | LifecycleTypes.leave_room_error;
 	room: R;
 	data: ErrorContext;
 };
 
 /** Lifecycle error message for multiple rooms. */
-export type LifecycleRoomsError<Rs extends readonly string[]> = {
+export type LifecycleRoomsError<Rs extends readonly string[] = string[]> = {
 	type: LifecycleTypes.join_rooms_error | LifecycleTypes.leave_rooms_error;
 	rooms: Rs;
 	data: ErrorContext;
 };
 
 /** Union of all possible lifecycle messages that ByteSocket may send or receive. */
-export type LifecycleMessage<R extends string, D> =
+export type LifecycleMessage<R extends string = string, D = unknown> =
 	| LifecycleType
 	| LifecycleRoomType<R>
 	| LifecycleRoomsType<R[]>
@@ -125,38 +125,38 @@ export type LifecycleMessage<R extends string, D> =
 	| LifecycleRoomsError<R[]>;
 
 /**
- * User‑defined event sent to a specific room.
+ * User-defined event sent to a specific room.
  *
  * @example
  * // Emitting to room "chat" with event "message"
  * socket.rooms.emit("chat", "message", { text: "Hello!" });
  */
-export type RoomEvent<R extends string, E extends string | number, D> = {
+export type RoomEvent<R extends string = string, E extends string | number = string | number, D = unknown> = {
 	room: R;
 	event: E;
 	data: D;
 };
 
 /**
- * User‑defined event sent to multiple rooms simultaneously.
+ * User-defined event sent to multiple rooms simultaneously.
  *
  * @example
  * // Emitting to rooms ["lobby", "announcements"]
  * socket.rooms.bulk.emit(["lobby", "announcements"], "alert", { msg: "Server restart in 5m" });
  */
-export type RoomsEvent<Rs extends readonly string[], E extends string | number, D> = {
+export type RoomsEvent<Rs extends readonly string[] = string[], E extends string | number = string | number, D = unknown> = {
 	rooms: Rs;
 	event: E;
 	data: D;
 };
 
 /**
- * User‑defined event sent globally (no room context).
+ * User-defined event sent globally (no room context).
  *
  * @example
  * socket.emit("userJoined", { userId: "abc123" });
  */
-export type GeneralEvent<E extends string | number, D> = {
+export type GeneralEvent<E extends string | number = string | number, D = unknown> = {
 	event: E;
 	data: D;
 };
@@ -188,7 +188,7 @@ export enum AuthState {
 }
 
 /**
- * Defines the shape of event maps for a type‑safe ByteSocket instance.
+ * Defines the shape of event maps for a type-safe ByteSocket instance.
  *
  * This type supports two usage patterns:
  *
