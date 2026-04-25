@@ -1,8 +1,14 @@
 # @bytesocket/types
 
-Shared TypeScript definitions for the ByteSocket ecosystem -- used internally by both the client (`@bytesocket/client`) and server (`@bytesocket/uws`) packages.
+Shared TypeScript definitions for the ByteSocket ecosystem -- used internally by both the client and server packages.
 
 You do not need to install this package directly; it is a dependency of the main packages.
+
+[![npm version](https://img.shields.io/npm/v/@bytesocket/types)](https://www.npmjs.com/package/@bytesocket/types)
+[![MIT](https://img.shields.io/npm/l/@bytesocket/types)](LICENSE)
+[![node-current](https://img.shields.io/node/v/@bytesocket/types?logo=nodedotjs)](https://nodejs.org/)
+[![GitHub](https://img.shields.io/badge/GitHub-gray?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket/tree/main/packages/types)
+[![GitHub stars](https://img.shields.io/github/stars/a7med3ouda/bytesocket?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket)
 
 ## Exports
 

@@ -6,9 +6,15 @@ settings:
 
 catalogs:
   default:
+    '@types/node':
+      specifier: ^20.19.39
+      version: 20.19.39
     msgpackr:
       specifier: ^1.11.10
       version: 1.11.10
+    uWebSockets.js:
+      specifier: github:uNetworking/uWebSockets.js#v20.64.0
+      version: 20.64.0
 
 importers:
 
@@ -88,11 +94,11 @@ importers:
         version: 1.11.10
     devDependencies:
       '@types/node':
-        specifier: ^22.19.17
-        version: 22.19.17
+        specifier: 'catalog:'
+        version: 20.19.39
       uWebSockets.js:
-        specifier: github:uNetworking/uWebSockets.js#v20.61.0
-        version: https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/cf2e4a85cc7b600ffa5a0729249bc3907e58c89a
+        specifier: 'catalog:'
+        version: https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/09c62a4f6dd5fa2e8103f7409949e9eff53ba4ca
 
 packages:
 
@@ -629,6 +635,9 @@ packages:
 
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
+
+  '@types/node@20.19.39':
+    resolution: {integrity: sha512-orrrD74MBUyK8jOAD/r0+lfa1I2MO6I+vAkmAWzMYbCcgrN4lCrmK52gRFQq/JRxfYPfonkr4b0jcY7Olqdqbw==}
 
   '@types/node@22.19.17':
     resolution: {integrity: sha512-wGdMcf+vPYM6jikpS/qhg6WiqSV/OhG+jeeHT/KlVqxYfD40iYJf9/AE1uQxVWFvU7MipKRkRv8NSHiCGgPr8Q==}
@@ -1374,9 +1383,9 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
-  uWebSockets.js@https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/cf2e4a85cc7b600ffa5a0729249bc3907e58c89a:
-    resolution: {tarball: https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/cf2e4a85cc7b600ffa5a0729249bc3907e58c89a}
-    version: 20.61.0
+  uWebSockets.js@https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/09c62a4f6dd5fa2e8103f7409949e9eff53ba4ca:
+    resolution: {tarball: https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/09c62a4f6dd5fa2e8103f7409949e9eff53ba4ca}
+    version: 20.64.0
 
   ufo@1.6.3:
     resolution: {integrity: sha512-yDJTmhydvl5lJzBmy/hyOAA0d+aqCBuwl818haVdYCRrWV84o7YyeVm4QlVHStqNrrJSTb6jKuFAVqAFsr+K3Q==}
@@ -1845,6 +1854,10 @@ snapshots:
   '@types/estree@1.0.8': {}
 
   '@types/json-schema@7.0.15': {}
+
+  '@types/node@20.19.39':
+    dependencies:
+      undici-types: 6.21.0
 
   '@types/node@22.19.17':
     dependencies:
@@ -2637,7 +2650,7 @@ snapshots:
 
   typescript@6.0.2: {}
 
-  uWebSockets.js@https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/cf2e4a85cc7b600ffa5a0729249bc3907e58c89a: {}
+  uWebSockets.js@https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/09c62a4f6dd5fa2e8103f7409949e9eff53ba4ca: {}
 
   ufo@1.6.3: {}
 

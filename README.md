@@ -4,15 +4,21 @@
 
 ByteSocket is a monorepo providing a client library and server adapters that work together out of the box. It handles reconnection, rooms, authentication, heartbeat, message queuing, and serialization so you can focus on your application logic.
 
+[![npm version](https://img.shields.io/npm/v/@bytesocket/client)](https://www.npmjs.com/package/@bytesocket/client)
+[![MIT](https://img.shields.io/npm/l/@bytesocket/client)](LICENSE)
+[![node-current](https://img.shields.io/node/v/@bytesocket/client?logo=nodedotjs)](https://nodejs.org/)
+[![GitHub](https://img.shields.io/badge/GitHub-gray?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket)
+[![GitHub stars](https://img.shields.io/github/stars/a7med3ouda/bytesocket?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket)
+
 ---
 
 ## Packages
 
-| Package                                   | Description                                                                        | Status         |
-| ----------------------------------------- | ---------------------------------------------------------------------------------- | -------------- |
-| [`@bytesocket/client`](./packages/client) | Browser / Node WebSocket client                                                    | ✅ Available   |
-| [`@bytesocket/uws`](./packages/uws)       | Server adapter for [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js) | ✅ Available   |
-| `@bytesocket/express`                     | Server adapter for Express / `ws`                                                  | 🚧 Coming soon |
+| Package                                                                  | Description                                                                        | Status         |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- | -------------- |
+| [`@bytesocket/client`](https://www.npmjs.com/package/@bytesocket/client) | Browser / Node WebSocket client                                                    | ✅ Available   |
+| [`@bytesocket/uws`](https://www.npmjs.com/package/@bytesocket/uws)       | Server adapter for [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js) | ✅ Available   |
+| `@bytesocket/express`                                                    | Server adapter for Express / `ws`                                                  | 🚧 Coming soon |
 
 ---
 

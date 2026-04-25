@@ -3,3 +3,5 @@ packages:
 
 catalog:
     msgpackr: ^1.11.10
+    "@types/node": ^20.19.39
+    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.64.0"

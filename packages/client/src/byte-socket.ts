@@ -233,11 +233,11 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 			/** Register a one-time listener for socket close. */
 			onceClose: (callback: (event: CloseEvent) => void) => this.onceLifecycle(LifecycleTypes.close, callback),
 			/** Register a listener for WebSocket errors. */
-			onError: (callback: (event: Event) => void) => this.onLifecycle(LifecycleTypes.error, callback),
+			onError: (callback: (event: ErrorContext) => void) => this.onLifecycle(LifecycleTypes.error, callback),
 			/** Remove a listener for WebSocket errors. */
-			offError: (callback?: (event: Event) => void) => this.offLifecycle(LifecycleTypes.error, callback),
+			offError: (callback?: (event: ErrorContext) => void) => this.offLifecycle(LifecycleTypes.error, callback),
 			/** Register a one-time listener for WebSocket errors. */
-			onceError: (callback: (event: Event) => void) => this.onceLifecycle(LifecycleTypes.error, callback),
+			onceError: (callback: (event: ErrorContext) => void) => this.onceLifecycle(LifecycleTypes.error, callback),
 			/** Register a listener for authentication success. */
 			onAuthSuccess: (callback: () => void) => this.onLifecycle(LifecycleTypes.auth_success, callback),
 			/** Remove a listener for authentication success. */
@@ -1107,9 +1107,14 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 	// ──── Error ────────────────────────────────────────────────────────────────────────
 
 	#handleError(event: Event): void {
+		const ctx: ErrorContext = {
+			phase: "network",
+			error: event instanceof Error ? event : new Error("WebSocket error"),
+			raw: JSON.stringify(event),
+		};
 		if (this.debug) {
 			console.error("ByteSocket: error", event);
 		}
-		this.triggerCallback(this.lifecycleCallbacksMap.get(LifecycleTypes.error), event);
+		this.triggerCallback(this.lifecycleCallbacksMap.get(LifecycleTypes.error), ctx);
 	}
 }

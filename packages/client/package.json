@@ -1,6 +1,6 @@
 {
 	"name": "@bytesocket/client",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "High-performance WebSocket client for browsers",
 	"keywords": [
 		"websocket",
@@ -50,6 +50,6 @@
 		"msgpackr": "catalog:"
 	},
 	"engines": {
-		"node": ">=22"
+		"node": ">=20.0.0"
 	}
 }
