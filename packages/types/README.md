@@ -4,7 +4,6 @@ Shared TypeScript definitions for the ByteSocket ecosystem -- used internally by
 
 You do not need to install this package directly; it is a dependency of the main packages.
 
-Maintained by Ahmed Ouda -- [@a7med3ouda](https://github.com/a7med3ouda) --
 [![npm version](https://img.shields.io/npm/v/@bytesocket/types)](https://www.npmjs.com/package/@bytesocket/types)
 [![MIT](https://img.shields.io/npm/l/@bytesocket/types)](LICENSE)
 [![node-current](https://img.shields.io/node/v/@bytesocket/types?logo=nodedotjs)](https://nodejs.org/)

@@ -4,7 +4,6 @@
 
 ByteSocket is a monorepo providing a client library and server adapters that work together out of the box. It handles reconnection, rooms, authentication, heartbeat, message queuing, and serialization so you can focus on your application logic.
 
-Maintained by Ahmed Ouda -- [@a7med3ouda](https://github.com/a7med3ouda) --
 [![npm version](https://img.shields.io/npm/v/@bytesocket/client)](https://www.npmjs.com/package/@bytesocket/client)
 [![MIT](https://img.shields.io/npm/l/@bytesocket/client)](LICENSE)
 [![node-current](https://img.shields.io/node/v/@bytesocket/client?logo=nodedotjs)](https://nodejs.org/)

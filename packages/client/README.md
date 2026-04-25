@@ -2,7 +2,6 @@
 
 A modern WebSocket client for [ByteSocket](https://github.com/a7med3ouda/bytesocket/tree/main/packages/client) with automatic reconnection, room management, authentication, heartbeat, and pluggable serialization -- fully typed with TypeScript.
 
-Maintained by Ahmed Ouda -- [@a7med3ouda](https://github.com/a7med3ouda) --
 [![npm version](https://img.shields.io/npm/v/@bytesocket/client)](https://www.npmjs.com/package/@bytesocket/client)
 [![MIT](https://img.shields.io/npm/l/@bytesocket/client)](LICENSE)
 [![node-current](https://img.shields.io/node/v/@bytesocket/client?logo=nodedotjs)](https://nodejs.org/)

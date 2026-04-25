@@ -2,7 +2,6 @@
 
 High-performance WebSocket server for [ByteSocket](https://github.com/a7med3ouda/bytesocket/tree/main/packages/uws) built on [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js).
 
-Maintained by Ahmed Ouda -- [@a7med3ouda](https://github.com/a7med3ouda) --
 [![npm version](https://img.shields.io/npm/v/@bytesocket/uws)](https://www.npmjs.com/package/@bytesocket/uws)
 [![MIT](https://img.shields.io/npm/l/@bytesocket/uws)](LICENSE)
 [![node-current](https://img.shields.io/node/v/@bytesocket/uws?logo=nodedotjs)](https://nodejs.org/)
