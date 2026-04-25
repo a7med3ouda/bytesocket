@@ -2,7 +2,7 @@ import { defineConfig } from "tsup";
 
 export const baseConfig = defineConfig({
 	format: ["esm", "cjs"],
-	target: "es2024",
+	target: "es2022",
 	dts: true,
 	clean: true,
 	minify: false,
