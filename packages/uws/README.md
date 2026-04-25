@@ -2,16 +2,15 @@
 
 High-performance WebSocket server for [ByteSocket](https://github.com/a7med3ouda/bytesocket/tree/main/packages/uws) built on [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js).
 
+Maintained by Ahmed Ouda -- [@a7med3ouda](https://github.com/a7med3ouda) --
 [![npm version](https://img.shields.io/npm/v/@bytesocket/uws)](https://www.npmjs.com/package/@bytesocket/uws)
 [![MIT](https://img.shields.io/npm/l/@bytesocket/uws)](LICENSE)
 [![node-current](https://img.shields.io/node/v/@bytesocket/uws?logo=nodedotjs)](https://nodejs.org/)
 [![GitHub](https://img.shields.io/badge/GitHub-gray?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket/tree/main/packages/uws)
 [![GitHub stars](https://img.shields.io/github/stars/a7med3ouda/bytesocket?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket)
-Maintained by Ahmed Ouda — [@a7med3ouda](https://github.com/a7med3ouda)
 
 > ✅ Compatible with Ultimate Express and any framework exposing a `uWebSockets.js` instance.
-> ⚠️ Hyper Express supported only when accessing the underlying uWS instance
-> Requires **Node.js ≥ 18**.
+> ⚠️ Hyper Express supported only when accessing the underlying uWS instance.
 
 ```bash
 npm install @bytesocket/uws

@@ -1,16 +1,15 @@
 # ByteSocket
 
 > A modern, fully-typed WebSocket framework for real-time applications -- batteries included.
-> Requires **Node.js ≥ 18**.
 
 ByteSocket is a monorepo providing a client library and server adapters that work together out of the box. It handles reconnection, rooms, authentication, heartbeat, message queuing, and serialization so you can focus on your application logic.
 
+Maintained by Ahmed Ouda -- [@a7med3ouda](https://github.com/a7med3ouda) --
 [![npm version](https://img.shields.io/npm/v/@bytesocket/client)](https://www.npmjs.com/package/@bytesocket/client)
 [![MIT](https://img.shields.io/npm/l/@bytesocket/client)](LICENSE)
 [![node-current](https://img.shields.io/node/v/@bytesocket/client?logo=nodedotjs)](https://nodejs.org/)
 [![GitHub](https://img.shields.io/badge/GitHub-gray?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket)
 [![GitHub stars](https://img.shields.io/github/stars/a7med3ouda/bytesocket?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket)
-Maintained by Ahmed Ouda — [@a7med3ouda](https://github.com/a7med3ouda)
 
 ---
 
