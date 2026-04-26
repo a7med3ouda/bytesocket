@@ -139,6 +139,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 	#flushing: boolean = false;
 	#destroyed: boolean = false;
 	#reconnecting: boolean = false;
+	#reconnectExhausted: boolean = false;
 
 	// ──── Timers ────────────────────────────────────────────────────────────────────────
 
@@ -301,7 +302,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 	 * Returns `true` after `close()` or `destroy()` has been called.
 	 */
 	get isClosed(): boolean {
-		return this.#manuallyClosed || this.#destroyed;
+		return this.#manuallyClosed || this.#destroyed || this.#reconnectExhausted;
 	}
 
 	/**
@@ -970,6 +971,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		this.#cleanupConnection(true);
 		this.#reconnectAttempts = 0;
 		this.#authState = AuthState.idle;
+		this.#reconnectExhausted = false;
 		this.#manuallyClosed = false;
 		this.#reconnecting = true;
 		if (this.#ws && this.readyState !== WebSocket.CLOSED) {
@@ -1049,7 +1051,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		if (!this.#destroyed) {
 			this.triggerCallback(this.lifecycleCallbacksMap.get(LifecycleTypes.close), event);
 		}
-		if (this.#destroyed || this.#manuallyClosed || this.#authState === AuthState.failed) {
+		if (this.#destroyed || this.#manuallyClosed || this.#authState === AuthState.failed || this.#reconnectExhausted) {
 			return;
 		}
 		if (this.#manualReconnect()) {
@@ -1066,10 +1068,11 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 
 	#manualReconnect() {
 		if (this.#reconnecting) {
-			this.#reconnecting = false;
 			if (this.debug) {
 				console.log("ByteSocket: reconnecting immediately as requested");
 			}
+			this.#reconnecting = false;
+			this.#reconnectExhausted = false;
 			this.#createSocket();
 			return true;
 		}
@@ -1091,15 +1094,17 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 				this.#reconnectTimer = null;
 				this.#createSocket();
 			}, delay);
-		} else if (this.#reconnectAttempts >= this.#options.maxReconnectionAttempts) {
-			if (this.debug) {
+			return;
+		}
+		if (this.debug) {
+			if (this.#reconnectAttempts >= this.#options.maxReconnectionAttempts) {
 				console.warn("ByteSocket: max reconnection attempts reached");
-			}
-			this.triggerCallback(this.lifecycleCallbacksMap.get(LifecycleTypes.reconnect_failed));
-		} else {
-			if (this.debug) {
+			} else {
 				console.log("ByteSocket: reconnection disabled, not reconnecting");
 			}
+		}
+		if (!this.#reconnectExhausted) {
+			this.#reconnectExhausted = true;
 			this.triggerCallback(this.lifecycleCallbacksMap.get(LifecycleTypes.reconnect_failed));
 		}
 	}
@@ -1116,5 +1121,14 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 			console.error("ByteSocket: error", event);
 		}
 		this.triggerCallback(this.lifecycleCallbacksMap.get(LifecycleTypes.error), ctx);
+		if (
+			this.#ws &&
+			this.#ws.readyState === WebSocket.CONNECTING &&
+			this.#reconnectAttempts >= this.#options.maxReconnectionAttempts &&
+			!this.#reconnectExhausted
+		) {
+			this.#reconnectExhausted = true;
+			this.triggerCallback(this.lifecycleCallbacksMap.get(LifecycleTypes.reconnect_failed));
+		}
 	}
 }

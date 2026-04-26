@@ -8,14 +8,6 @@ A modern WebSocket client for [ByteSocket](https://github.com/a7med3ouda/bytesoc
 [![GitHub](https://img.shields.io/badge/GitHub-gray?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket/tree/main/packages/client)
 [![GitHub stars](https://img.shields.io/github/stars/a7med3ouda/bytesocket?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket)
 
-```bash
-npm install @bytesocket/client
-# or
-pnpm add @bytesocket/client
-# or
-yarn add @bytesocket/client
-```
-
 ---
 
 ## Features
@@ -31,12 +23,22 @@ yarn add @bytesocket/client
 
 ---
 
+## Installation
+
+```bash
+npm install @bytesocket/client
+# or
+pnpm add @bytesocket/client
+# or
+yarn add @bytesocket/client
+```
+
 ## Backend Packages
 
-| Package                                                            | Backend                                                                      |
-| ------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
-| [`@bytesocket/uws`](https://www.npmjs.com/package/@bytesocket/uws) | [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js) ✅ Available |
-| `@bytesocket/express`                                              | Express / `ws` 🚧 Coming soon                                                |
+| Package                                                            | Backend                                                         | Status         |
+| ------------------------------------------------------------------ | --------------------------------------------------------------- | -------------- |
+| [`@bytesocket/uws`](https://www.npmjs.com/package/@bytesocket/uws) | [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js) | ✅ Available   |
+| `@bytesocket/node`                                                 | node:http server using [ws](https://www.npmjs.com/package/ws)   | 🚧 Coming soon |
 
 ---
 
