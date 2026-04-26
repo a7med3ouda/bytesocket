@@ -1,6 +1,6 @@
 {
 	"name": "@bytesocket/uws",
-	"version": "0.2.1",
+	"version": "0.2.2",
 	"description": "High-performance WebSocket server for Node.js using uWebSockets.js",
 	"keywords": [
 		"websocket",
@@ -54,6 +54,6 @@
 		"uWebSockets.js": "catalog:"
 	},
 	"engines": {
-		"node": ">=20.0.0"
+		"node": ">=22.4.0"
 	}
 }

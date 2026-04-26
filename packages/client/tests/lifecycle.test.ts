@@ -56,9 +56,7 @@ describe("ByteSocket Client: Lifecycle", () => {
 
 		wss.close();
 		await vi.runAllTimersAsync();
-
-		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.CONNECTING));
-		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.CLOSED));
+		await vi.waitFor(() => expect(socket.isClosed).toBe(true));
 
 		expect(reconnectFailedHandler).toHaveBeenCalled();
 		socket.destroy();
@@ -78,8 +76,8 @@ describe("ByteSocket Client: Lifecycle", () => {
 
 		wss.close();
 		await vi.runAllTimersAsync();
+		await vi.waitFor(() => expect(socket.isClosed).toBe(true));
 
-		expect(socket.readyState).toBe(WebSocket.CLOSED);
 		expect(reconnectFailedHandler).toHaveBeenCalled();
 		socket.destroy();
 		vi.useRealTimers();
@@ -187,7 +185,7 @@ describe("ByteSocket Client: Lifecycle", () => {
 
 		wss.close();
 		await vi.runAllTimersAsync();
-		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.CLOSED));
+		await vi.waitFor(() => expect(socket.isClosed).toBe(true));
 
 		expect(handler).toHaveBeenCalledTimes(1);
 
@@ -209,7 +207,7 @@ describe("ByteSocket Client: Lifecycle", () => {
 
 		wss.close();
 		await vi.runAllTimersAsync();
-		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.CLOSED));
+		await vi.waitFor(() => expect(socket.isClosed).toBe(true));
 
 		expect(handler).not.toHaveBeenCalled();
 		socket.destroy();

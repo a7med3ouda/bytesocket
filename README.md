@@ -18,7 +18,7 @@ ByteSocket is a monorepo providing a client library and server adapters that wor
 | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- | -------------- |
 | [`@bytesocket/client`](https://www.npmjs.com/package/@bytesocket/client) | Browser / Node WebSocket client                                                    | ✅ Available   |
 | [`@bytesocket/uws`](https://www.npmjs.com/package/@bytesocket/uws)       | Server adapter for [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js) | ✅ Available   |
-| `@bytesocket/express`                                                    | Server adapter for Express / `ws`                                                  | 🚧 Coming soon |
+| `@bytesocket/node`                                                       | Server adapter for node:http server using [ws](https://www.npmjs.com/package/ws)   | 🚧 Coming soon |
 
 ---
 
@@ -49,6 +49,19 @@ Most WebSocket setups require wiring together reconnection logic, room managemen
 ```
 
 The `SocketEvents` interface is the single source of truth for your event schema. Import it on both sides and TypeScript enforces correctness everywhere.
+
+---
+
+## Installation
+
+```bash
+# Client
+npm install @bytesocket/client
+
+# Server (uWebSockets.js adapter)
+npm install @bytesocket/uws
+# uWebSockets.js must be installed separately -- see its docs for platform binaries
+```
 
 ---
 
@@ -161,19 +174,6 @@ socket.on("user:joined", (data) => {
 - Access to full HTTP upgrade context (headers, cookies, query)
 
 → [Full server documentation](./packages/uws/README.md)
-
----
-
-## Installation
-
-```bash
-# Client
-npm install @bytesocket/client
-
-# Server (uWebSockets.js adapter)
-npm install @bytesocket/uws
-# uWebSockets.js must be installed separately -- see its docs for platform binaries
-```
 
 ---
 

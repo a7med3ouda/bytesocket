@@ -11,17 +11,6 @@ High-performance WebSocket server for [ByteSocket](https://github.com/a7med3ouda
 > ✅ Compatible with Ultimate Express and any framework exposing a `uWebSockets.js` instance.
 > ⚠️ Hyper Express supported only when accessing the underlying uWS instance.
 
-```bash
-npm install @bytesocket/uws
-# or
-pnpm add @bytesocket/uws
-# or
-yarn add @bytesocket/uws
-```
-
-> **Peer dependency:** `uWebSockets.js` must be installed separately.  
-> See [uWebSockets.js installation](https://github.com/uNetworking/uWebSockets.js#installation) for platform-specific instructions.
-
 ---
 
 ## Features
@@ -35,6 +24,29 @@ yarn add @bytesocket/uws
 - **Origin validation** -- allowlist origins at the framework level
 - **Full TypeScript** -- generic event maps shared with the client for end-to-end type safety
 - **Dual serialization** -- JSON or binary MessagePack (`msgpackr`) out of the box
+
+---
+
+## Installation
+
+```bash
+# Server (Node.js backend)
+npm install @bytesocket/uws
+# or
+pnpm add @bytesocket/uws
+# or
+yarn add @bytesocket/uws
+
+# Client (browser / Node.js frontend)
+npm install @bytesocket/client
+# or
+pnpm add @bytesocket/client
+# or
+yarn add @bytesocket/client
+```
+
+> **Peer dependency:** `uWebSockets.js` must be installed separately.  
+> See [uWebSockets.js installation](https://github.com/uNetworking/uWebSockets.js#installation) for platform-specific instructions.
 
 ---
 
