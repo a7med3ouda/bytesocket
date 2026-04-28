@@ -1,7 +1,7 @@
-// packages/uws/tests/messaging.test.ts
-import uWS from "uWebSockets.js";
+// packages/node/tests/messaging.test.ts
+import { createServer, Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import WebSocket from "ws";
+import WebSocket, { type AddressInfo } from "ws";
 import { ByteSocket, type SocketEvents } from "../src";
 
 type TestEvents = SocketEvents<{
@@ -9,20 +9,18 @@ type TestEvents = SocketEvents<{
 	broadcast: { text: string };
 }>;
 
-describe("ByteSocket uws: Messaging", () => {
-	let app: uWS.TemplatedApp;
+describe("ByteSocket node: Messaging", () => {
+	let server: Server;
 	let io: ByteSocket<TestEvents>;
-	let listenSocket: false | uWS.us_listen_socket;
 	let port: number;
 
 	beforeEach(async () => {
-		app = uWS.App();
+		server = createServer();
 		io = new ByteSocket<TestEvents>({ serialization: "json" });
 
 		await new Promise<void>((resolve) => {
-			app.listen(0, (token) => {
-				port = uWS.us_socket_local_port(token);
-				listenSocket = token;
+			server.listen(0, () => {
+				port = (server.address() as AddressInfo).port;
 				resolve();
 			});
 		});
@@ -30,9 +28,7 @@ describe("ByteSocket uws: Messaging", () => {
 
 	afterEach(() => {
 		io.destroy();
-		if (listenSocket) {
-			uWS.us_listen_socket_close(listenSocket);
-		}
+		server.close();
 	});
 
 	const createClient = (): Promise<WebSocket> => {
@@ -47,7 +43,7 @@ describe("ByteSocket uws: Messaging", () => {
 		const echoHandler = vi.fn();
 		io.on("echo", echoHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 
@@ -62,7 +58,7 @@ describe("ByteSocket uws: Messaging", () => {
 	});
 
 	it("should broadcast global events to all clients", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client1 = await createClient();
 		const client2 = await createClient();
@@ -84,7 +80,7 @@ describe("ByteSocket uws: Messaging", () => {
 		const echoHandler = vi.fn();
 		io.on("echo", echoHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 
@@ -104,7 +100,7 @@ describe("ByteSocket uws: Messaging", () => {
 		const errorHandler = vi.fn();
 		io.lifecycle.onError(errorHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send("not json");
@@ -123,7 +119,7 @@ describe("ByteSocket uws: Messaging", () => {
 		const echoHandler = vi.fn();
 		io.on("echo", echoHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ event: "echo", data: { message: "test" } }));
@@ -143,7 +139,7 @@ describe("ByteSocket uws: Messaging", () => {
 		const echoHandler = vi.fn();
 		io.on("echo", echoHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ event: "echo", data: { message: "test" } }));
@@ -160,7 +156,7 @@ describe("ByteSocket uws: Messaging", () => {
 		io.on("echo", handler2);
 		io.off("echo", handler1);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ event: "echo", data: { message: "test" } }));
@@ -177,7 +173,7 @@ describe("ByteSocket uws: Messaging", () => {
 		io.on("echo", handler2);
 		io.off("echo");
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ event: "echo", data: { message: "test" } }));
@@ -191,7 +187,7 @@ describe("ByteSocket uws: Messaging", () => {
 		const handler = vi.fn();
 		io.once("echo", handler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ event: "echo", data: { message: "first" } }));
@@ -203,7 +199,7 @@ describe("ByteSocket uws: Messaging", () => {
 	});
 
 	it("should not emit global events when server is destroyed", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		io.destroy();
 
@@ -219,7 +215,7 @@ describe("ByteSocket uws: Messaging", () => {
 
 		io.use((_socket, _ctx, _next) => {});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ event: "echo", data: { message: "timeout" } }));
@@ -228,7 +224,7 @@ describe("ByteSocket uws: Messaging", () => {
 	});
 
 	it("should close socket when payload is null or not an object", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 
@@ -238,7 +234,7 @@ describe("ByteSocket uws: Messaging", () => {
 	});
 
 	it("should send a message to the client using socket.send()", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const socket = Array.from(io.sockets.values())[0];
@@ -253,7 +249,7 @@ describe("ByteSocket uws: Messaging", () => {
 	});
 
 	it("should send typed event to client using socket.emit()", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const socket = Array.from(io.sockets.values())[0];
@@ -268,7 +264,7 @@ describe("ByteSocket uws: Messaging", () => {
 	});
 
 	it("should send raw message to the client using socket.sendRaw()", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const socket = Array.from(io.sockets.values())[0];
@@ -283,7 +279,7 @@ describe("ByteSocket uws: Messaging", () => {
 	});
 
 	it("should broadcast to all clients except the sender using socket.broadcast()", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const sender = await createClient();
 		const other = await createClient();
@@ -307,7 +303,7 @@ describe("ByteSocket uws: Messaging", () => {
 	it("should encode outgoing messages as binary when serialization is 'binary'", async () => {
 		io = new ByteSocket<TestEvents>({ serialization: "binary" });
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const rawMessages: Array<Buffer> = [];
@@ -333,7 +329,7 @@ describe("ByteSocket uws: Messaging", () => {
 			throw new Error("listener crash");
 		});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 
@@ -351,7 +347,7 @@ describe("ByteSocket uws: Messaging", () => {
 			throw new Error("listener crash");
 		});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 
@@ -371,7 +367,7 @@ describe("ByteSocket uws: Messaging", () => {
 		const echoHandler = vi.fn();
 		io.on("echo", echoHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ event: "echo", data: { message: "promise" } }));
@@ -391,7 +387,7 @@ describe("ByteSocket uws: Messaging", () => {
 
 		io.on("echo", vi.fn());
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ event: "echo", data: { message: "fail" } }));
@@ -412,7 +408,7 @@ describe("ByteSocket uws: Messaging", () => {
 
 		io.on("echo", vi.fn());
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ event: "echo", data: { message: "fail" } }));
@@ -434,7 +430,7 @@ describe("ByteSocket uws: Messaging", () => {
 			next(new Error("Custom error"));
 		});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ event: "echo", data: { message: "test" } }));
@@ -456,7 +452,7 @@ describe("ByteSocket uws: Messaging", () => {
 
 		io.use((_socket, _ctx, _next) => {});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ event: "echo", data: { message: "time" } }));
@@ -474,7 +470,7 @@ describe("ByteSocket uws: Messaging", () => {
 		io.once("echo", handler);
 		io.off("echo", handler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ event: "echo", data: { message: "x" } }));
@@ -484,7 +480,7 @@ describe("ByteSocket uws: Messaging", () => {
 	});
 
 	it("should do nothing when sendRaw is called on a closed socket", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const socket = Array.from(io.sockets.values())[0];
@@ -502,7 +498,7 @@ describe("ByteSocket uws: Messaging", () => {
 		io.on("echo", handler1);
 		io.on("echo", handler2);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ event: "echo", data: { message: "test" } }));
@@ -513,7 +509,7 @@ describe("ByteSocket uws: Messaging", () => {
 	});
 
 	it("should decode binary message as JSON when isBinary is false", () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const buffer = Buffer.from(JSON.stringify({ event: "echo", data: { message: "hello" } }));
 		const result = io.decode(buffer as unknown as ArrayBuffer, false);
@@ -521,8 +517,8 @@ describe("ByteSocket uws: Messaging", () => {
 	});
 
 	it("should throw when receiving a string but isBinary is true", () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
-		expect(() => io.decode("hello", true)).toThrow("Received string but expected binary");
+		expect(() => io.decode("hello" as unknown as WebSocket.RawData, true)).toThrow("Received string but expected binary");
 	});
 });

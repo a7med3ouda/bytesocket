@@ -35,7 +35,9 @@ export enum LifecycleTypes {
 	auth = 4,
 	auth_success = 5,
 	auth_error = 6,
+	/** @deprecated We use now a zero‑length byte array instead of custom message */
 	ping = 7,
+	/** @deprecated We use now a zero‑length byte array instead of custom message */
 	pong = 8,
 	join_room = 9,
 	join_room_success = 10,
@@ -73,7 +75,7 @@ export type ErrorContext = {
 
 /** Lifecycle message shape for events without additional data. */
 export type LifecycleType = {
-	type: LifecycleTypes.open | LifecycleTypes.close | LifecycleTypes.ping | LifecycleTypes.pong | LifecycleTypes.auth_success;
+	type: LifecycleTypes.open | LifecycleTypes.close | LifecycleTypes.auth_success;
 };
 
 /** Lifecycle message shape for single-room operations (join/leave request/success). */
@@ -198,8 +200,8 @@ export enum AuthState {
  * 2. **Asymmetric events (interface extension):** Extend this type and override
  *    individual properties to define different maps for emit, listen, rooms, etc.
  *
- * @typeParam T - A map of event names to their payload types. Defaults to
- *                `Record<string, unknown>`.
+ * @typeParam T - A map of event names to their payload types.
+ * @default Record<string, unknown>
  *
  * @example Symmetric usage (most common)
  * ```ts

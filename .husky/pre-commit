@@ -1,2 +1,2 @@
 pnpm build:fix
-pnpm test
+pnpm test --run

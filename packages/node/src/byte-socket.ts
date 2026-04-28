@@ -11,7 +11,10 @@ import {
 } from "@bytesocket/types";
 import { FLOAT32_OPTIONS, Packr } from "msgpackr";
 import { randomUUID } from "node:crypto";
-import type { HttpRequest, HttpResponse, RecognizedString, TemplatedApp, us_socket_context_t, WebSocket } from "uWebSockets.js";
+import type { IncomingMessage, Server } from "node:http";
+import type Stream from "node:stream";
+import { WebSocket, WebSocketServer } from "ws";
+import { RoomManager } from "./room-manager";
 import { Socket } from "./socket";
 import type {
 	ByteSocketOptions,
@@ -33,7 +36,9 @@ type RequiredOptions =
 	| "broadcastRoom"
 	| "debug"
 	| "onMiddlewareError"
-	| "onMiddlewareTimeout";
+	| "onMiddlewareTimeout"
+	| "idleTimeout"
+	| "sendPingsAutomatically";
 
 /**
  * ByteSocket server instance.
@@ -108,6 +113,7 @@ type RequiredOptions =
  */
 export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData> implements IByteSocket<TEvents, SD> {
 	// ──── Namespaces ────────────────────────────────────────────────────────────────────────
+
 	readonly lifecycle: ServerLifecycleAPI<this, TEvents, SD>;
 	readonly rooms: ServerRoomsAPI<this, TEvents, SD>;
 	readonly sockets = new Map<string, Socket<TEvents, SD>>();
@@ -125,7 +131,10 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		["rooms", "event", "data"],
 		["event", "data"],
 	];
-	#app: TemplatedApp | undefined;
+	#paths: Set<string> = new Set();
+	#server: Server | undefined;
+	#wss: WebSocketServer | undefined;
+	#roomManager = new RoomManager<TEvents, SD>();
 	#packr: Packr;
 	#options: Omit<ByteSocketOptions<TEvents, SD>, RequiredOptions> & Pick<Required<ByteSocketOptions<TEvents, SD>>, RequiredOptions>;
 	#middlewares: Middleware<TEvents, SD>[] = [];
@@ -146,8 +155,10 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	 * @param options - Configuration options.
 	 *
 	 * @example
-	 * import uWS from 'uWebSockets.js';
-	 * const app = uWS.App();
+	 * import express from 'express';
+	 * import http from "node:http";
+	 * const app = express()
+	 * const server = http.createServer(app);
 	 * const io = new ByteSocket({ debug: true });
 	 *
 	 * // Global middleware (runs before every user message)
@@ -156,8 +167,8 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	 * // Event listener
 	 * io.on("event", (socket, data) => { ... })
 	 *
-	 * io.attach(app, "/socket");
-	 * app.listen(3000, (token) => { if (token) console.log('Listening'); });
+	 * io.attach(server, "/socket");
+	 * app.listen(3000, () => console.log('Listening'));
 	 */
 	constructor(options: ByteSocketOptions<TEvents, SD> = {}) {
 		const { msgpackrOptions, ...restOptions } = options;
@@ -172,6 +183,8 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 			debug: options.debug ?? false,
 			onMiddlewareError: options.onMiddlewareError ?? "ignore",
 			onMiddlewareTimeout: options.onMiddlewareTimeout ?? "ignore",
+			idleTimeout: options.idleTimeout ?? 120,
+			sendPingsAutomatically: options.sendPingsAutomatically ?? true,
 		};
 
 		this.#packr = new Packr({
@@ -257,6 +270,10 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		}
 		this.sockets.clear();
 
+		this.#wss?.close();
+
+		this.#paths.clear();
+
 		this.#callbacksMap.clear();
 		this.#onceCallbacksMap.clear();
 		this.#roomCallbacksMap.clear();
@@ -264,18 +281,21 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		this.#lifecycleCallbacksMap.clear();
 		this.#onceLifecycleCallbacksMap.clear();
 		this.#middlewares = [];
+
+		this.#wss = undefined;
+		this.#server = undefined;
 	}
 
-	#publishRaw(room: string, message: RecognizedString, isBinary: boolean = typeof message !== "string", compress?: boolean): this {
-		if (!this.#app || this.#destroyed) {
+	#publishRaw(room: string, message: WebSocket.Data, isBinary: boolean = typeof message !== "string", compress?: boolean): this {
+		if (!this.#wss || this.#destroyed) {
 			return this;
 		}
-		this.#app.publish(room, message, isBinary, compress);
+		this.#roomManager.publishServer(room, message, isBinary, compress);
 		return this;
 	}
 
 	emit<E extends StringNumberKeys<TEvents["emit"]>, D extends NonNullable<TEvents["emit"]>[E]>(event: E, data: D): this {
-		if (this.#destroyed) {
+		if (!this.#wss || this.#destroyed) {
 			return this;
 		}
 		const message = this.encode({ event, data });
@@ -288,7 +308,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		E extends StringNumberKeys<NonNullable<TEvents["emitRoom"]>[R]>,
 		D extends NonNullable<TEvents["emitRoom"]>[R][E],
 	>(room: R, event: E, data: D): this {
-		if (this.#destroyed) {
+		if (!this.#wss || this.#destroyed) {
 			return this;
 		}
 		const message = this.encode({ room, event, data });
@@ -301,7 +321,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		E extends StringNumberKeys<EventsForRooms<NonNullable<TEvents["emitRooms"]>, Rs>>,
 		D extends NonNullable<EventsForRooms<NonNullable<TEvents["emitRooms"]>, Rs>>[E],
 	>(rooms: Rs, event: E, data: D): this {
-		if (this.#destroyed) {
+		if (!this.#wss || this.#destroyed) {
 			return this;
 		}
 		const message = this.encode({ rooms, event, data });
@@ -581,88 +601,120 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		return this.#destroyed;
 	}
 
-	attach(app: TemplatedApp, path: string): this {
-		app.ws(path, {
-			...this.#options,
-			upgrade: this.#upgrade.bind(this),
-			open: this.#open.bind(this),
-			message: this.#message.bind(this),
-			close: this.#close.bind(this),
-		});
-		this.#app = app;
+	attach(server: Server, path: string): this {
+		if (!this.#wss) {
+			this.#wss = new WebSocketServer({ ...this.#options, noServer: true });
+		}
+
+		if (this.#paths.has(path)) {
+			return this;
+		}
+		this.#paths.add(path);
+
+		if (this.#server !== server) {
+			if (this.#server && this.#upgrade) {
+				this.#server.off("upgrade", this.#upgrade);
+			}
+			this.#server = server;
+			this.#upgrade = (req, streamSocket, head) => this.#handleUpgrade(req, streamSocket, head);
+			server.on("upgrade", this.#upgrade);
+		}
+
 		return this;
 	}
 
-	#upgrade(res: HttpResponse, req: HttpRequest, context: us_socket_context_t) {
+	#upgrade: ((req: IncomingMessage, socket: Stream.Duplex, head: Buffer<ArrayBuffer>) => void) | undefined;
+
+	#handleUpgrade(req: IncomingMessage, streamSocket: Stream.Duplex, head: Buffer) {
 		if (this.#destroyed) {
-			res.writeStatus("503 Service Unavailable");
-			res.end("Server is shutting down");
+			streamSocket.write("HTTP/1.1 503 Service Unavailable\r\n\r\n");
+			streamSocket.destroy();
 			return;
 		}
+
+		const urlObj = new URL(req.url ?? "", `http://${req.headers.host ?? "localhost"}`);
+
+		if (!this.#paths.has(urlObj.pathname)) {
+			streamSocket.destroy();
+			return;
+		}
+
 		if (this.#options.origins?.length) {
-			const origin = req.getHeader("origin");
-			if (origin) {
-				const normalized = origin.toLowerCase();
-				const allowed = this.#options.origins.some((o) => o.toLowerCase() === normalized);
-				if (!allowed) {
-					res.writeStatus("403 Forbidden");
-					res.end("Origin not allowed");
-					return;
-				}
+			const origin = req.headers.origin;
+			if (origin && !this.#options.origins.some((o) => o.toLowerCase() === origin.toLowerCase())) {
+				streamSocket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
+				streamSocket.destroy();
+				return;
 			}
 		}
-		const userData = {
+
+		const socketData: SD = {
 			socketKey: randomUUID(),
-			url: req.getUrl() ?? "",
-			query: req.getQuery() ?? "",
-			host: req.getHeader("host") ?? "",
-			cookie: req.getHeader("cookie") ?? "",
-			userAgent: req.getHeader("user-agent") ?? "",
-			authorization: req.getHeader("authorization") ?? "",
-			xForwardedFor: req.getHeader("x-forwarded-for") ?? "",
+			url: urlObj.pathname,
+			query: urlObj.search.startsWith("?") ? urlObj.search.slice(1) : urlObj.search,
+			host: req.headers.host ?? "",
+			cookie: req.headers.cookie ?? "",
+			userAgent: req.headers["user-agent"] ?? "",
+			authorization: req.headers.authorization ?? "",
+			xForwardedFor: req.headers["x-forwarded-for"] ?? "",
 		} as SD;
 
-		this.#runSyncHooks(this.#lifecycleCallbacksMap.get(LifecycleTypes.upgrade), [res, req, userData, context], (error) => {
+		this.#runSyncHooks(this.#lifecycleCallbacksMap.get(LifecycleTypes.upgrade), [req, streamSocket, head, socketData, this.#wss], (error) => {
 			if (error == null) {
-				res.upgrade(
-					userData,
-					req.getHeader("sec-websocket-key"),
-					req.getHeader("sec-websocket-protocol"),
-					req.getHeader("sec-websocket-extensions"),
-					context,
-				);
+				if (this.#destroyed || !this.#wss) {
+					streamSocket.destroy();
+					return;
+				}
+				this.#wss.handleUpgrade(req, streamSocket, head, (ws) => {
+					if (!this.#wss || this.#destroyed) {
+						ws.close(1001, "server destroyed");
+						return;
+					}
+					const socket = new Socket<TEvents, SD>(ws, socketData, this.#options.broadcastRoom, this.#roomManager, this.encode.bind(this), {
+						idleTimeout: this.#options.idleTimeout,
+						sendPingsAutomatically: this.#options.sendPingsAutomatically,
+					});
+					this.sockets.set(socket.id, socket);
+					if (!this.#options.auth) {
+						socket._handleAuth(null, this.#options.auth, this.#options.authTimeout, (err) => {
+							if (err == null) {
+								this.#runSyncHooks(this.#lifecycleCallbacksMap.get(LifecycleTypes.open), [socket], (error) => {
+									if (error != null) {
+										this.#triggerCallbacks(this.#lifecycleCallbacksMap.get(LifecycleTypes.error), socket, {
+											phase: "onOpen",
+											error,
+										});
+									}
+								});
+							}
+						});
+					}
+					ws.on("message", (data, isBinary) => this.#message(socket, data, isBinary));
+					ws.on("close", (code, reason) => this.#close(socket, code, reason));
+				});
 			} else {
-				res.writeStatus("500 Internal Server Error");
-				res.end("Upgrade rejected");
+				if (this.#options.debug) {
+					console.error(error);
+				}
+				streamSocket.destroy();
 				this.#triggerCallbacks(this.#lifecycleCallbacksMap.get(LifecycleTypes.error), null, { phase: "onUpgrade", error });
 			}
 		});
 	}
 
-	#open(ws: WebSocket<SD>) {
-		if (this.#destroyed) {
-			ws.end(1001, "server destroyed");
-			return;
+	#rawMessageDescription(message: WebSocket.RawData, isBinary: boolean): string {
+		if (Array.isArray(message)) {
+			const total = message.reduce((s, b) => s + b.length, 0);
+			return `fragmented (${message.length} parts, ${total} bytes)`;
 		}
-		const socketKey = ws.getUserData().socketKey;
-		const socket = new Socket<TEvents, SD>(socketKey, ws, this.#options.broadcastRoom, this.encode.bind(this));
-		this.sockets.set(socketKey, socket);
-		if (!this.#options.auth) {
-			socket._handleAuth(null, this.#options.auth, this.#options.authTimeout, (err) => {
-				if (err == null) {
-					this.#runSyncHooks(this.#lifecycleCallbacksMap.get(LifecycleTypes.open), [socket], (error) => {
-						if (error != null) {
-							this.#triggerCallbacks(this.#lifecycleCallbacksMap.get(LifecycleTypes.error), socket, { phase: "onOpen", error });
-						}
-					});
-				}
-			});
+		if (isBinary) {
+			const len = Buffer.isBuffer(message) ? message.length : message.byteLength;
+			return `binary (${len} bytes)`;
 		}
+		return typeof message === "string" ? message : new TextDecoder().decode(message);
 	}
 
-	#message(ws: WebSocket<SD>, message: ArrayBuffer, isBinary: boolean) {
-		const socketKey = ws.getUserData().socketKey;
-		const socket = this.sockets.get(socketKey);
+	#message(socket: Socket<TEvents, SD>, message: WebSocket.RawData, isBinary: boolean) {
 		if (!socket || socket.isClosed) {
 			return;
 		}
@@ -673,8 +725,8 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 			}
 		});
 
-		if (isBinary && message.byteLength === 0) {
-			socket.sendRaw(new Uint8Array(0), true);
+		if (isBinary && message instanceof Buffer && message.length === 0) {
+			socket.sendRaw(Buffer.alloc(0), true);
 			return;
 		}
 
@@ -682,7 +734,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		try {
 			parsed = this.decode(message, isBinary);
 		} catch (error) {
-			const raw = isBinary ? message.byteLength.toString() : Buffer.from(message).toString("utf8");
+			const raw = this.#rawMessageDescription(message, isBinary);
 			this.#triggerCallbacks(this.#lifecycleCallbacksMap.get(LifecycleTypes.error), socket, { phase: "decode", raw, error });
 			socket.close(1008, "decode error");
 			return;
@@ -730,18 +782,13 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		});
 	}
 
-	#close(ws: WebSocket<SD>, code: number, message: ArrayBuffer) {
-		const socketKey = ws.getUserData().socketKey;
+	#close(socket: Socket<TEvents, SD>, code: number, reason: Buffer<ArrayBufferLike>) {
 		if (this.#options.debug && code === 4008) {
-			console.warn(`Auth timeout for socket ${socketKey}`);
+			console.warn(`Auth timeout for socket ${socket.id}`);
 		}
-		const socket = this.sockets.get(socketKey);
-		if (!socket) {
-			return;
-		}
-		this.sockets.delete(socketKey);
+		this.sockets.delete(socket.id);
 		socket._markClosed();
-		this.#runSyncHooks(this.#lifecycleCallbacksMap.get(LifecycleTypes.close), [socket, code, message], (error) => {
+		this.#runSyncHooks(this.#lifecycleCallbacksMap.get(LifecycleTypes.close), [socket, code, reason], (error) => {
 			if (error != null) {
 				this.#triggerCallbacks(this.#lifecycleCallbacksMap.get(LifecycleTypes.error), socket, { phase: "onClose", error });
 			}
@@ -759,7 +806,12 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		}
 	}
 
-	decode<M extends string | ArrayBuffer = string | ArrayBuffer, D = unknown>(message: M, isBinary?: boolean): D {
+	decode<M extends WebSocket.RawData = WebSocket.RawData, D = unknown>(message: M, isBinary?: boolean): D {
+		if (Array.isArray(message)) {
+			const combined = Buffer.concat(message as Buffer[]);
+			return this.decode(combined, isBinary);
+		}
+
 		if (typeof message === "string") {
 			if (isBinary === true) {
 				throw new Error("Received string but expected binary");
@@ -768,11 +820,15 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		}
 
 		if (isBinary === false) {
-			const text = Buffer.from(message).toString("utf8");
+			const text = Buffer.isBuffer(message) ? message.toString("utf8") : Buffer.from(message).toString("utf8");
 			return JSON.parse(text);
 		}
 
-		return this.#packr.unpack(new Uint8Array(message));
+		if (Buffer.isBuffer(message)) {
+			return this.#packr.unpack(new Uint8Array(message.buffer, message.byteOffset, message.byteLength));
+		}
+
+		return this.#packr.unpack(new Uint8Array(message as ArrayBuffer));
 	}
 
 	#handleAuthMessage<T extends object>(socket: Socket<TEvents, SD>, parsed: T): boolean {

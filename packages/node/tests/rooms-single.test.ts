@@ -1,7 +1,7 @@
-// packages/uws/tests/rooms-single.test.ts
-import uWS from "uWebSockets.js";
+// packages/node/tests/rooms-single.test.ts
+import { createServer, Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import WebSocket from "ws";
+import WebSocket, { type AddressInfo } from "ws";
 import { ByteSocket, LifecycleTypes, type LifecycleRoomError, type SocketEvents } from "../src";
 
 type TestEvents = SocketEvents<{
@@ -9,20 +9,18 @@ type TestEvents = SocketEvents<{
 	broadcast: { text: string };
 }>;
 
-describe("ByteSocket uws: Rooms single operations", () => {
-	let app: uWS.TemplatedApp;
+describe("ByteSocket node: Rooms single operations", () => {
+	let server: Server;
 	let io: ByteSocket<TestEvents>;
-	let listenSocket: false | uWS.us_listen_socket;
 	let port: number;
 
 	beforeEach(async () => {
-		app = uWS.App();
+		server = createServer();
 		io = new ByteSocket<TestEvents>({ serialization: "json" });
 
 		await new Promise<void>((resolve) => {
-			app.listen(0, (token) => {
-				port = uWS.us_socket_local_port(token);
-				listenSocket = token;
+			server.listen(0, () => {
+				port = (server.address() as AddressInfo).port;
 				resolve();
 			});
 		});
@@ -30,9 +28,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 
 	afterEach(() => {
 		io.destroy();
-		if (listenSocket) {
-			uWS.us_listen_socket_close(listenSocket);
-		}
+		server.close();
 	});
 
 	const createClient = (): Promise<WebSocket> => {
@@ -50,7 +46,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 		io.rooms.lifecycle.onJoin(joinGuard);
 		io.rooms.lifecycle.onLeave(leaveGuard);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const socket = Array.from(io.sockets.values())[0];
@@ -71,7 +67,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 			next(new Error("Not allowed"));
 		});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const socket = Array.from(io.sockets.values())[0];
@@ -97,7 +93,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 			next(new Error("Can't leave"));
 		});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const socket = Array.from(io.sockets.values())[0];
@@ -123,7 +119,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 		const guard = vi.fn((_socket, _room, next) => next());
 		io.rooms.lifecycle.onceJoin(guard);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client1 = await createClient();
 		client1.send(JSON.stringify({ type: LifecycleTypes.join_room, room: "first" }));
@@ -141,7 +137,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 		const guard = vi.fn((_socket, _room, next) => next());
 		io.rooms.lifecycle.onceLeave(guard);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ type: LifecycleTypes.join_room, room: "lobby" }));
@@ -161,7 +157,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 		io.rooms.lifecycle.onJoin(guard);
 		io.rooms.lifecycle.offJoin(guard);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ type: LifecycleTypes.join_room, room: "x" }));
@@ -174,7 +170,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 		io.rooms.lifecycle.onLeave(guard);
 		io.rooms.lifecycle.offLeave(guard);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ type: LifecycleTypes.join_room, room: "x" }));
@@ -187,7 +183,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 		const middleware = vi.fn((_socket, _data, next) => next());
 		io.rooms.on("lobby", "echo", middleware);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const sender = await createClient();
 		const listener = await createClient();
@@ -233,7 +229,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 	});
 
 	it("should block room message when middleware calls next(error)", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		io.rooms.on("lobby", "echo", (_socket, _data, next) => {
 			next(new Error("Blocked"));
@@ -256,7 +252,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 	});
 
 	it("should call once middleware only once", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const middleware = vi.fn((_socket, _data, next) => next());
 		io.rooms.once("lobby", "echo", middleware);
@@ -274,7 +270,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 	});
 
 	it("should remove room middleware with off", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const middleware = vi.fn((_socket, _data, next) => next());
 		io.rooms.on("lobby", "echo", middleware);
@@ -289,7 +285,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 	});
 
 	it("should remove all room middleware with off(room)", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const mw1 = vi.fn((_s, _d, n) => n());
 		const mw2 = vi.fn((_s, _d, n) => n());
@@ -309,7 +305,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 	});
 
 	it("should remove all room middleware for an event with off(room, event)", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const mw1 = vi.fn((_s, _d, n) => n());
 		const mw2 = vi.fn((_s, _d, n) => n());
@@ -327,7 +323,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 	});
 
 	it("should broadcast to a room via io.rooms.emit", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client1 = await createClient();
 		const client2 = await createClient();
@@ -356,7 +352,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 	});
 
 	it("should publish raw data to a room (server-side)", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 
@@ -388,7 +384,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 	});
 
 	it("should list rooms excluding broadcast by default", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const ws = await createClient();
 		const socket = Array.from(io.sockets.values())[0];
@@ -404,7 +400,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 	});
 
 	it("should ignore duplicate join requests for the same room", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const socket = Array.from(io.sockets.values())[0];
@@ -419,7 +415,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 	});
 
 	it("should ignore leave requests for unjoined rooms", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const socket = Array.from(io.sockets.values())[0];
@@ -431,7 +427,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 	});
 
 	it("should list rooms from local state after the socket is closed", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const socket = Array.from(io.sockets.values())[0];
@@ -445,7 +441,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 	});
 
 	it("should publish raw data from a socket to a specific room", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client1 = await createClient();
 		const client2 = await createClient();
@@ -503,7 +499,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 			roomMiddlewareTimeout: 50,
 		});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ type: LifecycleTypes.join_room, room: "lobby" }));
@@ -528,7 +524,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 		io.rooms.lifecycle.onJoin((_socket, _room, _next) => {});
 		io.lifecycle.onError(() => {});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 
@@ -547,7 +543,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 		io.rooms.lifecycle.onLeave((_socket, _room, _next) => {});
 		io.lifecycle.onError(() => {});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 
@@ -563,7 +559,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 			throw new Error("Guard throw");
 		});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const joinError = new Promise((resolve) => {
@@ -587,7 +583,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 	});
 
 	it("should deliver room messages without any middleware", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const sender = await createClient();
 		const listener = await createClient();
@@ -630,7 +626,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 	});
 
 	it("should remove once room middleware with off", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const middleware = vi.fn((_s, _d, n) => n());
 		io.rooms.once("lobby", "echo", middleware);
@@ -646,7 +642,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 	});
 
 	it("should do nothing when publishRaw is called after server is destroyed", () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		io.destroy();
 		expect(() => io.rooms.publishRaw("any", "data")).not.toThrow();
@@ -657,7 +653,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 			return Promise.resolve();
 		});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const joinSuccess = new Promise<string>((resolve) => {
@@ -682,7 +678,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 			return Promise.reject(new Error("Promise rejection"));
 		});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const messages: LifecycleRoomError[] = [];
@@ -699,7 +695,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 	});
 
 	it("should do nothing when socket.rooms.publishRaw is called on a closed socket", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const socket = Array.from(io.sockets.values())[0];
@@ -710,7 +706,7 @@ describe("ByteSocket uws: Rooms single operations", () => {
 	});
 
 	it("should do nothing when rooms.emit is called after server is destroyed", () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		io.destroy();
 		expect(() => io.rooms.emit("lobby", "echo", { message: "test" })).not.toThrow();

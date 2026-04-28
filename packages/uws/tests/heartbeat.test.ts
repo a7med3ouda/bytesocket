@@ -2,7 +2,7 @@
 import uWS from "uWebSockets.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import WebSocket from "ws";
-import { ByteSocket, LifecycleTypes, type SocketEvents } from "../src";
+import { ByteSocket, type SocketEvents } from "../src";
 
 type TestEvents = SocketEvents<{
 	echo: { message: string };
@@ -17,8 +17,7 @@ describe("ByteSocket uws: Heartbeat", () => {
 
 	beforeEach(async () => {
 		app = uWS.App();
-		io = new ByteSocket<TestEvents>(app, { serialization: "json" });
-		app.ws("/ws", io.handler);
+		io = new ByteSocket<TestEvents>({ serialization: "json" });
 
 		await new Promise<void>((resolve) => {
 			app.listen(0, (token) => {
@@ -36,19 +35,22 @@ describe("ByteSocket uws: Heartbeat", () => {
 		}
 	});
 
-	it("should respond to ping with pong", async () => {
+	it("should respond to an empty binary ping with an empty binary pong", async () => {
+		io.attach(app, "/ws");
+
 		const client = new WebSocket(`ws://localhost:${port}/ws`);
-		await new Promise((r) => client.on("open", r));
+		const openHandler = vi.fn();
+		client.on("open", openHandler);
+		await vi.waitFor(() => expect(openHandler).toHaveBeenCalled());
 
 		const pongReceived = vi.fn();
-		client.on("message", (data) => {
-			const msg = JSON.parse(data.toString());
-			if (msg.type === LifecycleTypes.pong) {
+		client.on("message", (data, isBinary) => {
+			if (isBinary && Buffer.isBuffer(data) && data.length === 0) {
 				pongReceived();
 			}
 		});
 
-		client.send(JSON.stringify({ type: LifecycleTypes.ping }));
+		client.send(Buffer.alloc(0), { binary: true });
 
 		await vi.waitFor(() => expect(pongReceived).toHaveBeenCalled());
 		client.close();

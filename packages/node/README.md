@@ -1,15 +1,14 @@
-# `@bytesocket/uws`
+# `@bytesocket/node`
 
-High-performance WebSocket server for [ByteSocket](https://github.com/a7med3ouda/bytesocket/tree/main/packages/uws) built on [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js).
+WebSocket server for [ByteSocket](https://github.com/a7med3ouda/bytesocket/tree/main/packages/node) built on the popular [ws](https://github.com/websockets/ws) library.
 
-[![npm version](https://img.shields.io/npm/v/@bytesocket/uws)](https://www.npmjs.com/package/@bytesocket/uws)
-[![MIT](https://img.shields.io/npm/l/@bytesocket/uws)](LICENSE)
-[![node-current](https://img.shields.io/node/v/@bytesocket/uws?logo=nodedotjs)](https://nodejs.org/)
-[![GitHub](https://img.shields.io/badge/GitHub-gray?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket/tree/main/packages/uws)
+[![npm version](https://img.shields.io/npm/v/@bytesocket/node)](https://www.npmjs.com/package/@bytesocket/node)
+[![MIT](https://img.shields.io/npm/l/@bytesocket/node)](LICENSE)
+[![node-current](https://img.shields.io/node/v/@bytesocket/node?logo=nodedotjs)](https://nodejs.org/)
+[![GitHub](https://img.shields.io/badge/GitHub-gray?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket/tree/main/packages/node)
 [![GitHub stars](https://img.shields.io/github/stars/a7med3ouda/bytesocket?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket)
 
-> ✅ Compatible with Ultimate Express and any framework exposing a `uWebSockets.js` instance.
-> ⚠️ Hyper Express supported only when accessing the underlying uWS instance.
+> ✅ Works with any Node.js HTTP server -- Express, Fastify, Koa, NestJS, plain `http.createServer`, and more.
 
 ---
 
@@ -24,6 +23,7 @@ High-performance WebSocket server for [ByteSocket](https://github.com/a7med3ouda
 - **Origin validation** -- allowlist origins at the framework level
 - **Full TypeScript** -- generic event maps shared with the client for end-to-end type safety
 - **Dual serialization** -- JSON or binary MessagePack (`msgpackr`) out of the box
+- **Built-in heartbeat** -- configurable idle timeout and automatic pings
 
 ---
 
@@ -31,11 +31,11 @@ High-performance WebSocket server for [ByteSocket](https://github.com/a7med3ouda
 
 ```bash
 # Server (Node.js backend)
-npm install @bytesocket/uws
+npm install @bytesocket/node
 # or
-pnpm add @bytesocket/uws
+pnpm add @bytesocket/node
 # or
-yarn add @bytesocket/uws
+yarn add @bytesocket/node
 
 # Client (browser / Node.js frontend)
 npm install @bytesocket/client
@@ -45,18 +45,17 @@ pnpm add @bytesocket/client
 yarn add @bytesocket/client
 ```
 
-> **Peer dependency:** `uWebSockets.js` must be installed separately.  
-> See [uWebSockets.js installation](https://github.com/uNetworking/uWebSockets.js#installation) for platform-specific instructions.
+No additional dependencies required — `ws` is included as a dependency of `@bytesocket/node`.
 
 ---
 
 ## Quick Start
 
 ```typescript
-import uWS from "uWebSockets.js";
-import { ByteSocket } from "@bytesocket/uws";
+import http from "node:http";
+import { ByteSocket } from "@bytesocket/node";
 
-const app = uWS.App();
+const server = http.createServer();
 const io = new ByteSocket();
 
 io.lifecycle.onOpen((socket) => {
@@ -72,42 +71,98 @@ io.on("hello", (socket, data) => {
 	socket.emit("welcome", { message: `Hello, ${data.name}!` });
 });
 
-io.attach(app, "/socket");
+io.attach(server, "/socket");
 
-app.listen(3000, (token) => {
-	if (token) console.log("Listening on port 3000");
+server.listen(3000, () => {
+	console.log("Listening on port 3000");
 });
 ```
 
 ---
 
-## Ultimate Express Compatibility
+## Framework Integration
+
+### Express
 
 ```typescript
-import express from "ultimate-express";
+import express from "express";
+import http from "node:http";
+import { ByteSocket } from "@bytesocket/node";
 
 const app = express();
+const server = http.createServer(app);
 const io = new ByteSocket();
 
-io.lifecycle.onOpen((socket) => {
-	console.log(`Socket ${socket.id} connected`);
-	socket.rooms.join("lobby");
-});
+io.attach(server, "/ws");
 
-io.lifecycle.onClose((socket, code) => {
-	console.log(`Socket ${socket.id} disconnected (${code})`);
-});
-
-io.on("hello", (socket, data) => {
-	socket.emit("welcome", { message: `Hello, ${data.name}!` });
-});
-
-io.attach(app.uwsApp, "/socket");
-
-app.listen(3000, (token) => {
-	if (token) console.log("Listening on port 3000");
-});
+server.listen(3000, () => console.log("Server ready"));
 ```
+
+### Fastify
+
+```typescript
+import fastify from "fastify";
+import { ByteSocket } from "@bytesocket/node";
+
+const app = fastify({ logger: true });
+const io = new ByteSocket();
+
+io.attach(app.server, "/ws");
+
+app.listen({ port: 3000 });
+```
+
+### Koa
+
+```typescript
+import Koa from "koa";
+import http from "node:http";
+import { ByteSocket } from "@bytesocket/node";
+
+const app = new Koa();
+const server = http.createServer(app.callback());
+const io = new ByteSocket();
+
+io.attach(server, "/ws");
+
+server.listen(3000);
+```
+
+### NestJS
+
+```typescript
+import { Module, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
+import { ByteSocket } from "@bytesocket/node";
+import * as http from "node:http";
+
+@Module({})
+export class SocketModule implements OnModuleInit, OnModuleDestroy {
+	private io = new ByteSocket();
+
+	onModuleInit() {
+		// access the underlying HTTP server (Nest application adapter)
+		const app = this.app.getHttpAdapter().getInstance();
+		const server = app instanceof http.Server ? app : app?.server;
+
+		if (server) {
+			this.io.attach(server, "/ws");
+			console.log("WebSocket server attached");
+		}
+
+		// example listener
+		this.io.on("hello", (socket, data) => {
+			socket.emit("welcome", { message: `Hi ${data.name}` });
+		});
+	}
+
+	onModuleDestroy() {
+		this.io.destroy();
+	}
+}
+```
+
+> **Note:** The exact way to obtain the HTTP server depends on the platform adapter used (Express, Fastify, etc.).  
+> For Express, `app.getHttpServer()` returns the underlying `http.Server`. For Fastify, use `app.getHttpAdapter().getInstance().server`.
 
 ---
 
@@ -120,7 +175,7 @@ Share a single event interface between server and client for end-to-end type saf
 Use `SocketEvents<T>` directly with a single event map:
 
 ```typescript
-import { ByteSocket, SocketEvents } from "@bytesocket/uws";
+import { ByteSocket, SocketEvents } from "@bytesocket/node";
 
 type MyEvents = SocketEvents<{
 	"chat:message": { text: string };
@@ -148,7 +203,7 @@ io.rooms.on("lobby", "chat:message", (socket, data, next) => {
 Extend `SocketEvents` and override specific properties to differentiate emit/listen/room maps:
 
 ```typescript
-import { ByteSocket, SocketEvents } from "@bytesocket/uws";
+import { ByteSocket, SocketEvents } from "@bytesocket/node";
 
 interface MyEvents extends SocketEvents {
 	emit: {
@@ -192,7 +247,7 @@ All server methods (`emit`, `on`, `off`, `once`, `rooms.emit`, `rooms.on`, etc.)
 Validate credentials when a client first connects. Until auth succeeds, no user messages are processed.
 
 ```typescript
-import { ByteSocket } from "@bytesocket/uws";
+import { ByteSocket } from "@bytesocket/node";
 
 interface MySocketData extends SocketData {
 	userId: number;
@@ -258,7 +313,6 @@ socket.rooms.bulk.emit(["room1", "room2"], "alert", { msg: "Hello both!" });
 // Single-room guard
 io.rooms.lifecycle.onJoin((socket, room, next) => {
 	if (room === "admin" && !socket.payload?.isAdmin) {
-		// The error is sent to the client as a join_room_error with a proper ErrorContext
 		next(new Error("Not authorized"));
 	} else {
 		next();
@@ -337,13 +391,34 @@ const io = new ByteSocket({
 
 ---
 
+## Heartbeat / Idle Timeout
+
+By default, the server sends automatic pings and closes connections that remain idle for 120 seconds.
+
+```typescript
+const io = new ByteSocket({
+	idleTimeout: 60, // seconds of inactivity before termination (0 = disabled)
+	sendPingsAutomatically: true, // set to false to disable pings
+});
+```
+
+The idle timer resets on every incoming message or pong. You can disable pings and timeouts entirely:
+
+```typescript
+const io = new ByteSocket({
+	idleTimeout: 0,
+	sendPingsAutomatically: false,
+});
+```
+
+---
+
 ## Lifecycle Events
 
 ```typescript
 // HTTP upgrade phase
-io.lifecycle.onUpgrade((res, req, userData, context) => {
-	// Inspect headers, validate origin, etc.
-	// Throw or call res.end() to reject
+io.lifecycle.onUpgrade((req, streamSocket, head, userData, wss) => {
+	// Inspect headers, throw or call streamSocket.destroy() to reject
 });
 
 // Socket open (fires after auth if configured)
@@ -351,12 +426,12 @@ io.lifecycle.onOpen((socket) => {
 	console.log(`${socket.id} connected`);
 });
 
-// Authentication success (fires after server confirms auth)
+// Authentication success
 io.lifecycle.onAuthSuccess((socket) => {
 	console.log(`Socket ${socket.id} authenticated`);
 });
 
-// Authentication failure (fires when auth fails or times out)
+// Authentication failure
 io.lifecycle.onAuthError((socket, ctx) => {
 	console.error(`Auth failed for ${socket.id}:`, ctx.error);
 });
@@ -367,13 +442,12 @@ io.lifecycle.onMessage((socket, rawBuffer, isBinary) => {
 });
 
 // Socket closed
-io.lifecycle.onClose((socket, code, message) => {
+io.lifecycle.onClose((socket, code, reason) => {
 	console.log(`${socket.id} closed with code ${code}`);
 });
 
 // Errors (decode, auth, middleware, etc.)
 io.lifecycle.onError((socket, ctx) => {
-	// socket may be null if the error occurred before the socket was fully created (e.g., upgrade phase)
 	const socketId = socket?.id ?? "unknown";
 	console.error(`[${socketId}] Error in phase "${ctx.phase}":`, ctx.error);
 });
@@ -404,7 +478,8 @@ socket.payload; // any (cast to your type)
 socket.locals.requestId = randomUUID();
 
 // HTTP metadata from upgrade request (convenience getters)
-socket.query; // query string
+socket.url; // path, e.g. "/socket"
+socket.query; // raw query string (without leading `?`)
 socket.cookie; // Cookie header
 socket.authorization; // Authorization header
 socket.userAgent; // User-Agent header
@@ -443,22 +518,18 @@ socket.close(1008, "Policy violation");
 Extend `SocketData` to add your own typed fields, populated during the upgrade:
 
 ```typescript
-import { ByteSocket, SocketData } from "@bytesocket/uws";
+import { ByteSocket, SocketData } from "@bytesocket/node";
 
 interface AppSocketData extends SocketData {
 	tenantId: string;
 }
 
 const io = new ByteSocket<MyEvents, AppSocketData>({
-	auth: (socket, data, callback) => {
-		const tenant = lookupTenant(data.token);
-		if (!tenant) return callback(null, new Error("Unauthorized"));
-		// Attach to userData directly during upgrade via onUpgrade,
-		// or use socket.locals / socket.payload for runtime data
-		callback({ tenantId: tenant.id });
-	},
+	// ...
 });
 ```
+
+You can populate extra fields by overriding `onUpgrade` or using a custom auth function that stores values in `socket.locals` or `socket.payload`.
 
 ---
 
@@ -498,12 +569,10 @@ const io = new ByteSocket({
 
 ## Advanced: Manual Serialization
 
-If you need to inspect, pre-encode, or bypass the automatic serialization, you can use the `encode()` and `decode()` methods.
-
-> ⚠️ **These are advanced APIs.** Prefer `emit()` and `on()` for type-safe, automatic encoding/decoding.
+Use `encode()` and `decode()` to bypass the automatic serialization.
 
 ```typescript
-// Encode a structured payload (returns a string or Uint8Array)
+// Encode a structured payload (returns a string or Buffer)
 const encoded = io.encode({ event: "chat", data: { text: "Hello" } });
 
 // Broadcast the raw encoded payload to a room
@@ -512,17 +581,15 @@ io.rooms.publishRaw("lobby", encoded);
 // Or send it to a specific socket
 socket.sendRaw(encoded);
 
-// Decode a raw incoming message (useful in lifecycle.onMessage)
+// Decode a raw incoming message
 io.lifecycle.onMessage((socket, rawBuffer, isBinary) => {
 	const decoded = io.decode(rawBuffer, isBinary);
 	console.log("Decoded message:", decoded);
 });
 ```
 
-- `encode(payload)` - uses the configured `serialization` (`"json"` or `"binary"`).
-- `decode(message, isBinary?)` - parses a raw WebSocket message back into an object. If `isBinary` is omitted, the format is auto-detected.
-
-These methods give you full control when integrating with external systems or debugging the wire format.
+- `encode(payload)` -- uses the configured `serialization` (`"json"` or `"binary"`).
+- `decode(message, isBinary?)` -- parses a raw WebSocket message. Handles fragmented messages automatically.
 
 ---
 
@@ -540,13 +607,29 @@ const socket = io.sockets.get(socketId);
 
 ---
 
+## Multiple Paths on One Server
+
+```typescript
+const io = new ByteSocket();
+io.attach(server, "/chat");
+io.attach(server, "/notifications");
+// Share the same underlying WebSocket server, but route messages based on path
+```
+
+The `path` is available via `socket.url`.
+
+---
+
 ## Destroy
 
 ```typescript
-// Closes all connections and cleans up all resources
-// Instance cannot be reused after this
+// Closes all connections, shuts down the WebSocket server,
+// removes the upgrade listener from the HTTP server.
+// Instance cannot be reused.
 io.destroy();
 ```
+
+After `destroy()`, you can safely attach a new `ByteSocket` instance to the same HTTP server without conflicts.
 
 ---
 
@@ -576,17 +659,19 @@ const io = new ByteSocket({
 	// Broadcast
 	broadcastRoom: "__bytesocket_broadcast__",
 
+	// Heartbeat
+	idleTimeout: 120, // seconds, 0 = disabled
+	sendPingsAutomatically: true,
+
 	// Debug
 	debug: false,
 
-	// uWebSockets.js pass-through options
-	maxPayloadLength: 16 * 1024 * 1024,
-	idleTimeout: 120,
-	compression: 0,
+	// ws pass-through options (e.g., maxPayload, perMessageDeflate, ...)
+	maxPayload: 100 * 1024 * 1024,
 });
 ```
 
-Any option not consumed by ByteSocket is passed directly to uWebSockets.js as part of the `WebSocketBehavior` configuration.
+Any option not consumed by ByteSocket is passed directly to the `ws` WebSocketServer constructor.
 
 ---
 

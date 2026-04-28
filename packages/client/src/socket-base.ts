@@ -99,10 +99,10 @@ export abstract class SocketBase {
 		const onceTypeMap = this.onceLifecycleCallbacksMap.get(type);
 		const wrappersSet = onceTypeMap?.get(callback);
 		if (wrappersSet) {
-			wrappersSet.forEach((wrapper) => {
+			for (const wrapper of [...wrappersSet]) {
 				this.deleteCallback(this.lifecycleCallbacksMap, type, wrapper);
 				this.deleteOnceCallback(this.onceLifecycleCallbacksMap, type, callback, wrapper);
-			});
+			}
 		}
 		this.deleteCallback(this.lifecycleCallbacksMap, type, callback);
 	}

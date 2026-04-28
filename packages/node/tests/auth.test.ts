@@ -1,7 +1,7 @@
-// packages/uws/tests/auth.test.ts
-import uWS from "uWebSockets.js";
+// packages/node/tests/auth.test.ts
+import { createServer, Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import WebSocket from "ws";
+import WebSocket, { type AddressInfo } from "ws";
 import { ByteSocket, LifecycleTypes, type SocketEvents } from "../src";
 
 type TestEvents = SocketEvents<{
@@ -9,19 +9,18 @@ type TestEvents = SocketEvents<{
 	broadcast: { text: string };
 }>;
 
-describe("ByteSocket uws: Auth", () => {
-	let app: uWS.TemplatedApp;
+describe("ByteSocket node: Auth", () => {
+	let server: Server;
 	let io: ByteSocket<TestEvents>;
-	let listenSocket: false | uWS.us_listen_socket;
 	let port: number;
 
 	beforeEach(async () => {
-		app = uWS.App();
+		server = createServer();
 		io = new ByteSocket<TestEvents>({ serialization: "json" });
+
 		await new Promise<void>((resolve) => {
-			app.listen(0, (token) => {
-				port = uWS.us_socket_local_port(token);
-				listenSocket = token;
+			server.listen(0, () => {
+				port = (server.address() as AddressInfo).port;
 				resolve();
 			});
 		});
@@ -29,9 +28,7 @@ describe("ByteSocket uws: Auth", () => {
 
 	afterEach(() => {
 		io.destroy();
-		if (listenSocket) {
-			uWS.us_listen_socket_close(listenSocket);
-		}
+		server.close();
 	});
 
 	const createClient = (): Promise<WebSocket> => {
@@ -56,7 +53,7 @@ describe("ByteSocket uws: Auth", () => {
 		const authSuccessHandler = vi.fn();
 		io.lifecycle.onAuthSuccess(authSuccessHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 
@@ -83,7 +80,7 @@ describe("ByteSocket uws: Auth", () => {
 		const authErrorHandler = vi.fn();
 		io.lifecycle.onAuthError(authErrorHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 
@@ -100,7 +97,7 @@ describe("ByteSocket uws: Auth", () => {
 		const authErrorHandler = vi.fn();
 		io.lifecycle.onAuthError(authErrorHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 
@@ -125,7 +122,7 @@ describe("ByteSocket uws: Auth", () => {
 		const handler = vi.fn();
 		io.lifecycle.onceAuthSuccess(handler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client1 = await createClient();
 		await vi.waitFor(() => expect(io.sockets.size).toBe(1));
@@ -151,7 +148,7 @@ describe("ByteSocket uws: Auth", () => {
 		io.lifecycle.onAuthError(handler);
 		io.lifecycle.offAuthError(handler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ type: LifecycleTypes.auth, data: { token: "wrong" } }));
@@ -169,7 +166,7 @@ describe("ByteSocket uws: Auth", () => {
 		const authErrorHandler = vi.fn();
 		io.lifecycle.onAuthError(authErrorHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 
@@ -188,7 +185,7 @@ describe("ByteSocket uws: Auth", () => {
 		const authErrorHandler = vi.fn();
 		io.lifecycle.onAuthError(authErrorHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 
@@ -211,7 +208,7 @@ describe("ByteSocket uws: Auth", () => {
 		const authSuccessHandler = vi.fn();
 		io.lifecycle.onAuthSuccess(authSuccessHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		await vi.waitFor(() => expect(io.sockets.size).toBe(1));
@@ -234,7 +231,7 @@ describe("ByteSocket uws: Auth", () => {
 		const authErrorHandler = vi.fn();
 		io.lifecycle.onAuthError(authErrorHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ type: LifecycleTypes.auth, data: { token: "x" } }));
@@ -263,7 +260,7 @@ describe("ByteSocket uws: Auth", () => {
 		const errorHandler = vi.fn();
 		io.lifecycle.onceAuthError(errorHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 
@@ -291,7 +288,7 @@ describe("ByteSocket uws: Auth", () => {
 			serialization: "json",
 		});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 
@@ -321,7 +318,7 @@ describe("ByteSocket uws: Auth", () => {
 			serialization: "json",
 		});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const listener = await createClient();
@@ -360,7 +357,7 @@ describe("ByteSocket uws: Auth", () => {
 			serialization: "json",
 		});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ type: LifecycleTypes.auth, data: { token: "x" } }));
@@ -370,7 +367,7 @@ describe("ByteSocket uws: Auth", () => {
 	});
 
 	it("should ignore auth message when no auth is configured (socket already open)", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const socket = Array.from(io.sockets.values())[0];

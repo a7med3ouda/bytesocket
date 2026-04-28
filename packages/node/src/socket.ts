@@ -9,8 +9,9 @@ import {
 	type StringNumberKeys,
 	type UserMessage,
 } from "@bytesocket/types";
-import type { RecognizedString, WebSocket } from "uWebSockets.js";
-import type { AuthFunction, ISocket, MiddlewareNext, SocketData, SocketRoomsAPI } from "./types";
+import { WebSocket } from "ws";
+import type { RoomManager } from "./room-manager";
+import type { AuthFunction, HeartbeatConfig, ISocket, MiddlewareNext, SocketData, SocketRoomsAPI } from "./types";
 
 /**
  * Represents an individual WebSocket connection.
@@ -19,8 +20,8 @@ import type { AuthFunction, ISocket, MiddlewareNext, SocketData, SocketRoomsAPI 
  * connection metadata. You receive instances of this class in lifecycle hooks,
  * middleware, and event listeners.
  *
- * @typeParam TEvents - The event map type (from `SocketEvents`) for type-safe emits.
  * @typeParam SD - The socket data type (must extend `SocketData`).
+ * @typeParam TEvents - The event map type (from `SocketEvents`) for type-safe emits.
  *
  * @example
  * io.lifecycle.onOpen((socket) => {
@@ -36,7 +37,7 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 	payload: any = {};
 	locals: any = {};
 
-	readonly #ws: WebSocket<SD>;
+	readonly #ws: WebSocket;
 	readonly #broadcastRoom: string;
 	readonly #encode: <R extends string, E extends string | number, D>(
 		payload: LifecycleMessage<R, D> | UserMessage<R, E, D>,
@@ -44,7 +45,20 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 	#authState: AuthState = AuthState.idle;
 	#authTimer: ReturnType<typeof setTimeout> | null = null;
 	#closed: boolean = false;
-	#rooms = new Set<string>();
+	#roomManager: RoomManager<TEvents, SD>;
+	#rooms: Set<string> = new Set();
+	#onMessageResetIdle: (() => void) | undefined;
+
+	// ──── Heartbeat ──────────────────────────────────────────────
+	readonly #heartbeat: {
+		enabled: boolean;
+		idleTimeoutMs: number;
+		pingIntervalMs: number;
+	};
+	#idleTimer: ReturnType<typeof setTimeout> | undefined;
+	#pingIntervalHandle: ReturnType<typeof setInterval> | undefined;
+	#heartbeatStarted: boolean = false;
+	// ──────────────────────────────────────────────────────────────
 
 	get isAuthenticated(): boolean {
 		return this.#authState === AuthState.none || this.#authState === AuthState.success;
@@ -55,9 +69,7 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 	get canSend(): boolean {
 		return !this.#closed && this.isAuthenticated;
 	}
-	get userData(): SD {
-		return this.#ws.getUserData();
-	}
+	readonly userData: SD;
 	get url(): string {
 		return this.userData.url;
 	}
@@ -82,17 +94,33 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 
 	/** @internal */
 	constructor(
-		id: string,
-		ws: WebSocket<SD>,
+		ws: WebSocket,
+		data: SD,
 		broadcastRoom: string,
+		roomManager: RoomManager<TEvents, SD>,
 		encode: <R extends string, E extends string | number, D>(
 			payload: LifecycleMessage<R, D> | UserMessage<R, E, D>,
 		) => string | Buffer<ArrayBufferLike>,
+		heartbeatConfig?: HeartbeatConfig,
 	) {
-		this.id = id;
+		this.userData = data;
+		this.id = data.socketKey;
 		this.#ws = ws;
 		this.#broadcastRoom = broadcastRoom;
+		this.#roomManager = roomManager;
 		this.#encode = encode;
+		const idleTimeoutSec = heartbeatConfig?.idleTimeout ?? 120;
+		const sendPings = heartbeatConfig?.sendPingsAutomatically ?? true;
+
+		if (sendPings && idleTimeoutSec > 0) {
+			this.#heartbeat = {
+				enabled: true,
+				idleTimeoutMs: idleTimeoutSec * 1000,
+				pingIntervalMs: (idleTimeoutSec * 1000) / 2,
+			};
+		} else {
+			this.#heartbeat = { enabled: false, idleTimeoutMs: 0, pingIntervalMs: 0 };
+		}
 
 		this.rooms = {
 			publishRaw: this.#publishRaw.bind(this),
@@ -103,8 +131,7 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 				if (this.#closed) {
 					return includeBroadcast ? [...this.#rooms] : [...this.#rooms].filter((r) => r !== this.#broadcastRoom);
 				}
-				const topics = this.#ws.getTopics();
-				return includeBroadcast ? topics : topics.filter((t) => t !== this.#broadcastRoom);
+				return this.#roomManager.getSocketRooms(this, includeBroadcast ? undefined : this.#broadcastRoom);
 			},
 			bulk: {
 				emit: this.#publishMany.bind(this),
@@ -119,11 +146,11 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 		return this;
 	}
 
-	sendRaw(message: RecognizedString, isBinary: boolean = typeof message !== "string", compress?: boolean): this {
+	sendRaw(message: WebSocket.Data, isBinary: boolean = typeof message !== "string", compress?: boolean): this {
 		if (this.#closed) {
 			return this;
 		}
-		this.#ws.send(message, isBinary, compress);
+		this.#ws.send(message, { binary: isBinary, compress });
 		return this;
 	}
 
@@ -145,11 +172,11 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 		return this;
 	}
 
-	#publishRaw(room: string, message: RecognizedString, isBinary: boolean = typeof message !== "string", compress?: boolean): this {
+	#publishRaw(room: string, message: WebSocket.Data, isBinary: boolean = typeof message !== "string", compress?: boolean): this {
 		if (this.#closed) {
 			return this;
 		}
-		this.#ws.publish(room, message, isBinary, compress);
+		this.#roomManager.publish(this, room, message, isBinary, compress);
 		return this;
 	}
 
@@ -189,28 +216,15 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 		return this;
 	}
 
-	_markClosed(): void {
-		this.#closed = true;
-		this.#clearAuthTimer();
-	}
-
-	close(code: number = 1000, reason: string = "normal"): void {
-		if (this.#closed) {
-			return;
-		}
-		this._markClosed();
-		this.#ws.end(code, reason);
-	}
-
 	#joinRoom(room: string): this {
 		if (!this.canSend) {
 			return this;
 		}
-		if (this.#ws.isSubscribed(room) || this.#rooms.has(room)) {
+		if (this.#roomManager.isSubscribed(this, room) || this.#rooms.has(room)) {
 			return this;
 		}
-		this.#ws.subscribe(room);
 		this.#rooms.add(room);
+		this.#roomManager.join(this, room);
 		return this;
 	}
 
@@ -218,11 +232,11 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 		if (!this.canSend) {
 			return this;
 		}
-		if (!this.#ws.isSubscribed(room) && !this.#rooms.has(room)) {
+		if (!this.#roomManager.isSubscribed(this, room) && !this.#rooms.has(room)) {
 			return this;
 		}
-		this.#ws.unsubscribe(room);
 		this.#rooms.delete(room);
+		this.#roomManager.leave(this, room);
 		return this;
 	}
 
@@ -244,6 +258,66 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 			this.#leaveRoom(room);
 		}
 		return this;
+	}
+
+	_markClosed(): void {
+		this.#closed = true;
+		this.#clearAuthTimer();
+		this.#clearHeartbeat();
+		this.#roomManager.leaveAll(this);
+	}
+
+	close(code: number = 1000, reason: string = "normal"): void {
+		if (this.#closed) {
+			return;
+		}
+		this._markClosed();
+		this.#ws.close(code, reason);
+	}
+
+	#startHeartbeat(): void {
+		if (this.#heartbeatStarted || this.#closed || !this.#heartbeat.enabled) {
+			return;
+		}
+		this.#heartbeatStarted = true;
+
+		const resetIdle = () => {
+			clearTimeout(this.#idleTimer);
+			this.#idleTimer = setTimeout(() => {
+				if (!this.#closed) {
+					this.close(1001, "idle timeout");
+				}
+			}, this.#heartbeat.idleTimeoutMs);
+		};
+		this.#onMessageResetIdle = resetIdle;
+
+		this.#ws.on("pong", resetIdle);
+		this.#ws.on("message", resetIdle);
+
+		resetIdle();
+
+		this.#pingIntervalHandle = setInterval(() => {
+			if (this.#closed) {
+				return;
+			}
+			this.#ws.ping();
+		}, this.#heartbeat.pingIntervalMs);
+	}
+
+	#clearHeartbeat(): void {
+		if (this.#pingIntervalHandle) {
+			clearInterval(this.#pingIntervalHandle);
+			this.#pingIntervalHandle = undefined;
+		}
+		if (this.#idleTimer) {
+			clearTimeout(this.#idleTimer);
+			this.#idleTimer = undefined;
+		}
+		if (this.#onMessageResetIdle) {
+			this.#ws.off("message", this.#onMessageResetIdle);
+			this.#ws.off("pong", this.#onMessageResetIdle);
+			this.#onMessageResetIdle = undefined;
+		}
 	}
 
 	_handleAuth<D>(
@@ -274,6 +348,7 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 					}
 					this.#setAuthSuccess(payload);
 					this.rooms.join(this.#broadcastRoom);
+					this.#startHeartbeat();
 					next();
 				});
 			} catch (err) {
@@ -282,6 +357,7 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 			}
 		} else {
 			this.#handleNoAuth();
+			this.#startHeartbeat();
 			next();
 		}
 	}

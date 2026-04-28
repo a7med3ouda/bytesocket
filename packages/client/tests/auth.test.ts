@@ -161,8 +161,7 @@ describe("ByteSocket Client: Auth", () => {
 		socket.close();
 		socket.connect();
 		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.OPEN));
-		await new Promise((r) => setTimeout(r, 50));
-		expect(handler).toHaveBeenCalledTimes(1);
+		await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(1));
 		socket.close();
 	});
 
@@ -214,16 +213,15 @@ describe("ByteSocket Client: Auth", () => {
 		});
 		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.OPEN));
 
-		wss.clients.forEach((ws) => {
+		for (const ws of wss.clients) {
 			if (ws.readyState === WebSocket.OPEN) {
 				ws.send(JSON.stringify({ type: LifecycleTypes.auth_error, data: { reason: "bad" } }));
 			}
-		});
+		}
 
 		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.CLOSED));
 
-		await new Promise((r) => setTimeout(r, 200));
-		expect(socket.readyState).toBe(WebSocket.CLOSED);
+		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.CLOSED));
 		socket.destroy();
 	});
 

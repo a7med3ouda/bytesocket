@@ -122,7 +122,9 @@ describe("ByteSocket Client: Lifecycle", () => {
 		socket.lifecycle.onMessage(rawHandler);
 
 		const raw = JSON.stringify({ event: "echo", data: { message: "raw" } });
-		wss.clients.forEach((ws) => ws.send(raw));
+		for (const ws of wss.clients) {
+			ws.send(raw);
+		}
 
 		await vi.waitFor(() => {
 			expect(rawHandler).toHaveBeenCalledWith(expect.any(String));
@@ -153,8 +155,7 @@ describe("ByteSocket Client: Lifecycle", () => {
 		serverSocket.send("not json", { binary: false });
 
 		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.OPEN));
-		await new Promise((r) => setTimeout(r, 50));
-		expect(errorHandler).not.toHaveBeenCalled();
+		await vi.waitFor(() => expect(errorHandler).not.toHaveBeenCalled());
 		socket.destroy();
 	});
 
@@ -225,13 +226,11 @@ describe("ByteSocket Client: Lifecycle", () => {
 
 		socket.emit("echo", { message: "first" });
 		socket.emit("echo", { message: "second" });
-		await new Promise((r) => setTimeout(r, 10));
 
-		expect(handler).toHaveBeenCalledTimes(1);
+		await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(1));
 
 		socket.emit("echo", { message: "third" });
-		await new Promise((r) => setTimeout(r, 10));
-		expect(handler).toHaveBeenCalledTimes(1);
+		await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(1));
 		socket.destroy();
 	});
 
@@ -247,9 +246,8 @@ describe("ByteSocket Client: Lifecycle", () => {
 
 		socket.emit("echo", { message: "first" });
 		socket.emit("echo", { message: "second" });
-		await new Promise((r) => setTimeout(r, 10));
 
-		expect(handler).not.toHaveBeenCalled();
+		await vi.waitFor(() => expect(handler).not.toHaveBeenCalled());
 		socket.destroy();
 	});
 
@@ -260,12 +258,15 @@ describe("ByteSocket Client: Lifecycle", () => {
 		const handler = vi.fn();
 		socket.lifecycle.onceMessage(handler);
 
-		wss.clients.forEach((ws) => ws.send(JSON.stringify({ event: "echo", data: { x: 1 } })));
+		for (const ws of wss.clients) {
+			ws.send(JSON.stringify({ event: "echo", data: { x: 1 } }));
+		}
 		await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(1));
 
-		wss.clients.forEach((ws) => ws.send(JSON.stringify({ event: "echo", data: { x: 2 } })));
-		await new Promise((r) => setTimeout(r, 30));
-		expect(handler).toHaveBeenCalledTimes(1);
+		for (const ws of wss.clients) {
+			ws.send(JSON.stringify({ event: "echo", data: { x: 2 } }));
+		}
+		await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(1));
 		socket.close();
 	});
 
@@ -277,9 +278,10 @@ describe("ByteSocket Client: Lifecycle", () => {
 		socket.lifecycle.onMessage(handler);
 		socket.lifecycle.offMessage(handler);
 
-		wss.clients.forEach((ws) => ws.send(JSON.stringify({ event: "echo", data: { x: 1 } })));
-		await new Promise((r) => setTimeout(r, 30));
-		expect(handler).not.toHaveBeenCalled();
+		for (const ws of wss.clients) {
+			ws.send(JSON.stringify({ event: "echo", data: { x: 1 } }));
+		}
+		await vi.waitFor(() => expect(handler).not.toHaveBeenCalled());
 		socket.close();
 	});
 

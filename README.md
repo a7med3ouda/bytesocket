@@ -14,11 +14,11 @@ ByteSocket is a monorepo providing a client library and server adapters that wor
 
 ## Packages
 
-| Package                                                                  | Description                                                                        | Status         |
-| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- | -------------- |
-| [`@bytesocket/client`](https://www.npmjs.com/package/@bytesocket/client) | Browser / Node WebSocket client                                                    | ✅ Available   |
-| [`@bytesocket/uws`](https://www.npmjs.com/package/@bytesocket/uws)       | Server adapter for [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js) | ✅ Available   |
-| `@bytesocket/node`                                                       | Server adapter for node:http server using [ws](https://www.npmjs.com/package/ws)   | 🚧 Coming soon |
+| Package                                                                  | Description                                                                                                | Status       |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- | ------------ |
+| [`@bytesocket/client`](https://www.npmjs.com/package/@bytesocket/client) | Browser / Node WebSocket client                                                                            | ✅ Available |
+| [`@bytesocket/uws`](https://www.npmjs.com/package/@bytesocket/uws)       | Server adapter for [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js)                         | ✅ Available |
+| [`@bytesocket/node`](https://www.npmjs.com/package/@bytesocket/node)     | Server adapter for plain Node.js HTTP servers (Express, Fastify, Koa, NestJS, etc.) using the `ws` library | ✅ Available |
 
 ---
 
@@ -31,21 +31,27 @@ Most WebSocket setups require wiring together reconnection logic, room managemen
 - **Auth built in** -- the server holds messages until authentication succeeds; no race conditions, no guesswork.
 - **Offline-first queue** -- messages sent while disconnected are buffered and flushed when the connection is restored.
 - **Binary by default** -- `msgpackr` MessagePack serialization out of the box, with JSON as an option.
+- **Server adapters for any stack** -- use with uWebSockets.js for raw performance, or with a standard Node.js HTTP server (and any framework on top) for maximum compatibility.
 
 ---
 
 ## Architecture
 
 ```
-┌───────────────────────────────────────────────────┐
-│                     Your App                      │
-├───────────────────────┬───────────────────────────┤
-│   @bytesocket/client  │      @bytesocket/uws      │
-│    (Browser / Node)   │  (uWebSockets.js server)  │
-├───────────────────────┴───────────────────────────┤
-│            Shared SocketEvents<T> type            │
-│      (event names · payloads · room scopes)       │
-└───────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│                   Your App                          │
+├───────────────────────┬─────────────────────────────┤
+│         Client        │  Server Adapter (pick one)  │
+│                       │                             │
+│                       │       @bytesocket/uws       │
+│   @bytesocket/client  │       (uWebSockets.js)      │
+│    (Browser / Node)   │              or             │
+│                       │       @bytesocket/node      │
+│                       │       (Node HTTP + ws)      │
+├───────────────────────┴─────────────────────────────┤
+│            Shared SocketEvents<T> type              │
+│       (event names · payloads · room scopes)        │
+└─────────────────────────────────────────────────────┘
 ```
 
 The `SocketEvents` interface is the single source of truth for your event schema. Import it on both sides and TypeScript enforces correctness everywhere.
@@ -58,14 +64,19 @@ The `SocketEvents` interface is the single source of truth for your event schema
 # Client
 npm install @bytesocket/client
 
-# Server (uWebSockets.js adapter)
+# Server -- uWebSockets.js adapter
 npm install @bytesocket/uws
 # uWebSockets.js must be installed separately -- see its docs for platform binaries
+
+# Server -- Node.js HTTP adapter (works with Express, Fastify, Koa, NestJS, etc.)
+npm install @bytesocket/node
 ```
 
 ---
 
 ## Quick Example
+
+_(The example below uses the uWS adapter. The Node adapter is used in exactly the same way -- just swap the import and `attach` calls as shown in its [dedicated documentation](./packages/node/README.md).)_
 
 **Shared types** (`types.ts`):
 
@@ -103,7 +114,7 @@ import { ByteSocket } from "@bytesocket/uws";
 import type { ChatEvents } from "./types";
 
 const app = uWS.App();
-const io = new ByteSocket<ChatEvents>(app, {
+const io = new ByteSocket<ChatEvents>({
 	auth: (socket, data, callback) => {
 		// validate data.token, then:
 		callback({ userId: "abc", name: "Ahmed" });
@@ -120,7 +131,7 @@ io.rooms.on("chat", "message", (socket, data, next) => {
 	next();
 });
 
-app.ws("/socket", io.handler);
+io.attach(app, "/socket");
 app.listen(3000, () => console.log("Listening on :3000"));
 ```
 
@@ -163,7 +174,9 @@ socket.on("user:joined", (data) => {
 
 ---
 
-## Server Highlights (uws)
+## Server Highlights
+
+### uWebSockets.js adapter (`@bytesocket/uws`)
 
 - Built on uWebSockets.js -- one of the fastest WebSocket servers available
 - Per-socket and server-wide room emit
@@ -173,7 +186,17 @@ socket.on("user:joined", (data) => {
 - Origin allowlist
 - Access to full HTTP upgrade context (headers, cookies, query)
 
-→ [Full server documentation](./packages/uws/README.md)
+→ [Full @bytesocket/uws documentation](./packages/uws/README.md)
+
+### Node.js HTTP adapter (`@bytesocket/node`)
+
+- Works with **any** Node.js HTTP server -- Express, Fastify, Koa, NestJS, plain `http.createServer` …
+- Same typed event system, rooms, auth, middleware, and lifecycle hooks as the uWS adapter
+- Built on the battle-tested `ws` library (included as a dependency)
+- Built-in idle timeout & heartbeat
+- Multiple paths on a single HTTP server
+
+→ [Full @bytesocket/node documentation](./packages/node/README.md)
 
 ---
 
@@ -195,11 +218,12 @@ Both packages default to **binary MessagePack** via `msgpackr` -- significantly 
 ```
 bytesocket/
 ├── packages/
-│   ├── client/          # @bytesocket/client
-│   └── uws/             # @bytesocket/uws
+│	├── client/			# @bytesocket/client
+│	├── uws/			# @bytesocket/uws
+│	└── node/			# @bytesocket/node
 ├── examples/
-│   ├── chat/            # Full chat app (client + uws)
-│   └── auth/            # Auth flow example
+│	├── chat/			# Full chat app (client + uws)
+│	└── auth/			# Auth flow example
 └── README.md
 ```
 

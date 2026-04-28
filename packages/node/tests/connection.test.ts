@@ -1,8 +1,7 @@
-// packages/uws/tests/connection.test.ts
-import type { ClientRequestArgs } from "node:http";
-import uWS from "uWebSockets.js";
+// packages/node/tests/connection.test.ts
+import { createServer, Server, type ClientRequestArgs } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import WebSocket from "ws";
+import WebSocket, { type AddressInfo } from "ws";
 import { ByteSocket, type SocketEvents } from "../src";
 
 type TestEvents = SocketEvents<{
@@ -10,20 +9,18 @@ type TestEvents = SocketEvents<{
 	broadcast: { text: string };
 }>;
 
-describe("ByteSocket uws: Connection", () => {
-	let app: uWS.TemplatedApp;
+describe("ByteSocket node: Connection", () => {
+	let server: Server;
 	let io: ByteSocket<TestEvents>;
-	let listenSocket: false | uWS.us_listen_socket;
 	let port: number;
 
 	beforeEach(async () => {
-		app = uWS.App();
+		server = createServer();
 		io = new ByteSocket<TestEvents>({ serialization: "json" });
 
 		await new Promise<void>((resolve) => {
-			app.listen(0, (token) => {
-				port = uWS.us_socket_local_port(token);
-				listenSocket = token;
+			server.listen(0, () => {
+				port = (server.address() as AddressInfo).port;
 				resolve();
 			});
 		});
@@ -31,9 +28,7 @@ describe("ByteSocket uws: Connection", () => {
 
 	afterEach(() => {
 		io.destroy();
-		if (listenSocket) {
-			uWS.us_listen_socket_close(listenSocket);
-		}
+		server.close();
 	});
 
 	const createClient = (url = `ws://localhost:${port}/ws`, options?: WebSocket.ClientOptions | ClientRequestArgs): Promise<WebSocket> => {
@@ -48,7 +43,7 @@ describe("ByteSocket uws: Connection", () => {
 		const openHandler = vi.fn();
 		io.lifecycle.onOpen(openHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 
@@ -62,7 +57,7 @@ describe("ByteSocket uws: Connection", () => {
 		const closeHandler = vi.fn();
 		io.lifecycle.onClose(closeHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		await vi.waitFor(() => expect(io.sockets.size).toBe(1));
@@ -76,7 +71,7 @@ describe("ByteSocket uws: Connection", () => {
 	it("should reject connections from disallowed origins", async () => {
 		io = new ByteSocket<TestEvents>({ origins: ["https://example.com"] });
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = new WebSocket(`ws://localhost:${port}/ws`, {
 			headers: { Origin: "https://evil.com" },
@@ -90,7 +85,7 @@ describe("ByteSocket uws: Connection", () => {
 	});
 
 	it("should reject upgrade with 503 when server is destroyed", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		io.destroy();
 
@@ -110,7 +105,7 @@ describe("ByteSocket uws: Connection", () => {
 			io.destroy();
 		});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = new WebSocket(`ws://localhost:${port}/ws`);
 		const closePromise = new Promise<void>((resolve) => {
@@ -125,7 +120,7 @@ describe("ByteSocket uws: Connection", () => {
 		const onUpgrade = vi.fn((_res, _req, _data, _ctx) => {});
 		io.lifecycle.onUpgrade(onUpgrade);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 
@@ -139,7 +134,7 @@ describe("ByteSocket uws: Connection", () => {
 		});
 		io.lifecycle.onUpgrade(onUpgrade);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = new WebSocket(`ws://localhost:${port}/ws`);
 		const closeOrError = new Promise<void>((resolve) => {
@@ -152,7 +147,7 @@ describe("ByteSocket uws: Connection", () => {
 	});
 
 	it("should expose all request header getters", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const ws = await createClient(`ws://localhost:${port}/ws`, {
 			headers: {
@@ -175,7 +170,7 @@ describe("ByteSocket uws: Connection", () => {
 	});
 
 	it("should expose the query string from the URL", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const ws = await createClient(`ws://localhost:${port}/ws?room=lobby&token=abc`);
 		const socket = Array.from(io.sockets.values())[0];
@@ -187,7 +182,7 @@ describe("ByteSocket uws: Connection", () => {
 	});
 
 	it("should close the client connection when socket.close() is called", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const socket = Array.from(io.sockets.values())[0];
@@ -202,7 +197,7 @@ describe("ByteSocket uws: Connection", () => {
 	it("should allow connections when origins are set but no Origin header is present", async () => {
 		io = new ByteSocket<TestEvents>({ origins: ["https://example.com"], serialization: "json" });
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		expect(client.readyState).toBe(WebSocket.OPEN);

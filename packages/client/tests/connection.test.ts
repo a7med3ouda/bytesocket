@@ -112,13 +112,12 @@ describe("ByteSocket Client: Connection", () => {
 
 		const socket = new ByteSocket<TestEvents>(`ws://localhost:${port}`, { autoConnect: true });
 		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.OPEN));
-		expect(connectionCount).toBe(1);
+		await vi.waitFor(() => expect(connectionCount).toBe(1));
 
-		await new Promise((r) => setTimeout(r, 20));
 		socket.reconnect();
 
 		await vi.waitFor(() => expect(connectionCount).toBe(2));
-		expect(socket.readyState).toBe(WebSocket.OPEN);
+		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.OPEN));
 		socket.destroy();
 	});
 
@@ -132,12 +131,13 @@ describe("ByteSocket Client: Connection", () => {
 		const closeHandler = vi.fn();
 		socket.lifecycle.onClose(closeHandler);
 
-		wss.clients.forEach((ws) => ws.close(1000, "normal"));
+		for (const ws of wss.clients) {
+			ws.close(1000, "normal");
+		}
 		await vi.waitFor(() => expect(closeHandler).toHaveBeenCalled());
 
-		await new Promise((r) => setTimeout(r, 200));
-		expect(socket.readyState).toBe(WebSocket.CLOSED);
-		expect(socket.isConnected).toBe(false);
+		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.CLOSED));
+		await vi.waitFor(() => expect(socket.isConnected).toBe(false));
 		socket.destroy();
 	});
 
@@ -154,12 +154,10 @@ describe("ByteSocket Client: Connection", () => {
 		await vi.waitFor(() => expect(socket.isClosed).toBe(true));
 
 		socket.emit("echo", { message: "after close" });
-		await new Promise((r) => setTimeout(r, 50));
-		expect(received).not.toContain(expect.stringContaining("after close"));
+		await vi.waitFor(() => expect(received).not.toContain(expect.stringContaining("after close")));
 
 		socket.sendRaw("raw after close");
-		await new Promise((r) => setTimeout(r, 50));
-		expect(received).not.toContain("raw after close");
+		await vi.waitFor(() => expect(received).not.toContain("raw after close"));
 	});
 
 	it("should throw when base URL is relative and no global location", () => {
@@ -231,7 +229,10 @@ describe("ByteSocket Client: Connection", () => {
 		});
 		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.OPEN));
 
-		wss.clients.forEach((ws) => ws.close(1000, "normal closure"));
+		for (const ws of wss.clients) {
+			ws.close(1000, "normal closure");
+		}
+
 		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.CLOSED));
 
 		expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("normal closure (code 1000), will not reconnect"));

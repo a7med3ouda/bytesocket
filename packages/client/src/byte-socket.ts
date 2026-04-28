@@ -11,7 +11,7 @@ import {
 import { FLOAT32_OPTIONS, Packr } from "msgpackr";
 import { RoomManager } from "./room-manager";
 import { SocketBase } from "./socket-base";
-import type { AuthConfig, ByteSocketOptions, EventCallback } from "./types";
+import type { AuthConfig, ByteSocketOptions, ClientSendData, EventCallback, IByteSocket, LifecycleApi } from "./types";
 
 /**
  * ByteSocket is a WebSocket client with automatic reconnection, room management,
@@ -33,7 +33,7 @@ import type { AuthConfig, ByteSocketOptions, EventCallback } from "./types";
  * // Create a typed socket instance
  * const socket = new ByteSocket<MyEvents>('wss://example.com/socket', {
  *   debug: true,
- *   auth: { token: 'abc123' }
+ *   auth: { data: { token: 'abc123' } }
  * });
  *
  * // Use typed methods (emit and listen share the same event map)
@@ -70,7 +70,7 @@ import type { AuthConfig, ByteSocketOptions, EventCallback } from "./types";
  *
  * const socket = new ByteSocket<MyEvents>('wss://example.com/socket', {
  *   debug: true,
- *   auth: { token: 'abc123' }
+ *   auth: { data: { token: 'abc123' } }
  * });
  *
  * // Global emits/listens
@@ -85,26 +85,10 @@ import type { AuthConfig, ByteSocketOptions, EventCallback } from "./types";
  * });
  * ```
  */
-export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends SocketBase {
+export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends SocketBase implements IByteSocket<TEvents> {
 	// ──── Namespaces ────────────────────────────────────────────────────────────────────────
 
-	/**
-	 * Lifecycle event listeners for connection, authentication, and errors.
-	 *
-	 * @example
-	 * socket.lifecycle.onOpen(() => console.log('Connected!'));
-	 * socket.lifecycle.onAuthError((err) => console.error('Auth failed', err));
-	 * socket.lifecycle.onQueueFull(() => console.warn('Message queue full'));
-	 */
-	readonly lifecycle;
-
-	/**
-	 * Room management and room-scoped events.
-	 *
-	 * @example
-	 * socket.rooms.join('lobby');
-	 * socket.rooms.on('lobby', 'chat', (msg) => { ... });
-	 */
+	readonly lifecycle: LifecycleApi;
 	readonly rooms: RoomManager<TEvents>;
 
 	// ──── States ────────────────────────────────────────────────────────────────────────
@@ -129,7 +113,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 	#ws: WebSocket | null = null;
 	#authConfig: AuthConfig | undefined;
 	#authState: AuthState = AuthState.idle;
-	#messageQueue: Array<string | Uint8Array<ArrayBuffer>> = [];
+	#messageQueue: Array<ClientSendData> = [];
 	#reconnectAttempts: number = 0;
 	#flushFailures: number = 0;
 
@@ -210,59 +194,37 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		});
 
 		this.lifecycle = {
-			/** Register a listener for socket open. */
-			onOpen: (callback: () => void) => this.onLifecycle(LifecycleTypes.open, callback),
-			/** Remove a listener for socket open. */
-			offOpen: (callback?: () => void) => this.offLifecycle(LifecycleTypes.open, callback),
-			/** Register a one-time listener for socket open. */
-			onceOpen: (callback: () => void) => this.onceLifecycle(LifecycleTypes.open, callback),
-			/**
-			 * Register a listener for raw incoming WebSocket messages.
-			 * Called immediately when a message is received, before any internal processing.
-			 *
-			 * @param callback - Receives the raw data and a boolean indicating if it's binary.
-			 */
-			onMessage: (callback: (data: string | ArrayBuffer) => void) => this.onLifecycle(LifecycleTypes.message, callback),
-			/** Remove a listener for raw messages. */
-			offMessage: (callback?: (data: string | ArrayBuffer) => void) => this.offLifecycle(LifecycleTypes.message, callback),
-			/** Register a one-time listener for raw incoming WebSocket messages. */
-			onceMessage: (callback: (data: string | ArrayBuffer) => void) => this.onceLifecycle(LifecycleTypes.message, callback),
-			/** Register a listener for socket close. */
-			onClose: (callback: (event: CloseEvent) => void) => this.onLifecycle(LifecycleTypes.close, callback),
-			/** Remove a listener for socket close. */
-			offClose: (callback?: (event: CloseEvent) => void) => this.offLifecycle(LifecycleTypes.close, callback),
-			/** Register a one-time listener for socket close. */
-			onceClose: (callback: (event: CloseEvent) => void) => this.onceLifecycle(LifecycleTypes.close, callback),
-			/** Register a listener for WebSocket errors. */
-			onError: (callback: (event: ErrorContext) => void) => this.onLifecycle(LifecycleTypes.error, callback),
-			/** Remove a listener for WebSocket errors. */
-			offError: (callback?: (event: ErrorContext) => void) => this.offLifecycle(LifecycleTypes.error, callback),
-			/** Register a one-time listener for WebSocket errors. */
-			onceError: (callback: (event: ErrorContext) => void) => this.onceLifecycle(LifecycleTypes.error, callback),
-			/** Register a listener for authentication success. */
-			onAuthSuccess: (callback: () => void) => this.onLifecycle(LifecycleTypes.auth_success, callback),
-			/** Remove a listener for authentication success. */
-			offAuthSuccess: (callback?: () => void) => this.offLifecycle(LifecycleTypes.auth_success, callback),
-			/** Register a one-time listener for authentication success. */
-			onceAuthSuccess: (callback: () => void) => this.onceLifecycle(LifecycleTypes.auth_success, callback),
-			/** Register a listener for authentication errors. */
+			onOpen: (callback) => this.onLifecycle(LifecycleTypes.open, callback),
+			offOpen: (callback) => this.offLifecycle(LifecycleTypes.open, callback),
+			onceOpen: (callback) => this.onceLifecycle(LifecycleTypes.open, callback),
+
+			onMessage: (callback) => this.onLifecycle(LifecycleTypes.message, callback),
+			offMessage: (callback) => this.offLifecycle(LifecycleTypes.message, callback),
+			onceMessage: (callback) => this.onceLifecycle(LifecycleTypes.message, callback),
+
+			onClose: (callback) => this.onLifecycle(LifecycleTypes.close, callback),
+			offClose: (callback) => this.offLifecycle(LifecycleTypes.close, callback),
+			onceClose: (callback) => this.onceLifecycle(LifecycleTypes.close, callback),
+
+			onError: (callback) => this.onLifecycle(LifecycleTypes.error, callback),
+			offError: (callback) => this.offLifecycle(LifecycleTypes.error, callback),
+			onceError: (callback) => this.onceLifecycle(LifecycleTypes.error, callback),
+
+			onAuthSuccess: (callback) => this.onLifecycle(LifecycleTypes.auth_success, callback),
+			offAuthSuccess: (callback) => this.offLifecycle(LifecycleTypes.auth_success, callback),
+			onceAuthSuccess: (callback) => this.onceLifecycle(LifecycleTypes.auth_success, callback),
+
 			onAuthError: (callback: (ctx: ErrorContext) => void) => this.onLifecycle(LifecycleTypes.auth_error, callback),
-			/** Remove a listener for authentication errors. */
 			offAuthError: (callback?: (ctx: ErrorContext) => void) => this.offLifecycle(LifecycleTypes.auth_error, callback),
-			/** Register a one-time listener for authentication errors. */
 			onceAuthError: (callback: (ctx: ErrorContext) => void) => this.onceLifecycle(LifecycleTypes.auth_error, callback),
-			/** Register a listener for when the message queue becomes full and a message is dropped. */
-			onQueueFull: (callback: () => void) => this.onLifecycle(LifecycleTypes.queue_full, callback),
-			/** Remove a listener for queue-full events. */
-			offQueueFull: (callback?: () => void) => this.offLifecycle(LifecycleTypes.queue_full, callback),
-			/** Register a one-time listener for queue-full events. */
-			onceQueueFull: (callback: () => void) => this.onceLifecycle(LifecycleTypes.queue_full, callback),
-			/** Register a listener for when reconnection fails after all attempts. */
-			onReconnectFailed: (callback: () => void) => this.onLifecycle(LifecycleTypes.reconnect_failed, callback),
-			/** Remove a listener for reconnect-failed events. */
-			offReconnectFailed: (callback?: () => void) => this.offLifecycle(LifecycleTypes.reconnect_failed, callback),
-			/** Register a one-time listener for reconnect-failed events. */
-			onceReconnectFailed: (callback: () => void) => this.onceLifecycle(LifecycleTypes.reconnect_failed, callback),
+
+			onQueueFull: (callback) => this.onLifecycle(LifecycleTypes.queue_full, callback),
+			offQueueFull: (callback) => this.offLifecycle(LifecycleTypes.queue_full, callback),
+			onceQueueFull: (callback) => this.onceLifecycle(LifecycleTypes.queue_full, callback),
+
+			onReconnectFailed: (callback) => this.onLifecycle(LifecycleTypes.reconnect_failed, callback),
+			offReconnectFailed: (callback) => this.offLifecycle(LifecycleTypes.reconnect_failed, callback),
+			onceReconnectFailed: (callback) => this.onceLifecycle(LifecycleTypes.reconnect_failed, callback),
 		};
 
 		this.rooms = new RoomManager<TEvents>(this.debug, this.send.bind(this), this.lifecycle.onOpen.bind(this), this.lifecycle.onClose.bind(this));
@@ -274,60 +236,22 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 
 	// ──── Getters ────────────────────────────────────────────────────────────────────────
 
-	/**
-	 * Current WebSocket readyState (CONNECTING, OPEN, CLOSING, CLOSED).
-	 * Returns `WebSocket.CLOSED` if no socket exists.
-	 */
 	get readyState(): number {
 		return this.#ws?.readyState ?? WebSocket.CLOSED;
 	}
 
-	/**
-	 * Whether the socket is currently able to send messages.
-	 * Returns `true` if the WebSocket is open and authentication (if configured) has succeeded.
-	 * Useful for checking readiness before calling `sendRaw()`
-	 * No need to use it with `emit()` or `send()` because they already use it under the hood.
-	 *
-	 * @example
-	 * if (socket.canSend) {
-	 *   socket.sendRaw('PROTOCOL: custom-v1');
-	 * }
-	 */
 	get canSend(): boolean {
 		return this.readyState === WebSocket.OPEN && (this.#authState === AuthState.none || this.#authState === AuthState.success);
 	}
-
-	/**
-	 * Whether the socket has been manually closed or permanently destroyed.
-	 * Returns `true` after `close()` or `destroy()` has been called.
-	 */
 	get isClosed(): boolean {
 		return this.#manuallyClosed || this.#destroyed || this.#reconnectExhausted;
 	}
-
-	/**
-	 * Whether the underlying WebSocket connection is currently open.
-	 */
 	get isConnected(): boolean {
 		return this.readyState === WebSocket.OPEN;
 	}
 
 	// ──── Encoding / Decoding ────────────────────────────────────────────────────────────────────────
 
-	/**
-	 * Encode a structured payload into a format suitable for sending over the WebSocket.
-	 *
-	 * **Advanced usage only.** Prefer `emit()` or `send()` for type-safe communication.
-	 *
-	 * @param payload - A lifecycle message or user event object.
-	 * @param serialization - Serialization format: "json" or "binary".
-	 * @returns Encoded string (JSON) or Uint8Array<ArrayBuffer> (MessagePack).
-	 *
-	 * @example
-	 * // Pre-encode a payload for repeated use
-	 * const encoded = socket.encode({ event: 'chat', data: { text: 'Hello' } });
-	 * socket.sendRaw(encoded);
-	 */
 	encode<R extends string, E extends string | number, D>(
 		payload: LifecycleMessage<R, D> | UserMessage<R, E, D>,
 		serialization = this.#options.serialization,
@@ -339,16 +263,6 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		}
 	}
 
-	/**
-	 * Decode a raw WebSocket message into a structured payload.
-	 * Automatically detects JSON or MessagePack based on the binary flag and message content.
-	 *
-	 * **Advanced usage only.** Normally you should use `on()` listeners to receive typed data.
-	 *
-	 * @param message - Raw string (JSON) or ArrayBuffer (MessagePack).
-	 * @param isBinary - Whether the message is binary. If omitted, format is detected from the message type.
-	 * @returns Decoded lifecycle or user message object.
-	 */
 	decode(message: string | ArrayBuffer, isBinary?: boolean) {
 		if (typeof message === "string") {
 			if (isBinary === true) {
@@ -367,7 +281,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 
 	// ──── Emits ────────────────────────────────────────────────────────────────────────
 
-	#trySend(message: string | Uint8Array<ArrayBuffer>): boolean {
+	#trySend(message: ClientSendData): boolean {
 		if (!this.#ws || this.readyState !== WebSocket.OPEN) {
 			return false;
 		}
@@ -382,7 +296,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		}
 	}
 
-	#enqueue(message: string | Uint8Array<ArrayBuffer>): void {
+	#enqueue(message: ClientSendData): void {
 		if (this.#messageQueue.length < this.#options.maxQueueSize) {
 			this.#messageQueue.push(message);
 		} else {
@@ -393,7 +307,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		}
 	}
 
-	#sendOrQueue(message: string | Uint8Array<ArrayBuffer>): void {
+	#sendOrQueue(message: ClientSendData): void {
 		if (this.canSend && !this.#flushing) {
 			const sent = this.#trySend(message);
 			if (sent) {
@@ -403,21 +317,6 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		this.#enqueue(message);
 	}
 
-	/**
-	 * Send a pre-serialized payload (LifecycleMessage or UserMessage) over the WebSocket.
-	 * If the socket is not ready, the payload is queued and sent when the connection
-	 * becomes operational and authentication (if required) has succeeded.
-	 *
-	 * @param payload - The structured payload to encode and send.
-	 *
-	 * @example
-	 * // Send a custom lifecycle message (advanced)
-	 * socket.send({ type: LifecycleTypes.ping });
-	 *
-	 * @example
-	 * // Send a raw user event (equivalent to socket.emit('chat', data))
-	 * socket.send({ event: 'chat', data: { text: 'Hello' } });
-	 */
 	send<R extends string, E extends string | number, D>(payload: LifecycleMessage<R, D> | UserMessage<R, E, D>): void {
 		if (!this.#isOperational()) {
 			return;
@@ -426,18 +325,10 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		this.#sendOrQueue(message);
 	}
 
-	/**
-	 * Send a raw message (string or Uint8Array<ArrayBuffer>) directly over the WebSocket.
-	 * Bypasses serialization and auth checks. If the socket is not open, the message
-	 * is queued and sent when possible (auth state is ignored).
-	 *
-	 * @param message - The raw data to send.
-	 */
-	sendRaw(message: string | Uint8Array<ArrayBuffer>): void {
+	sendRaw(message: ClientSendData): void {
 		if (!this.#isOperational()) {
 			return;
 		}
-		// Raw messages bypass the auth-pending check entirely.
 		if (this.readyState === WebSocket.OPEN && !this.#flushing) {
 			const sent = this.#trySend(message);
 			if (sent) {
@@ -447,21 +338,10 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		this.#enqueue(message);
 	}
 
-	/**
-	 * Emit a global event.
-	 *
-	 * @typeParam E - Event name (must be a key in `TEvents['emit']`).
-	 * @typeParam D - Event data type.
-	 *
-	 * @example
-	 * // Assuming event map defines emit: { 'user:typing': { userId: string } }
-	 * socket.emit('user:typing', { userId: '123' });
-	 */
 	emit<E extends StringNumberKeys<TEvents["emit"]>, D extends NonNullable<TEvents["emit"]>[E]>(event: E, data: D): void {
 		this.send({ event, data });
 	}
 
-	/** Send the auth payload immediately. Does not queue or wait for auth state. */
 	#sendAuthPayload<D>(data: D): void {
 		if (this.readyState !== WebSocket.OPEN) {
 			if (this.debug) {
@@ -521,31 +401,10 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 
 	// ──── Listeners ────────────────────────────────────────────────────────────────────────
 
-	/**
-	 * Register a permanent listener for global events.
-	 *
-	 * @typeParam E - Event name (must be a key in `TEvents['listen']`).
-	 *
-	 * @example
-	 * // Assuming event map defines listen: { 'user:joined': { userId: string } }
-	 * socket.on('user:joined', (data) => {
-	 *   console.log(`User ${data.userId} joined`);
-	 * });
-	 */
 	on<E extends StringNumberKeys<TEvents["listen"]>, D extends NonNullable<TEvents["listen"]>[E]>(event: E, callback: EventCallback<D>): void {
 		this.addCallback(this.#callbacksMap, event, callback);
 	}
 
-	/**
-	 * Remove a listener for global events.
-	 * If no callback is provided, all listeners for that event are removed.
-	 *
-	 * @example
-	 * // Remove specific callback
-	 * socket.off('user:joined', myCallback);
-	 * // Remove all listeners for 'user:joined'
-	 * socket.off('user:joined');
-	 */
 	off<E extends StringNumberKeys<TEvents["listen"]>, D extends NonNullable<TEvents["listen"]>[E]>(event: E, callback?: EventCallback<D>): void {
 		if (!callback) {
 			this.#callbacksMap.delete(event);
@@ -555,23 +414,14 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		const onceEventMap = this.#onceCallbacksMap.get(event);
 		const wrappersSet = onceEventMap?.get(callback);
 		if (wrappersSet) {
-			wrappersSet.forEach((wrapper) => {
+			for (const wrapper of [...wrappersSet]) {
 				this.deleteCallback(this.#callbacksMap, event, wrapper);
 				this.deleteOnceCallback(this.#onceCallbacksMap, event, callback, wrapper);
-			});
+			}
 		}
 		this.deleteCallback(this.#callbacksMap, event, callback);
 	}
 
-	/**
-	 * Register a one-time listener for a global event.
-	 * The callback is removed after the first invocation.
-	 *
-	 * @example
-	 * socket.once('user:joined', (data) => {
-	 *   console.log('First join event:', data);
-	 * });
-	 */
 	once<E extends StringNumberKeys<TEvents["listen"]>, D extends NonNullable<TEvents["listen"]>[E]>(event: E, callback: EventCallback<D>): void {
 		const callbackWrapper: EventCallback<D> = (data) => {
 			this.deleteCallback(this.#callbacksMap, event, callbackWrapper);
@@ -644,9 +494,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 
 	#buildUrlQueryParams(url: URL): URL {
 		if (this.#options.queryParams) {
-			Object.entries(this.#options.queryParams).forEach(([key, value]) => {
+			for (const [key, value] of Object.entries(this.#options.queryParams)) {
 				url.searchParams.set(key, value);
-			});
+			}
 		}
 		return url;
 	}
@@ -662,14 +512,6 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 
 	// ──── Auth ────────────────────────────────────────────────────────────────────────
 
-	/**
-	 * Update the authentication configuration before connecting.
-	 * Must be called before `connect()` (or auto-connect).
-	 *
-	 * @param config - New auth config (static object or async callback).
-	 *
-	 * @throws {Error} If called after `destroy()` or after the socket is already connecting/open.
-	 */
 	setAuth<D>(config: AuthConfig<D> | undefined) {
 		if (this.#destroyed) {
 			throw new Error("ByteSocket: cannot call setAuth() after destroy().");
@@ -768,10 +610,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		}
 		this.#pingTimer = setInterval(() => {
 			if (this.canSend) {
-				if (this.debug) {
-					console.time("ByteSocket: heartbeat");
-				}
-				this.send({ type: LifecycleTypes.ping });
+				this.#ws?.send(new Uint8Array(0));
 				if (this.debug) {
 					console.log("ByteSocket: ping sent");
 				}
@@ -791,11 +630,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		if (this.#pongTimer) {
 			clearTimeout(this.#pongTimer);
 		}
-
 		this.#pongTimer = setTimeout(() => {
 			if (this.debug) {
 				console.warn("ByteSocket: pong timeout, closing connection");
-				console.timeEnd("ByteSocket: heartbeat");
 			}
 			if (this.readyState === WebSocket.OPEN) {
 				this.#ws?.close(4003, "Pong timeout");
@@ -807,18 +644,11 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		if (this.#pongTimer) {
 			clearTimeout(this.#pongTimer);
 			this.#pongTimer = null;
-			if (this.debug) {
-				console.timeEnd("ByteSocket: heartbeat");
-			}
 		}
 	}
 
 	// ──── Connection Lifecycle ────────────────────────────────────────────────────────────────────────
 
-	/**
-	 * Opens the WebSocket connection. Called automatically if `autoConnect` is `true`.
-	 * Can be called manually after a previous `close()`.
-	 */
 	connect(): void {
 		if (this.#destroyed) {
 			if (this.debug) {
@@ -904,24 +734,6 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		return false;
 	}
 
-	#handleHeartbeatMessage(payload: UserMessage): boolean {
-		if ("type" in payload && payload.type === LifecycleTypes.ping) {
-			if (this.debug) {
-				console.log("ByteSocket: ping received");
-			}
-			this.send({ type: LifecycleTypes.pong });
-			return true;
-		}
-		if ("type" in payload && payload.type === LifecycleTypes.pong) {
-			if (this.debug) {
-				console.log("ByteSocket: pong received");
-			}
-			this.#clearPongTimeout();
-			return true;
-		}
-		return false;
-	}
-
 	#handleEventMessage(payload: UserMessage): boolean {
 		if ("type" in payload || "room" in payload || "rooms" in payload || payload.event == null) {
 			return false;
@@ -931,6 +743,14 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 	}
 
 	#handleMessage(message: MessageEvent): void {
+		if (message.data instanceof ArrayBuffer && message.data.byteLength === 0) {
+			if (this.debug) {
+				console.log("ByteSocket: pong received (empty binary)");
+			}
+			this.#clearPongTimeout();
+			return;
+		}
+
 		this.triggerCallback(this.lifecycleCallbacksMap.get(LifecycleTypes.message), message.data);
 
 		const { success, payload } = this.#parseMessage(message);
@@ -938,9 +758,6 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 			return;
 		}
 		if (this.#handleAuthMessage(payload)) {
-			return;
-		}
-		if (this.#handleHeartbeatMessage(payload)) {
 			return;
 		}
 		if (this.rooms._handleMessage(payload)) {
@@ -957,10 +774,6 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 
 	// ──── Reconnection ────────────────────────────────────────────────────────────────────────
 
-	/**
-	 * Force an immediate reconnection, resetting the current connection and re-establishing.
-	 * Useful when you suspect the connection is stale but hasn't closed yet.
-	 */
 	reconnect(): void {
 		if (this.#destroyed) {
 			if (this.debug) {
@@ -991,13 +804,6 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 
 	// ──── Close / Destroy ────────────────────────────────────────────────────────────────────────
 
-	/**
-	 * Gracefully close the WebSocket connection.
-	 * Automatic reconnection is disabled after a manual close.
-	 *
-	 * @param code - Close code. @default undefined
-	 * @param reason - Close reason. @default undefined
-	 */
 	close(code?: number, reason?: string): void {
 		if (this.#destroyed) {
 			return;
@@ -1007,10 +813,6 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Soc
 		this.#ws?.close(code, reason);
 	}
 
-	/**
-	 * Permanently destroy the socket instance, cleaning up all resources,
-	 * timers, and callbacks. The instance cannot be reused.
-	 */
 	destroy(): void {
 		if (this.#destroyed) {
 			return;

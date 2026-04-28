@@ -1,27 +1,30 @@
 {
-	"name": "@bytesocket/types",
+	"name": "@bytesocket/node",
 	"version": "0.3.0",
-	"description": "Shared types and enums for ByteSocket",
+	"description": "Framework-agnostic WebSocket server for Node.js using the native http.Server upgrade API",
 	"keywords": [
 		"websocket",
 		"socket",
 		"realtime",
 		"bytesocket",
-		"uws",
-		"uWebSockets",
-		"ultimate-express",
-		"hyper-express",
+		"node",
+		"http-server",
+		"ws",
 		"msgpack",
-		"binary"
+		"binary",
+		"fastify",
+		"express",
+		"koa",
+		"nestjs"
 	],
-	"homepage": "https://github.com/a7med3ouda/bytesocket/tree/main/packages/types",
+	"homepage": "https://github.com/a7med3ouda/bytesocket/tree/main/packages/node",
 	"bugs": {
 		"url": "https://github.com/a7med3ouda/bytesocket/issues"
 	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/a7med3ouda/bytesocket.git",
-		"directory": "packages/types"
+		"directory": "packages/node"
 	},
 	"license": "MIT",
 	"sideEffects": false,
@@ -42,10 +45,17 @@
 	],
 	"scripts": {
 		"build": "tsup",
+		"clean": "rm -rf dist",
 		"dev": "tsup --watch"
 	},
+	"dependencies": {
+		"@bytesocket/types": "workspace:*",
+		"msgpackr": "catalog:",
+		"ws": "catalog:"
+	},
 	"devDependencies": {
-		"msgpackr": "catalog:"
+		"@types/node": "catalog:",
+		"@types/ws": "catalog:"
 	},
 	"engines": {
 		"node": ">=22.4.0"

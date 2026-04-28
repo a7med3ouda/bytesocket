@@ -1,7 +1,7 @@
-// packages/uws/tests/rooms-bulk.test.ts
-import uWS from "uWebSockets.js";
+// packages/node/tests/rooms-bulk.test.ts
+import { createServer, Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import WebSocket from "ws";
+import WebSocket, { type AddressInfo } from "ws";
 import { ByteSocket, LifecycleTypes, type SocketEvents } from "../src";
 
 type TestEvents = SocketEvents<{
@@ -9,20 +9,18 @@ type TestEvents = SocketEvents<{
 	broadcast: { text: string };
 }>;
 
-describe("ByteSocket uws: Rooms bulk operations", () => {
-	let app: uWS.TemplatedApp;
+describe("ByteSocket node: Rooms bulk operations", () => {
+	let server: Server;
 	let io: ByteSocket<TestEvents>;
-	let listenSocket: false | uWS.us_listen_socket;
 	let port: number;
 
 	beforeEach(async () => {
-		app = uWS.App();
+		server = createServer();
 		io = new ByteSocket<TestEvents>({ serialization: "json" });
 
 		await new Promise<void>((resolve) => {
-			app.listen(0, (token) => {
-				port = uWS.us_socket_local_port(token);
-				listenSocket = token;
+			server.listen(0, () => {
+				port = (server.address() as AddressInfo).port;
 				resolve();
 			});
 		});
@@ -30,9 +28,7 @@ describe("ByteSocket uws: Rooms bulk operations", () => {
 
 	afterEach(() => {
 		io.destroy();
-		if (listenSocket) {
-			uWS.us_listen_socket_close(listenSocket);
-		}
+		server.close();
 	});
 
 	const createClient = (): Promise<WebSocket> => {
@@ -44,7 +40,7 @@ describe("ByteSocket uws: Rooms bulk operations", () => {
 	};
 
 	it("should handle bulk join and leave via client messages", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const socket = Array.from(io.sockets.values())[0];
@@ -80,7 +76,7 @@ describe("ByteSocket uws: Rooms bulk operations", () => {
 			next(new Error("Bulk join denied"));
 		});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const socket = Array.from(io.sockets.values())[0];
@@ -104,7 +100,7 @@ describe("ByteSocket uws: Rooms bulk operations", () => {
 			next(new Error("Bulk leave denied"));
 		});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const socket = Array.from(io.sockets.values())[0];
@@ -131,7 +127,7 @@ describe("ByteSocket uws: Rooms bulk operations", () => {
 		const guard = vi.fn((_s, _r, n) => n());
 		io.rooms.bulk.lifecycle.onceJoin(guard);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ type: LifecycleTypes.join_rooms, rooms: ["a", "b"] }));
@@ -146,7 +142,7 @@ describe("ByteSocket uws: Rooms bulk operations", () => {
 		const guard = vi.fn((_s, _r, n) => n());
 		io.rooms.bulk.lifecycle.onceLeave(guard);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ type: LifecycleTypes.join_rooms, rooms: ["a", "b"] }));
@@ -165,7 +161,7 @@ describe("ByteSocket uws: Rooms bulk operations", () => {
 		io.rooms.bulk.lifecycle.onJoin(guard);
 		io.rooms.bulk.lifecycle.offJoin(guard);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ type: LifecycleTypes.join_rooms, rooms: ["x", "y"] }));
@@ -178,7 +174,7 @@ describe("ByteSocket uws: Rooms bulk operations", () => {
 		io.rooms.bulk.lifecycle.onLeave(guard);
 		io.rooms.bulk.lifecycle.offLeave(guard);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ type: LifecycleTypes.join_rooms, rooms: ["x"] }));
@@ -192,7 +188,7 @@ describe("ByteSocket uws: Rooms bulk operations", () => {
 		io.rooms.on("a", "echo", middleware);
 		io.rooms.on("b", "echo", middleware);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 
@@ -212,7 +208,7 @@ describe("ByteSocket uws: Rooms bulk operations", () => {
 	});
 
 	it("should bulk emit to multiple rooms", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 
@@ -241,7 +237,7 @@ describe("ByteSocket uws: Rooms bulk operations", () => {
 		const errorSpy = vi.fn();
 		io.lifecycle.onError(errorSpy);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client1 = await createClient();
 		const client2 = await createClient();
@@ -279,7 +275,7 @@ describe("ByteSocket uws: Rooms bulk operations", () => {
 	});
 
 	it("should bulk emit from socket to multiple rooms", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const sender = await createClient();
 		const listener = await createClient();
@@ -336,7 +332,7 @@ describe("ByteSocket uws: Rooms bulk operations", () => {
 	});
 
 	it("should deliver multi-room messages to other clients (no middleware)", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const sender = await createClient();
 		const listener = await createClient();
@@ -388,7 +384,7 @@ describe("ByteSocket uws: Rooms bulk operations", () => {
 	});
 
 	it("should do nothing when rooms.bulk.emit is called after server is destroyed", () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		io.destroy();
 		expect(() => io.rooms.bulk.emit(["room1"], "echo", { message: "test" })).not.toThrow();

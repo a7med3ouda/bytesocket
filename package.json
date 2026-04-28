@@ -11,12 +11,12 @@
 		"lint": "eslint .",
 		"lint:fix": "eslint . --fix",
 		"prepare": "husky",
-		"test": "vitest --run",
+		"test": "vitest",
 		"test:client": "vitest packages/client",
 		"test:coverage": "vitest --coverage",
+		"test:node": "vitest packages/node",
 		"test:ui": "vitest --ui",
-		"test:uws": "vitest packages/uws",
-		"test:watch": "vitest"
+		"test:uws": "vitest packages/uws"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",

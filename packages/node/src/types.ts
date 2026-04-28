@@ -10,7 +10,9 @@ import type {
 	UserMessage,
 } from "@bytesocket/types";
 import type { UUID } from "node:crypto";
-import type { HttpRequest, HttpResponse, RecognizedString, TemplatedApp, us_socket_context_t, WebSocketBehavior } from "uWebSockets.js";
+import type { IncomingMessage, Server } from "node:http";
+import type Stream from "node:stream";
+import type { ServerOptions, WebSocket, WebSocketServer } from "ws";
 import type { Socket } from "./socket";
 
 /**
@@ -23,7 +25,6 @@ export type AuthCallback = (payload: any, error?: Error) => void;
 /**
  * Authentication function signature. Called when a client sends an auth message.
  *
- * @typeParam TEvents - The socket events definition.
  * @typeParam SD - The socket data type (must extend `SocketData`).
  * @typeParam D - The type of the authentication data sent by the client.
  *
@@ -45,7 +46,6 @@ export type AuthFunction<TEvents extends SocketEvents, SD extends SocketData, D 
 /**
  * Callback for global event listeners.
  *
- * @typeParam TEvents - The socket events definition.
  * @typeParam SD - The socket data type.
  * @typeParam D - The type of the event data.
  *
@@ -59,7 +59,6 @@ export type EventCallback<TEvents extends SocketEvents, SD extends SocketData, D
 /**
  * Middleware function for room-scoped events. Can inspect or block the broadcast.
  *
- * @typeParam TEvents - The socket events definition.
  * @typeParam SD - The socket data type.
  * @typeParam D - The type of the event data.
  *
@@ -76,8 +75,8 @@ export type EventCallback<TEvents extends SocketEvents, SD extends SocketData, D
  * io.rooms.on("chat", "message", async (socket, data, next) => {
  *   const isValid = await validateMessage(data);
  *   if (!isValid) {
- *     return next(new Error("Invalid"));
- *   }
+ * 		return next(new Error("Invalid"));
+ *	 }
  *   next();
  * });
  */
@@ -93,7 +92,6 @@ export type MiddlewareNext = (error?: unknown | null) => void;
 /**
  * Global middleware function. Runs before any user message is processed.
  *
- * @typeParam TEvents - The socket events definition.
  * @typeParam SD - The socket data type.
  *
  * @example
@@ -108,6 +106,13 @@ export type Middleware<TEvents extends SocketEvents = SocketEvents, SD extends S
 	next: MiddlewareNext,
 ) => void | Promise<void>;
 
+export interface HeartbeatConfig {
+	/** Idle timeout in seconds. 0 = disabled. Default 120. */
+	idleTimeout?: number;
+	/** Whether to send automatic pings. Default true. */
+	sendPingsAutomatically?: boolean;
+}
+
 /**
  * Data automatically attached to every socket by the server.
  * Contains HTTP request information available during the WebSocket upgrade.
@@ -115,9 +120,9 @@ export type Middleware<TEvents extends SocketEvents = SocketEvents, SD extends S
 export interface SocketData {
 	/** Unique identifier for the socket (UUID v4). */
 	socketKey: UUID;
-	/** The URL path from the upgrade request. */
+	/** The url string from the upgrade request. */
 	url: string;
-	/** The raw query string. */
+	/** The query string from the upgrade request. */
 	query: string;
 	/** The `Host` header value. */
 	host: string;
@@ -131,26 +136,26 @@ export interface SocketData {
 	xForwardedFor: string;
 }
 
-/**
- * Lifecycle event API available on the ByteSocket server instance.
- * Allows listening to connection, authentication, message, close, and error events.
- *
- * @typeParam TServer - The ByteSocket server type (returned for chaining).
- * @typeParam TEvents - The socket events definition.
- * @typeParam SD - The socket data type.
- */
+// Type for the `lifecycle` sub-object
 export type ServerLifecycleAPI<TServer, TEvents extends SocketEvents, SD extends SocketData> = {
 	/**
 	 * Register a listener for the HTTP upgrade phase.
 	 *
-	 * @param callback - Called with the response object, the HTTP request,
-	 *                   the prepared user data, and the uWS socket context.
+	 * @param callback - Called with the incoming request, the duplex stream,
+	 *                   the upgrade head buffer, the prepared user data, and
+	 *                   the underlying WebSocketServer instance.
 	 */
-	onUpgrade: (callback: (res: HttpResponse, req: HttpRequest, userData: SD, context: us_socket_context_t) => void) => TServer;
+	onUpgrade: (
+		callback: (req: IncomingMessage, socket: Stream.Duplex, head: Buffer<ArrayBuffer>, userData: SD, context: WebSocketServer) => void,
+	) => TServer;
 	/** Remove a listener for the HTTP upgrade phase. */
-	offUpgrade: (callback?: (res: HttpResponse, req: HttpRequest, userData: SD, context: us_socket_context_t) => void) => TServer;
+	offUpgrade: (
+		callback?: (req: IncomingMessage, socket: Stream.Duplex, head: Buffer<ArrayBuffer>, userData: SD, context: WebSocketServer) => void,
+	) => TServer;
 	/** Register a one-time listener for the HTTP upgrade phase. */
-	onceUpgrade: (callback: (res: HttpResponse, req: HttpRequest, userData: SD, context: us_socket_context_t) => void) => TServer;
+	onceUpgrade: (
+		callback: (req: IncomingMessage, socket: Stream.Duplex, head: Buffer<ArrayBuffer>, userData: SD, context: WebSocketServer) => void,
+	) => TServer;
 
 	/** Register a listener for socket open (after successful auth). */
 	onOpen: (callback: (socket: Socket<TEvents, SD>) => void) => TServer;
@@ -174,18 +179,18 @@ export type ServerLifecycleAPI<TServer, TEvents extends SocketEvents, SD extends
 	onceAuthError: (callback: (socket: Socket<TEvents, SD>, ctx: ErrorContext) => void) => TServer;
 
 	/** Register a listener for raw incoming messages. */
-	onMessage: (callback: (socket: Socket<TEvents, SD>, data: ArrayBuffer, isBinary: boolean) => void) => TServer;
+	onMessage: (callback: (socket: Socket<TEvents, SD>, data: WebSocket.RawData, isBinary: boolean) => void) => TServer;
 	/** Remove a listener for raw incoming messages. */
-	offMessage: (callback?: (socket: Socket<TEvents, SD>, data: ArrayBuffer, isBinary: boolean) => void) => TServer;
+	offMessage: (callback?: (socket: Socket<TEvents, SD>, data: WebSocket.RawData, isBinary: boolean) => void) => TServer;
 	/** Register a one-time listener for raw incoming messages. */
-	onceMessage: (callback: (socket: Socket<TEvents, SD>, data: ArrayBuffer, isBinary: boolean) => void) => TServer;
+	onceMessage: (callback: (socket: Socket<TEvents, SD>, data: WebSocket.RawData, isBinary: boolean) => void) => TServer;
 
 	/** Register a listener for socket close. */
-	onClose: (callback: (socket: Socket<TEvents, SD>, code: number, reason: ArrayBuffer) => void) => TServer;
+	onClose: (callback: (socket: Socket<TEvents, SD>, code: number, reason: Buffer<ArrayBufferLike>) => void) => TServer;
 	/** Remove a listener for socket close. */
-	offClose: (callback?: (socket: Socket<TEvents, SD>, code: number, reason: ArrayBuffer) => void) => TServer;
+	offClose: (callback?: (socket: Socket<TEvents, SD>, code: number, reason: Buffer<ArrayBufferLike>) => void) => TServer;
 	/** Register a one-time listener for socket close. */
-	onceClose: (callback: (socket: Socket<TEvents, SD>, code: number, reason: ArrayBuffer) => void) => TServer;
+	onceClose: (callback: (socket: Socket<TEvents, SD>, code: number, reason: Buffer<ArrayBufferLike>) => void) => TServer;
 
 	/** Register a listener for errors. */
 	onError: (callback: (socket: Socket<TEvents, SD> | null, ctx: ErrorContext) => void) => TServer;
@@ -195,20 +200,14 @@ export type ServerLifecycleAPI<TServer, TEvents extends SocketEvents, SD extends
 	onceError: (callback: (socket: Socket<TEvents, SD> | null, ctx: ErrorContext) => void) => TServer;
 };
 
-/**
- * Room management API available on the ByteSocket server instance.
- * Provides methods to emit to rooms, publish raw data, and attach room-level middleware.
- *
- * @typeParam TServer - The ByteSocket server type (returned for chaining).
- * @typeParam TEvents - The socket events definition.
- * @typeParam SD - The socket data type.
- */
+// Type for the `rooms` sub-object
 export type ServerRoomsAPI<TServer, TEvents extends SocketEvents, SD extends SocketData> = {
 	/**
 	 * Publishes a raw message to all sockets subscribed to the given room.
 	 *
-	 * This method sends data directly to uWebSockets.js's publish system **without** applying
-	 * any encoding, serialization, or lifecycle processing. It is useful for broadcasting
+	 * This method broadcasts the data directly to all connected sockets in the room
+	 * using the underlying `ws` server, **without** applying any encoding,
+	 * serialization, or lifecycle processing. It is useful for broadcasting
 	 * custom-formatted messages, pre-encoded payloads, or implementing custom protocols.
 	 *
 	 * If the server instance has been destroyed, this method does nothing.
@@ -237,7 +236,7 @@ export type ServerRoomsAPI<TServer, TEvents extends SocketEvents, SD extends Soc
 	 * const buffer = new Uint8Array([1, 2, 3]);
 	 * io.rooms.publishRaw("updates", buffer, true, true);
 	 */
-	publishRaw: (room: string, message: RecognizedString, isBinary?: boolean, compress?: boolean) => TServer;
+	publishRaw: (room: string, message: WebSocket.Data, isBinary?: boolean, compress?: boolean) => TServer;
 	/**
 	 * Emit a typed event to a specific room (server-side publish).
 	 *
@@ -355,13 +354,6 @@ export type ServerRoomsAPI<TServer, TEvents extends SocketEvents, SD extends Soc
 	};
 };
 
-/**
- * Room API available on individual socket instances (client-side or server-side socket).
- * Provides methods to join/leave rooms and emit to rooms.
- *
- * @typeParam TInstance - The return type of the methods (usually the socket itself for chaining).
- * @typeParam TEvents - The socket events definition.
- */
 export type SocketRoomsAPI<TInstance, TEvents extends SocketEvents> = {
 	/**
 	 * Publishes a raw message to a specific room without applying any serialization or encoding.
@@ -389,18 +381,12 @@ export type SocketRoomsAPI<TInstance, TEvents extends SocketEvents> = {
 	 * const packedData = msgpack.encode({ event: "move", x: 10, y: 20 });
 	 * socket.rooms.publishRaw("game", packedData, true);
 	 */
-	publishRaw: (room: string, message: RecognizedString, isBinary?: boolean, compress?: boolean) => TInstance;
+	publishRaw: (room: string, message: WebSocket.Data, isBinary?: boolean, compress?: boolean) => TInstance;
 	/**
-	 * Emit a typed event to a specific room (server-side publish).
-	 *
+	 * Emit a typed event to a specific room.
 	 * @typeParam R - Room name (must be a key in `TEvents['emitRoom']`).
 	 * @typeParam E - Event name.
 	 * @typeParam D - Event data type.
-	 * @param room  - The target room.
-	 * @param event - The event name.
-	 * @param data  - The event payload.
-	 * @returns This server instance (for chaining).
-	 *
 	 * @example socket.rooms.emit("chat", "message", { text: "Hi" });
 	 */
 	emit: <
@@ -465,7 +451,6 @@ export type SocketRoomsAPI<TInstance, TEvents extends SocketEvents> = {
 /**
  * Configuration options for the ByteSocket server.
  *
- * @typeParam TEvents - The socket events definition.
  * @typeParam SD - The socket data type (must extend `SocketData`).
  *
  * @example
@@ -481,8 +466,8 @@ export type SocketRoomsAPI<TInstance, TEvents extends SocketEvents> = {
  * });
  */
 export interface ByteSocketOptions<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData> extends Omit<
-	WebSocketBehavior<SD>,
-	"upgrade" | "open" | "message" | "close"
+	ServerOptions,
+	"noServer" | "port" | "server" | "host" | "backlog" | "path"
 > {
 	/** Enable debug logging to console. @default false */
 	debug?: boolean;
@@ -506,6 +491,19 @@ export interface ByteSocketOptions<TEvents extends SocketEvents = SocketEvents, 
 	onMiddlewareTimeout?: "ignore" | "close" | ((error: unknown, socket: Socket<TEvents, SD>) => void);
 	/** Authentication configuration. */
 	auth?: AuthFunction<TEvents, SD>;
+	/**
+	 * Maximum seconds of inactivity (no messages received or pongs) before the connection is closed.
+	 * Only effective when `sendPingsAutomatically` is `true`.
+	 * Set to `0` to disable.
+	 * @default 120
+	 */
+	idleTimeout?: number;
+	/**
+	 * Whether the server should automatically send WebSocket ping frames to keep
+	 * the connection alive and detect dead clients.
+	 * @default true
+	 */
+	sendPingsAutomatically?: boolean;
 }
 
 /**
@@ -564,8 +562,27 @@ export interface IByteSocket<TEvents extends SocketEvents = SocketEvents, SD ext
 	 */
 	readonly destroyed: boolean;
 	/**
-	 * Permanently destroy the server instance, closing all connections and
-	 * cleaning up resources. The instance cannot be reused.
+	 * Permanently destroys the ByteSocket instance.
+	 *
+	 * - Closes all active WebSocket connections.
+	 * - Closes the underlying WebSocketServer.
+	 * - **Removes the `upgrade` listener** from the attached HTTP server, freeing
+	 *   the server to be used with a new ByteSocket instance later.
+	 * - Clears all event listeners, middleware, and internal state.
+	 *
+	 * After calling `destroy()`, the instance **cannot be reused**.
+	 *
+	 * @example
+	 * ```ts
+	 * const io = new ByteSocket();
+	 * io.attach(server, "/ws");
+	 * // ... later, during graceful shutdown:
+	 * io.destroy();
+	 *
+	 * // The HTTP server is now free and can be reused:
+	 * const io2 = new ByteSocket();
+	 * io2.attach(server, "/ws");  // works without conflict
+	 * ```
 	 */
 	destroy(): void;
 	/**
@@ -620,17 +637,34 @@ export interface IByteSocket<TEvents extends SocketEvents = SocketEvents, SD ext
 	 */
 	use(fn: Middleware<TEvents, SD>): this;
 	/**
-	 * Attaches ByteSocket to a uWebSockets.js app.
+	 * Attaches the ByteSocket instance to a Node.js HTTP server on the given path.
 	 *
-	 * @param app  - The uWebSockets.js TemplatedApp instance.
-	 * @param path - The WebSocket path (e.g. `"/ws"`).
+	 * You can call `attach` multiple times on the same server with different paths --
+	 * they will all share a single WebSocket server and a single `upgrade` listener.
+	 *
+	 * **Note:** On the first call, the method registers an `upgrade` listener on the
+	 * HTTP server. That listener is automatically removed when you call
+	 * {@link destroy}, so you can later attach a new ByteSocket instance to the same
+	 * server.
+	 *
+	 * @param server - The Node.js HTTP(S) server (e.g. from `http.createServer()`).
+	 * @param path   - The URL path to handle WebSocket upgrades on (e.g. `"/ws"`).
 	 * @returns This instance (for chaining).
 	 *
 	 * @example
-	 * io.attach(app, "/socket");
-	 * app.listen(3000);
+	 * ```ts
+	 * const server = http.createServer(app);
+	 * const io = new ByteSocket();
+	 *
+	 * // Single path
+	 * io.attach(server, "/ws");
+	 *
+	 * // Multiple paths on the same server
+	 * io.attach(server, "/chat");
+	 * io.attach(server, "/notifications");
+	 * ```
 	 */
-	attach(app: TemplatedApp, path: string): this;
+	attach(server: Server, path: string): this;
 	/**
 	 * Encode a structured payload into a format suitable for sending over the WebSocket.
 	 *
@@ -658,7 +692,7 @@ export interface IByteSocket<TEvents extends SocketEvents = SocketEvents, SD ext
 	 * @param isBinary - Whether the message is binary. If omitted, format is detected from the message type.
 	 * @returns Decoded lifecycle or user message object.
 	 */
-	decode<M extends string | ArrayBuffer = string | ArrayBuffer, D = unknown>(message: M, isBinary?: boolean): D;
+	decode<M extends WebSocket.RawData = WebSocket.RawData, D = unknown>(message: M, isBinary?: boolean): D;
 }
 
 /**
@@ -734,6 +768,7 @@ export interface ISocket<TEvents extends SocketEvents = SocketEvents, SD extends
 	 * @example
 	 * // If the client connected to `wss://example.com/socket?room=lobby`,
 	 * // this will be `"/socket"`.
+	 * console.log(socket.url);
 	 */
 	readonly url: string;
 	/**
@@ -819,7 +854,7 @@ export interface ISocket<TEvents extends SocketEvents = SocketEvents, SD extends
 	 * @example
 	 * socket.sendRaw(JSON.stringify({ custom: "data" }));
 	 */
-	sendRaw(message: RecognizedString, isBinary?: boolean, compress?: boolean): this;
+	sendRaw(message: WebSocket.Data, isBinary?: boolean, compress?: boolean): this;
 	/**
 	 * Send any lifecycle or user message to this socket.
 	 * Automatically encodes according to the configured serialization.

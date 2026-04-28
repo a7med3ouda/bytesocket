@@ -1,7 +1,7 @@
-// packages/uws/tests/lifecycle.test.ts
-import uWS from "uWebSockets.js";
+// packages/node/tests/lifecycle.test.ts
+import { createServer, Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import WebSocket from "ws";
+import WebSocket, { type AddressInfo } from "ws";
 import { ByteSocket, type SocketEvents } from "../src";
 
 type TestEvents = SocketEvents<{
@@ -9,20 +9,18 @@ type TestEvents = SocketEvents<{
 	broadcast: { text: string };
 }>;
 
-describe("ByteSocket uws: Lifecycle", () => {
-	let app: uWS.TemplatedApp;
+describe("ByteSocket node: Lifecycle", () => {
+	let server: Server;
 	let io: ByteSocket<TestEvents>;
-	let listenSocket: false | uWS.us_listen_socket;
 	let port: number;
 
 	beforeEach(async () => {
-		app = uWS.App();
+		server = createServer();
 		io = new ByteSocket<TestEvents>({ serialization: "json" });
 
 		await new Promise<void>((resolve) => {
-			app.listen(0, (token) => {
-				port = uWS.us_socket_local_port(token);
-				listenSocket = token;
+			server.listen(0, () => {
+				port = (server.address() as AddressInfo).port;
 				resolve();
 			});
 		});
@@ -30,9 +28,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 
 	afterEach(() => {
 		io.destroy();
-		if (listenSocket) {
-			uWS.us_listen_socket_close(listenSocket);
-		}
+		server.close();
 	});
 
 	const createClient = (): Promise<WebSocket> => {
@@ -47,7 +43,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 		const openHandler = vi.fn();
 		io.lifecycle.onOpen(openHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		await vi.waitFor(() => expect(openHandler).toHaveBeenCalledTimes(1));
@@ -61,7 +57,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 		const closeHandler = vi.fn();
 		io.lifecycle.onClose(closeHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		await vi.waitFor(() => expect(io.sockets.size).toBe(1));
@@ -75,7 +71,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 	});
 
 	it("should clean up all sockets on destroy", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		await createClient();
 		await createClient();
@@ -91,7 +87,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 		const rawHandler = vi.fn();
 		io.lifecycle.onMessage(rawHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send("raw message");
@@ -113,7 +109,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 			next(new Error("Middleware error"));
 		});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send(JSON.stringify({ event: "echo", data: { message: "test" } }));
@@ -130,7 +126,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 		io.lifecycle.onClose(closeHandler);
 		io.lifecycle.offClose(closeHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		await vi.waitFor(() => expect(io.sockets.size).toBe(1));
@@ -144,7 +140,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 		const openHandler = vi.fn();
 		io.lifecycle.onceOpen(openHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client1 = await createClient();
 		await vi.waitFor(() => expect(io.sockets.size).toBe(1));
@@ -163,7 +159,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 		io.lifecycle.onOpen(openHandler);
 		io.lifecycle.offOpen(openHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		await vi.waitFor(() => expect(io.sockets.size).toBe(1));
@@ -172,7 +168,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 	});
 
 	it("should expose connection metadata on socket", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const socket = Array.from(io.sockets.values())[0];
@@ -188,7 +184,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 	});
 
 	it("should not throw when using socket after close", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const socket = Array.from(io.sockets.values())[0];
@@ -202,7 +198,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 	});
 
 	it("should not throw when closing a socket already removed from the map", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		const socket = Array.from(io.sockets.values())[0];
@@ -214,7 +210,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 	});
 
 	it("should call destroy idempotently without errors", async () => {
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		expect(() => {
 			io.destroy();
@@ -231,7 +227,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 			throw new Error("open crash");
 		});
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 
@@ -243,7 +239,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 		const upgradeHandler = vi.fn((_res, _req, _data, _ctx) => {});
 		io.lifecycle.onceUpgrade(upgradeHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client1 = await createClient();
 		const client2 = await createClient();
@@ -257,7 +253,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 		const msgHandler = vi.fn();
 		io.lifecycle.onceMessage(msgHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client1 = await createClient();
 		client1.send("raw");
@@ -274,7 +270,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 		const closeHandler = vi.fn();
 		io.lifecycle.onceClose(closeHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client1 = await createClient();
 		client1.close();
@@ -289,7 +285,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 		const errHandler = vi.fn();
 		io.lifecycle.onceError(errHandler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client1 = await createClient();
 		client1.send("not json");
@@ -305,7 +301,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 		io.lifecycle.onceClose(handler);
 		io.lifecycle.offClose(handler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.close();
@@ -320,7 +316,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 		io.lifecycle.onError(handler2);
 		io.lifecycle.offError();
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = await createClient();
 		client.send("not json");
@@ -335,7 +331,7 @@ describe("ByteSocket uws: Lifecycle", () => {
 		io.lifecycle.onUpgrade(handler);
 		io.lifecycle.offUpgrade(handler);
 
-		io.attach(app, "/ws");
+		io.attach(server, "/ws");
 
 		const client = new WebSocket(`ws://localhost:${port}/ws`);
 		return new Promise<void>((resolve) => {
