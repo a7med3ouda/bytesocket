@@ -1,163 +1,65 @@
-import type { MsgpackrOptions, SocketEvents, UserMessage } from "@bytesocket/types";
-import type { UUID } from "node:crypto";
+import type { ByteSocketOptionsBase, SocketData } from "@bytesocket/core";
+import type { SocketEvents } from "@bytesocket/types";
 import type { WebSocketBehavior } from "uWebSockets.js";
-import type { Socket } from "./socket";
 
 /**
- * Callback used by the authentication function to return the authentication result.
- * @param payload - The authenticated user data to attach to the socket.
- * @param error - Optional error if authentication failed.
- */
-export type AuthCallback = (payload: any, error?: Error) => void;
-
-/**
- * Authentication function signature. Called when a client sends an auth message.
+ * Transport‑specific options that are forwarded directly to the underlying
+ * uWebSockets.js `WebSocketBehavior` when registering a WebSocket route.
  *
- * @typeParam SD - The socket data type (must extend `SocketData`).
- * @typeParam D - The type of the authentication data sent by the client.
+ * The following fields are **reserved and managed by ByteSocket**; they are
+ * therefore omitted from this type:
+ * - `upgrade`, `open`, `message`, `close` – lifecycle handlers
+ * - `idleTimeout`, `sendPingsAutomatically` – managed via ByteSocket’s own heartbeat config
+ *
+ * All other `WebSocketBehavior` properties (e.g., `maxPayloadLength`,
+ * `compression`, `maxBackpressure`, `closeOnBackpressureLimit`, …) can be
+ * passed through the {@link ByteSocketOptions.serverOptions} field.
+ *
+ * @typeParam SD - The socket user‑data type (must extend `SocketData`).
  *
  * @example
- * const auth: AuthFunction = (socket, data, callback) => {
- *   if (data.token === "secret") {
- *     callback({ userId: 1 });
- *   } else {
- *     callback(null, new Error("Invalid token"));
- *   }
- * };
- */
-export type AuthFunction<TEvents extends SocketEvents, SD extends SocketData, D = any> = (
-	socket: Socket<TEvents, SD>,
-	data: D,
-	callback: AuthCallback,
-) => void;
-
-/**
- * Callback for global event listeners.
+ * ```ts
+ * import { ByteSocket } from '@bytesocket/uws';
  *
- * @typeParam SD - The socket data type.
- * @typeParam D - The type of the event data.
- *
- * @example
- * socket.on("userJoined", (socket, data) => {
- *   console.log(`User ${data.userId} joined`);
+ * const io = new ByteSocket({
+ *   serverOptions: {
+ *     compression: uWS.SHARED_COMPRESSOR,
+ *     maxPayloadLength: 64 * 1024,
+ *     maxBackpressure: 128 * 1024,
+ *   },
  * });
+ * ```
  */
-export type EventCallback<TEvents extends SocketEvents, SD extends SocketData, D> = (socket: Socket<TEvents, SD>, data: D) => void;
-
-/**
- * Middleware function for room-scoped events. Can inspect or block the broadcast.
- *
- * @typeParam SD - The socket data type.
- * @typeParam D - The type of the event data.
- *
- * @example
- * io.rooms.on("chat", "message", (socket, data, next) => {
- *   if (data.text.includes("badword")) {
- *     next(new Error("Profanity not allowed"));
- *   } else {
- *     next();
- *   }
- * });
- *
- * // Also supports async functions / Promises
- * io.rooms.on("chat", "message", async (socket, data, next) => {
- *   const isValid = await validateMessage(data);
- *   if (!isValid) {
- * 		return next(new Error("Invalid"));
- *	 }
- *   next();
- * });
- */
-export type RoomEventMiddleware<TEvents extends SocketEvents, SD extends SocketData, D> = (
-	socket: Socket<TEvents, SD>,
-	data: D,
-	next: MiddlewareNext,
-) => void | Promise<void>;
-
-/** Next function for middleware chains. Call `next()` to proceed, or `next(error)` to abort. */
-export type MiddlewareNext = (error?: unknown | null) => void;
-
-/**
- * Global middleware function. Runs before any user message is processed.
- *
- * @typeParam SD - The socket data type.
- *
- * @example
- * io.use((socket, ctx, next) => {
- *   console.log("Received:", ctx);
- *   next();
- * });
- */
-export type Middleware<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData> = (
-	socket: Socket<TEvents, SD>,
-	ctx: UserMessage,
-	next: MiddlewareNext,
-) => void | Promise<void>;
-
-/**
- * Data automatically attached to every socket by the server.
- * Contains HTTP request information available during the WebSocket upgrade.
- */
-export interface SocketData {
-	/** Unique identifier for the socket (UUID v4). */
-	socketKey: UUID;
-	/** The url string from the upgrade request. */
-	url: string;
-	/** The query string from the upgrade request. */
-	query: string;
-	/** The `Host` header value. */
-	host: string;
-	/** The `Cookie` header value. */
-	cookie: string;
-	/** The `User-Agent` header value. */
-	userAgent: string;
-	/** The `Authorization` header value. */
-	authorization: string;
-	/** The `X-Forwarded-For` header value. */
-	xForwardedFor: string;
-}
-
-/**
- * Configuration options for the ByteSocket server.
- *
- * @typeParam SD - The socket data type (must extend `SocketData`).
- *
- * @example
- * const io = new ByteSocket(app, {
- *   debug: true,
- *   authTimeout: 10000,
- *   origins: ["https://example.com"],
- *   serialization: "binary",
- *   auth: (socket, data, callback) => {
- *     // validate token
- *     callback({ userId: 1 });
- *   }
- * });
- */
-export interface ByteSocketOptions<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData> extends Omit<
+export type WebSocketServerOptions<SD extends SocketData = SocketData> = Omit<
 	WebSocketBehavior<SD>,
-	"upgrade" | "open" | "message" | "close"
+	"upgrade" | "open" | "message" | "close" | "idleTimeout" | "sendPingsAutomatically"
+>;
+
+/**
+ * Configuration options for the ByteSocket server (uWebSockets.js adaptor).
+ *
+ * Extends the base {@link ByteSocketOptionsBase} with a transport‑specific
+ * `serverOptions` property that exposes settings from uWebSockets.js’s
+ * `WebSocketBehavior`, excluding the hooks already managed by ByteSocket.
+ *
+ * @example
+ * ```ts
+ * const io = new ByteSocket({
+ *   serverOptions: {
+ *     compression: uWS.SHARED_COMPRESSOR,
+ *     maxLifetime: 180,
+ *   },
+ *   authTimeout: 5000,
+ * });
+ * ```
+ */
+export interface ByteSocketOptions<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData> extends ByteSocketOptionsBase<
+	TEvents,
+	SD
 > {
-	/** Enable debug logging to console. @default false */
-	debug?: boolean;
-	/** Timeout in milliseconds for global middleware execution. @default 5000 */
-	middlewareTimeout?: number;
-	/** Timeout in milliseconds for room event middleware execution. @default 5000 */
-	roomMiddlewareTimeout?: number;
-	/** Timeout for authentication response in milliseconds. @default 5000 */
-	authTimeout?: number;
-	/** List of allowed origins for CORS. If empty, all origins are allowed. */
-	origins?: string[];
-	/** Serialization format: `"json"` or `"binary"` (msgpack). @default "binary" */
-	serialization?: "json" | "binary";
-	/** Room name used for global broadcasts. @default "__bytesocket_broadcast__" */
-	broadcastRoom?: string;
-	/** Options passed directly to the underlying msgpackr Packr instance. */
-	msgpackrOptions?: MsgpackrOptions;
-	/** Action to take when a global middleware error occurs. @default "ignore" */
-	onMiddlewareError?: "ignore" | "close" | ((error: unknown, socket: Socket<TEvents, SD>) => void);
-	/** Action to take when a global middleware times out. @default "ignore" */
-	onMiddlewareTimeout?: "ignore" | "close" | ((error: unknown, socket: Socket<TEvents, SD>) => void);
-	/** Authentication configuration. */
-	auth?: AuthFunction<TEvents, SD>;
+	/**
+	 * Transport‑specific options forwarded to uWS.
+	 * @see {@link WebSocketServerOptions}
+	 */
+	serverOptions?: WebSocketServerOptions<SD>;
 }

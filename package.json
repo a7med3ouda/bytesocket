@@ -11,12 +11,12 @@
 		"lint": "eslint .",
 		"lint:fix": "eslint . --fix",
 		"prepare": "husky",
-		"test": "vitest --run",
+		"test": "vitest",
 		"test:client": "vitest packages/client",
 		"test:coverage": "vitest --coverage",
+		"test:node": "vitest packages/node",
 		"test:ui": "vitest --ui",
-		"test:uws": "vitest packages/uws",
-		"test:watch": "vitest"
+		"test:uws": "vitest packages/uws"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
@@ -32,7 +32,7 @@
 		"prettier": "^3.8.3",
 		"tsup": "^8.5.1",
 		"typescript": "^6.0.3",
-		"typescript-eslint": "^8.59.0",
+		"typescript-eslint": "^8.59.1",
 		"vitest": "^4.1.5",
 		"ws": "catalog:"
 	}

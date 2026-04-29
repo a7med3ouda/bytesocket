@@ -57,7 +57,7 @@ import uWS from "uWebSockets.js";
 import { ByteSocket } from "@bytesocket/uws";
 
 const app = uWS.App();
-const io = new ByteSocket(app);
+const io = new ByteSocket();
 
 io.lifecycle.onOpen((socket) => {
 	console.log(`Socket ${socket.id} connected`);
@@ -72,7 +72,7 @@ io.on("hello", (socket, data) => {
 	socket.emit("welcome", { message: `Hello, ${data.name}!` });
 });
 
-app.ws("/socket", io.handler);
+io.attach(app, "/socket");
 
 app.listen(3000, (token) => {
 	if (token) console.log("Listening on port 3000");
@@ -87,7 +87,7 @@ app.listen(3000, (token) => {
 import express from "ultimate-express";
 
 const app = express();
-const io = new ByteSocket(app.uwsApp);
+const io = new ByteSocket();
 
 io.lifecycle.onOpen((socket) => {
 	console.log(`Socket ${socket.id} connected`);
@@ -102,7 +102,7 @@ io.on("hello", (socket, data) => {
 	socket.emit("welcome", { message: `Hello, ${data.name}!` });
 });
 
-app.uwsApp.ws("/api/ws", io.handler);
+io.attach(app.uwsApp, "/socket");
 
 app.listen(3000, (token) => {
 	if (token) console.log("Listening on port 3000");
@@ -127,7 +127,7 @@ type MyEvents = SocketEvents<{
 	"user:joined": { userId: string };
 }>;
 
-const io = new ByteSocket<MyEvents>(app);
+const io = new ByteSocket<MyEvents>();
 
 // Emit and listen share the same typed events
 io.emit("chat:message", { text: "Server announcement" });
@@ -167,7 +167,7 @@ interface MyEvents extends SocketEvents {
 	};
 }
 
-const io = new ByteSocket<MyEvents>(app);
+const io = new ByteSocket<MyEvents>();
 
 // Global emits/listens
 io.emit("server:broadcast", { text: "Hello all", from: "system" });
@@ -198,7 +198,7 @@ interface MySocketData extends SocketData {
 	userId: number;
 }
 
-const io = new ByteSocket<MyEvents, MySocketData>(app, {
+const io = new ByteSocket<MyEvents, MySocketData>({
 	auth: (socket, data, callback) => {
 		// data is whatever the client sent in its auth payload
 		if (data.token === "valid-token") {
@@ -328,7 +328,7 @@ io.use((socket, ctx, next) => {
 ### Middleware error handling
 
 ```typescript
-const io = new ByteSocket(app, {
+const io = new ByteSocket({
 	middlewareTimeout: 5000, // ms before timeout error
 	onMiddlewareError: "close", // "ignore" | "close" | (error, socket) => void
 	onMiddlewareTimeout: "ignore",
@@ -449,7 +449,7 @@ interface AppSocketData extends SocketData {
 	tenantId: string;
 }
 
-const io = new ByteSocket<MyEvents, AppSocketData>(app, {
+const io = new ByteSocket<MyEvents, AppSocketData>({
 	auth: (socket, data, callback) => {
 		const tenant = lookupTenant(data.token);
 		if (!tenant) return callback(null, new Error("Unauthorized"));
@@ -465,7 +465,7 @@ const io = new ByteSocket<MyEvents, AppSocketData>(app, {
 ## Origin Validation
 
 ```typescript
-const io = new ByteSocket(app, {
+const io = new ByteSocket({
 	origins: ["https://example.com", "https://app.example.com"],
 	// Empty array (default) = allow all origins
 });
@@ -477,13 +477,13 @@ const io = new ByteSocket(app, {
 
 ```typescript
 // Binary (default) -- msgpackr, smallest payloads
-const io = new ByteSocket(app, { serialization: "binary" });
+const io = new ByteSocket({ serialization: "binary" });
 
 // JSON -- plain text, easier to inspect/debug
-const io = new ByteSocket(app, { serialization: "json" });
+const io = new ByteSocket({ serialization: "json" });
 
 // Advanced msgpackr options
-const io = new ByteSocket(app, {
+const io = new ByteSocket({
 	serialization: "binary",
 	msgpackrOptions: {
 		useFloat32: true,
@@ -553,7 +553,7 @@ io.destroy();
 ## Full Configuration Reference
 
 ```typescript
-const io = new ByteSocket(app, {
+const io = new ByteSocket({
 	// Authentication
 	auth: (socket, data, callback) => {
 		callback({ userId: 1 });
@@ -580,13 +580,35 @@ const io = new ByteSocket(app, {
 	debug: false,
 
 	// uWebSockets.js pass-through options
-	maxPayloadLength: 16 * 1024 * 1024,
-	idleTimeout: 120,
-	compression: 0,
+	idleTimeout: 120, // seconds, 0 = disabled
+	sendPingsAutomatically: true,
+	serverOptions: {
+		maxPayloadLength: 16 * 1024 * 1024,
+		compression: uWS.SHARED_COMPRESSOR,
+		maxLifetime: 120,
+		// any other uWS WebSocketBehavior option except
+		// upgrade, open, message, close, idleTimeout, sendPingsAutomatically
+	},
 });
 ```
 
-Any option not consumed by ByteSocket is passed directly to uWebSockets.js as part of the `WebSocketBehavior` configuration.
+### Transport‑specific options (`serverOptions`)
+
+All native uWebSockets.js settings (except `idleTimeout` and `sendPingsAutomatically`,
+which are managed by ByteSocket) must be placed inside the `serverOptions` object:
+
+```ts
+const io = new ByteSocket({
+	serverOptions: {
+		maxPayloadLength: 64 * 1024,
+		compression: uWS.SHARED_COMPRESSOR,
+		closeOnBackpressureLimit: true,
+	},
+});
+```
+
+Transport‑specific uWebSockets.js options are provided via the serverOptions property. idleTimeout and sendPingsAutomatically are passed to uWebSockets.js as well.
+See {@link WebSocketServerOptions} for the full list of available settings.
 
 ---
 

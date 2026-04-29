@@ -35,10 +35,10 @@ yarn add @bytesocket/client
 
 ## Backend Packages
 
-| Package                                                            | Backend                                                         | Status         |
-| ------------------------------------------------------------------ | --------------------------------------------------------------- | -------------- |
-| [`@bytesocket/uws`](https://www.npmjs.com/package/@bytesocket/uws) | [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js) | ✅ Available   |
-| `@bytesocket/node`                                                 | node:http server using [ws](https://www.npmjs.com/package/ws)   | 🚧 Coming soon |
+| Package                                                              | Backend                                                         | Status       |
+| -------------------------------------------------------------------- | --------------------------------------------------------------- | ------------ |
+| [`@bytesocket/uws`](https://www.npmjs.com/package/@bytesocket/uws)   | [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js) | ✅ Available |
+| [`@bytesocket/node`](https://www.npmjs.com/package/@bytesocket/node) | node:http server using [ws](https://www.npmjs.com/package/ws)   | ✅ Available |
 
 ---
 
@@ -139,7 +139,7 @@ All methods (`emit`, `on`, `off`, `once`, `rooms.emit`, `rooms.on`, etc.) are fu
 
 ```typescript
 const socket = new ByteSocket("wss://example.com/socket", {
-	auth: { token: "my-secret-token" },
+	auth: { data: { token: "my-secret-token" } },
 });
 
 socket.lifecycle.onAuthSuccess(() => console.log("Authenticated"));
@@ -444,12 +444,12 @@ const socket = new ByteSocket("wss://example.com/socket", {
 });
 
 // Set auth before the first connect
-socket.setAuth({ token: getToken() });
+socket.setAuth({ data: { token: getToken() } });
 socket.connect();
 
 // Update auth before a manual reconnect (must be called while socket is closed)
 socket.close();
-socket.setAuth({ token: await refreshToken() });
+socket.setAuth({ data: { token: await refreshToken() } });
 socket.connect();
 ```
 
@@ -487,7 +487,7 @@ const socket = new ByteSocket("wss://example.com/socket", {
 	protocols: "v1",
 
 	// Auth
-	auth: { token: "abc" }, // or async (callback) => callback(data)
+	auth: { data: { token: "abc" } }, // or async (callback) => callback(data)
 	authTimeout: 5000,
 
 	// Heartbeat

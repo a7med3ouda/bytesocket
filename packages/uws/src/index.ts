@@ -4,8 +4,12 @@
  * @packageDocumentation
  */
 
+import { ByteSocket } from "./byte-socket";
+
+export * from "@bytesocket/core";
 export * from "@bytesocket/types";
-export { FLOAT32_OPTIONS } from "msgpackr";
 export * from "./byte-socket";
 export * from "./socket";
 export * from "./types";
+
+export default ByteSocket;

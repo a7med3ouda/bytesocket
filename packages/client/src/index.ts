@@ -7,6 +7,4 @@
 export * from "@bytesocket/types";
 export { FLOAT32_OPTIONS } from "msgpackr";
 export * from "./byte-socket";
-export * from "./room-manager";
-export * from "./socket-base";
-export * from "./types";
+export type { AuthConfig, ByteSocketOptions, EventCallback, IByteSocket, IRoomManager, LifecycleApi, RoomBulkApi, RoomLifecycleApi } from "./types";

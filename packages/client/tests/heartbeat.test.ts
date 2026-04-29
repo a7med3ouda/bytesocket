@@ -1,7 +1,7 @@
 // packages/client/tests/heartbeat.test.ts
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WebSocket, WebSocketServer } from "ws";
-import { ByteSocket, LifecycleTypes, type SocketEvents } from "../src";
+import { ByteSocket, type SocketEvents } from "../src";
 
 type TestEvents = SocketEvents<{
 	echo: { message: string };
@@ -22,15 +22,14 @@ describe("ByteSocket Client: Heartbeat", () => {
 		vi.useRealTimers();
 	});
 
-	it("should send ping and respond to pong", async () => {
+	it("should send empty binary ping and respond to server pong", async () => {
 		const pingHandler = vi.fn();
 
 		wss.on("connection", (ws) => {
-			ws.on("message", (data) => {
-				const parsed = JSON.parse(data.toString());
-				if (parsed.type === LifecycleTypes.ping) {
+			ws.on("message", (data, isBinary) => {
+				if (isBinary && Buffer.isBuffer(data) && data.length === 0) {
 					pingHandler();
-					ws.send(JSON.stringify({ type: LifecycleTypes.pong }));
+					ws.send(Buffer.alloc(0), { binary: true });
 				}
 			});
 		});
@@ -46,9 +45,8 @@ describe("ByteSocket Client: Heartbeat", () => {
 		const closeHandler = vi.fn();
 		socket.lifecycle.onClose(closeHandler);
 
-		await new Promise((resolve) => setTimeout(resolve, 70));
+		await vi.waitFor(() => expect(pingHandler).toHaveBeenCalledTimes(2), { timeout: 200 });
 
-		expect(pingHandler).toHaveBeenCalledTimes(2);
 		expect(socket.readyState).toBe(WebSocket.OPEN);
 		expect(closeHandler).not.toHaveBeenCalled();
 
@@ -56,11 +54,11 @@ describe("ByteSocket Client: Heartbeat", () => {
 	});
 
 	it("should not send pings when heartbeat is disabled", async () => {
+		vi.useFakeTimers();
 		const pingHandler = vi.fn();
 		wss.on("connection", (ws) => {
-			ws.on("message", (data) => {
-				const parsed = JSON.parse(data.toString());
-				if (parsed.type === LifecycleTypes.ping) {
+			ws.on("message", (data, isBinary) => {
+				if (isBinary && Buffer.isBuffer(data) && data.length === 0) {
 					pingHandler();
 				}
 			});
@@ -73,9 +71,11 @@ describe("ByteSocket Client: Heartbeat", () => {
 		});
 		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.OPEN));
 
-		await new Promise((r) => setTimeout(r, 100));
+		vi.advanceTimersByTime(200);
+
 		expect(pingHandler).not.toHaveBeenCalled();
 		socket.destroy();
+		vi.useRealTimers();
 	});
 
 	it("should warn when pingTimeout >= pingInterval", () => {

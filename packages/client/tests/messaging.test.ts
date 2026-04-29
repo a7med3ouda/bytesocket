@@ -79,9 +79,8 @@ describe("ByteSocket Client: Messaging", () => {
 		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.OPEN));
 
 		socket.sendRaw("RAW_MESSAGE_1");
-		await new Promise((resolve) => setTimeout(resolve, 20));
 
-		expect(receivedMessages).toContain("RAW_MESSAGE_1");
+		await vi.waitFor(() => expect(receivedMessages).toContain("RAW_MESSAGE_1"));
 		socket.close();
 	});
 
@@ -111,8 +110,7 @@ describe("ByteSocket Client: Messaging", () => {
 		expect(handler).toHaveBeenCalledWith({ message: "first" });
 
 		serverSocket.send(JSON.stringify({ event: "echo", data: { message: "second" } }));
-		await new Promise((r) => setTimeout(r, 30));
-		expect(handler).toHaveBeenCalledTimes(1);
+		await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(1));
 		socket.close();
 	});
 
@@ -132,9 +130,8 @@ describe("ByteSocket Client: Messaging", () => {
 
 		socket.off("echo");
 		serverSocket.send(JSON.stringify({ event: "echo", data: { message: "again" } }));
-		await new Promise((r) => setTimeout(r, 30));
-		expect(handler1).toHaveBeenCalledTimes(0);
-		expect(handler2).toHaveBeenCalledTimes(1);
+		await vi.waitFor(() => expect(handler1).toHaveBeenCalledTimes(0));
+		await vi.waitFor(() => expect(handler2).toHaveBeenCalledTimes(1));
 		socket.close();
 	});
 
@@ -177,8 +174,7 @@ describe("ByteSocket Client: Messaging", () => {
 		});
 
 		socket.send({ event: "echo", data: { message: "should not arrive" } });
-		await new Promise((r) => setTimeout(r, 30));
-		expect(received.length).toBe(0);
+		await vi.waitFor(() => expect(received.length).toBe(0));
 		socket.destroy();
 	});
 
@@ -212,7 +208,9 @@ describe("ByteSocket Client: Messaging", () => {
 		});
 		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.OPEN));
 
-		wss.clients.forEach((ws) => ws.send(JSON.stringify({ unknownProp: "foo" })));
+		for (const ws of wss.clients) {
+			ws.send(JSON.stringify({ unknownProp: "foo" }));
+		}
 
 		await vi.waitFor(() => {
 			expect(warnSpy).toHaveBeenCalledWith("ByteSocket: unhandled message", { unknownProp: "foo" });

@@ -8,7 +8,7 @@ type TestEvents = SocketEvents<{
 	broadcast: { text: string };
 }>;
 
-describe("ByteSocket Client: Bulk‑room Operations", () => {
+describe("ByteSocket Client: Bulk-room Operations", () => {
 	let wss: WebSocketServer;
 	let port: number;
 
@@ -149,7 +149,9 @@ describe("ByteSocket Client: Bulk‑room Operations", () => {
 		socket.rooms.on("roomB", "echo", handlerB);
 
 		const msg = JSON.stringify({ rooms: ["roomA", "roomB"], event: "echo", data: { message: "multi" } });
-		wss.clients.forEach((ws) => ws.send(msg));
+		for (const ws of wss.clients) {
+			ws.send(msg);
+		}
 
 		await vi.waitFor(() => {
 			expect(handlerA).toHaveBeenCalledWith({ message: "multi" });
@@ -168,12 +170,10 @@ describe("ByteSocket Client: Bulk‑room Operations", () => {
 		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.OPEN));
 
 		socket.rooms.bulk.join([]);
-		await new Promise((r) => setTimeout(r, 20));
-		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("can't join empty array"));
+		await vi.waitFor(() => expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("can't join empty array")));
 
 		socket.rooms.bulk.leave([]);
-		await new Promise((r) => setTimeout(r, 20));
-		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("can't leave empty array"));
+		await vi.waitFor(() => expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("can't leave empty array")));
 
 		warnSpy.mockRestore();
 		socket.close();
@@ -185,7 +185,9 @@ describe("ByteSocket Client: Bulk‑room Operations", () => {
 		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.OPEN));
 
 		const msg = JSON.stringify({ type: LifecycleTypes.join_rooms_success, rooms: ["ghostA", "ghostB"] });
-		wss.clients.forEach((ws) => ws.send(msg));
+		for (const ws of wss.clients) {
+			ws.send(msg);
+		}
 
 		await vi.waitFor(() => {
 			expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("stale"));
@@ -351,8 +353,9 @@ describe("ByteSocket Client: Bulk‑room Operations", () => {
 		await vi.waitFor(() => expect(socket.rooms.list()).toContain("lobby"));
 
 		socket.rooms.bulk.join(["lobby"]);
-		await new Promise((r) => setTimeout(r, 30));
-		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("all rooms you requested to join are joined or pending joining already"));
+		await vi.waitFor(() =>
+			expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("all rooms you requested to join are joined or pending joining already")),
+		);
 		warnSpy.mockRestore();
 		socket.close();
 	});
@@ -363,8 +366,9 @@ describe("ByteSocket Client: Bulk‑room Operations", () => {
 		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.OPEN));
 
 		socket.rooms.bulk.leave(["unjoined"]);
-		await new Promise((r) => setTimeout(r, 30));
-		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("all rooms you requested to leave are left or pending leaving already"));
+		await vi.waitFor(() =>
+			expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("all rooms you requested to leave are left or pending leaving already")),
+		);
 		warnSpy.mockRestore();
 		socket.close();
 	});
@@ -375,7 +379,9 @@ describe("ByteSocket Client: Bulk‑room Operations", () => {
 		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.OPEN));
 
 		const msg = JSON.stringify({ type: LifecycleTypes.leave_rooms_success, rooms: ["ghost1", "ghost2"] });
-		wss.clients.forEach((ws) => ws.send(msg));
+		for (const ws of wss.clients) {
+			ws.send(msg);
+		}
 
 		await vi.waitFor(() => {
 			expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("stale"));
@@ -390,7 +396,9 @@ describe("ByteSocket Client: Bulk‑room Operations", () => {
 		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.OPEN));
 
 		const msg = JSON.stringify({ type: LifecycleTypes.join_rooms_error, rooms: ["unknown"], data: {} });
-		wss.clients.forEach((ws) => ws.send(msg));
+		for (const ws of wss.clients) {
+			ws.send(msg);
+		}
 
 		await vi.waitFor(() => {
 			expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("stale"));
@@ -444,8 +452,7 @@ describe("ByteSocket Client: Bulk‑room Operations", () => {
 
 		socket.rooms.bulk.join(["badRoom"]);
 		await vi.waitFor(() => expect(socket.rooms.list()).not.toContain("badRoom"));
-		await new Promise((r) => setTimeout(r, 50));
-		expect(handler).not.toHaveBeenCalled();
+		await vi.waitFor(() => expect(handler).not.toHaveBeenCalled());
 		socket.close();
 	});
 
@@ -472,8 +479,7 @@ describe("ByteSocket Client: Bulk‑room Operations", () => {
 		await vi.waitFor(() => expect(socket.rooms.list()).toContain("stayRoom"));
 		socket.rooms.bulk.leave(["stayRoom"]);
 		await vi.waitFor(() => expect(socket.rooms.list()).toContain("stayRoom"));
-		await new Promise((r) => setTimeout(r, 50));
-		expect(handler).not.toHaveBeenCalled();
+		await vi.waitFor(() => expect(handler).not.toHaveBeenCalled());
 		socket.close();
 	});
 });

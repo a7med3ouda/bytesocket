@@ -8,7 +8,7 @@ type TestEvents = SocketEvents<{
 	broadcast: { text: string };
 }>;
 
-describe("ByteSocket Client: Single‑room Operations", () => {
+describe("ByteSocket Client: Single-room Operations", () => {
 	let wss: WebSocketServer;
 	let port: number;
 
@@ -135,8 +135,7 @@ describe("ByteSocket Client: Single‑room Operations", () => {
 		expect(joinSent).toHaveBeenCalledTimes(1);
 
 		socket.rooms.join("lobby");
-		await new Promise((r) => setTimeout(r, 30));
-		expect(joinSent).toHaveBeenCalledTimes(1);
+		await vi.waitFor(() => expect(joinSent).toHaveBeenCalledTimes(1));
 
 		socket.close();
 	});
@@ -157,8 +156,7 @@ describe("ByteSocket Client: Single‑room Operations", () => {
 		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.OPEN));
 
 		socket.rooms.leave("unjoined");
-		await new Promise((r) => setTimeout(r, 30));
-		expect(leaveSent).not.toHaveBeenCalled();
+		await vi.waitFor(() => expect(leaveSent).not.toHaveBeenCalled());
 
 		socket.close();
 	});
@@ -170,7 +168,9 @@ describe("ByteSocket Client: Single‑room Operations", () => {
 
 		socket.rooms.on("lobby", "echo", handler);
 		const msg = JSON.stringify({ room: "lobby", event: "echo", data: { message: "hi" } });
-		wss.clients.forEach((ws) => ws.send(msg));
+		for (const ws of wss.clients) {
+			ws.send(msg);
+		}
 
 		await vi.waitFor(() => expect(handler).toHaveBeenCalledWith({ message: "hi" }));
 		socket.close();
@@ -183,12 +183,15 @@ describe("ByteSocket Client: Single‑room Operations", () => {
 
 		socket.rooms.once("lobby", "echo", handler);
 		const msg = JSON.stringify({ room: "lobby", event: "echo", data: { message: "first" } });
-		wss.clients.forEach((ws) => ws.send(msg));
+		for (const ws of wss.clients) {
+			ws.send(msg);
+		}
 		await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(1));
 
-		wss.clients.forEach((ws) => ws.send(msg));
-		await new Promise((r) => setTimeout(r, 30));
-		expect(handler).toHaveBeenCalledTimes(1);
+		for (const ws of wss.clients) {
+			ws.send(msg);
+		}
+		await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(1));
 		socket.close();
 	});
 
@@ -200,9 +203,10 @@ describe("ByteSocket Client: Single‑room Operations", () => {
 		socket.rooms.on("lobby", "echo", handler);
 		socket.rooms.off("lobby", "echo", handler);
 		const msg = JSON.stringify({ room: "lobby", event: "echo", data: { message: "removed" } });
-		wss.clients.forEach((ws) => ws.send(msg));
-		await new Promise((r) => setTimeout(r, 30));
-		expect(handler).not.toHaveBeenCalled();
+		for (const ws of wss.clients) {
+			ws.send(msg);
+		}
+		await vi.waitFor(() => expect(handler).not.toHaveBeenCalled());
 		socket.close();
 	});
 
@@ -216,10 +220,11 @@ describe("ByteSocket Client: Single‑room Operations", () => {
 		socket.rooms.on("lobby", "echo", handler2);
 		socket.rooms.off("lobby", "echo");
 		const msg = JSON.stringify({ room: "lobby", event: "echo", data: { message: "test" } });
-		wss.clients.forEach((ws) => ws.send(msg));
-		await new Promise((r) => setTimeout(r, 30));
-		expect(handler1).not.toHaveBeenCalled();
-		expect(handler2).not.toHaveBeenCalled();
+		for (const ws of wss.clients) {
+			ws.send(msg);
+		}
+		await vi.waitFor(() => expect(handler1).not.toHaveBeenCalled());
+		await vi.waitFor(() => expect(handler2).not.toHaveBeenCalled());
 		socket.close();
 	});
 
@@ -234,15 +239,18 @@ describe("ByteSocket Client: Single‑room Operations", () => {
 		socket.rooms.off("lobby");
 		const msg1 = JSON.stringify({ room: "lobby", event: "echo", data: { message: "test" } });
 		const msg2 = JSON.stringify({ room: "lobby", event: "broadcast", data: { text: "hi" } });
-		wss.clients.forEach((ws) => ws.send(msg1));
-		wss.clients.forEach((ws) => ws.send(msg2));
-		await new Promise((r) => setTimeout(r, 30));
-		expect(handler1).not.toHaveBeenCalled();
-		expect(handler2).not.toHaveBeenCalled();
+		for (const ws of wss.clients) {
+			ws.send(msg1);
+		}
+		for (const ws of wss.clients) {
+			ws.send(msg2);
+		}
+		await vi.waitFor(() => expect(handler1).not.toHaveBeenCalled());
+		await vi.waitFor(() => expect(handler2).not.toHaveBeenCalled());
 		socket.close();
 	});
 
-	it("should emit a single‑room event to the server", async () => {
+	it("should emit a single-room event to the server", async () => {
 		const received: unknown[] = [];
 		wss.on("connection", (ws) => {
 			ws.on("message", (data) => received.push(JSON.parse(data.toString())));
@@ -314,11 +322,11 @@ describe("ByteSocket Client: Single‑room Operations", () => {
 		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.OPEN));
 
 		const rawMsg = JSON.stringify({ type: LifecycleTypes.join_room_success, room: "ghost" });
-		wss.clients.forEach((ws) => {
+		for (const ws of wss.clients) {
 			if (ws.readyState === WebSocket.OPEN) {
 				ws.send(rawMsg);
 			}
-		});
+		}
 
 		await vi.waitFor(() => expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("stale")));
 		expect(socket.rooms.list()).not.toContain("ghost");
@@ -335,7 +343,9 @@ describe("ByteSocket Client: Single‑room Operations", () => {
 		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.OPEN));
 
 		const msg = JSON.stringify({ type: LifecycleTypes.leave_room_success, room: "ghost" });
-		wss.clients.forEach((ws) => ws.send(msg));
+		for (const ws of wss.clients) {
+			ws.send(msg);
+		}
 
 		await vi.waitFor(() => expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("stale")));
 		warnSpy.mockRestore();
@@ -351,7 +361,9 @@ describe("ByteSocket Client: Single‑room Operations", () => {
 		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.OPEN));
 
 		const msg = JSON.stringify({ type: LifecycleTypes.join_room_error, room: "unknown", data: {} });
-		wss.clients.forEach((ws) => ws.send(msg));
+		for (const ws of wss.clients) {
+			ws.send(msg);
+		}
 
 		await vi.waitFor(() => expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("stale")));
 		warnSpy.mockRestore();
@@ -381,7 +393,9 @@ describe("ByteSocket Client: Single‑room Operations", () => {
 		await vi.waitFor(() => expect(socket.rooms.list()).toContain("persistent"));
 
 		const closePromise = new Promise<void>((resolve) => socket.lifecycle.onceClose(() => resolve()));
-		wss.clients.forEach((ws) => ws.terminate());
+		for (const ws of wss.clients) {
+			ws.terminate();
+		}
 		await closePromise;
 
 		await vi.waitFor(() => expect(socket.readyState).toBe(WebSocket.OPEN), { timeout: 2000 });
@@ -426,7 +440,9 @@ describe("ByteSocket Client: Single‑room Operations", () => {
 		await vi.waitFor(() => expect(socket.rooms.list()).toContain("tempRoom"));
 
 		const closePromise = new Promise<void>((resolve) => socket.lifecycle.onceClose(() => resolve()));
-		wss.clients.forEach((ws) => ws.close());
+		for (const ws of wss.clients) {
+			ws.close();
+		}
 		await closePromise;
 		expect(socket.rooms.list()).toEqual([]);
 		socket.destroy();
@@ -483,8 +499,7 @@ describe("ByteSocket Client: Single‑room Operations", () => {
 
 		socket.rooms.join("restricted");
 		await vi.waitFor(() => expect(socket.rooms.list()).not.toContain("restricted"));
-		await new Promise((r) => setTimeout(r, 50));
-		expect(handler).not.toHaveBeenCalled();
+		await vi.waitFor(() => expect(handler).not.toHaveBeenCalled());
 		socket.close();
 	});
 
