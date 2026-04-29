@@ -580,13 +580,35 @@ const io = new ByteSocket({
 	debug: false,
 
 	// uWebSockets.js pass-through options
-	maxPayloadLength: 16 * 1024 * 1024,
-	idleTimeout: 120,
-	compression: 0,
+	idleTimeout: 120, // seconds, 0 = disabled
+	sendPingsAutomatically: true,
+	serverOptions: {
+		maxPayloadLength: 16 * 1024 * 1024,
+		compression: uWS.SHARED_COMPRESSOR,
+		maxLifetime: 120,
+		// any other uWS WebSocketBehavior option except
+		// upgrade, open, message, close, idleTimeout, sendPingsAutomatically
+	},
 });
 ```
 
-Any option not consumed by ByteSocket is passed directly to uWebSockets.js as part of the `WebSocketBehavior` configuration.
+### Transport‑specific options (`serverOptions`)
+
+All native uWebSockets.js settings (except `idleTimeout` and `sendPingsAutomatically`,
+which are managed by ByteSocket) must be placed inside the `serverOptions` object:
+
+```ts
+const io = new ByteSocket({
+	serverOptions: {
+		maxPayloadLength: 64 * 1024,
+		compression: uWS.SHARED_COMPRESSOR,
+		closeOnBackpressureLimit: true,
+	},
+});
+```
+
+Transport‑specific uWebSockets.js options are provided via the serverOptions property. idleTimeout and sendPingsAutomatically are passed to uWebSockets.js as well.
+See {@link WebSocketServerOptions} for the full list of available settings.
 
 ---
 

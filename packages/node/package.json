@@ -49,8 +49,8 @@
 		"dev": "tsup --watch"
 	},
 	"dependencies": {
+		"@bytesocket/core": "workspace:*",
 		"@bytesocket/types": "workspace:*",
-		"msgpackr": "catalog:",
 		"ws": "catalog:"
 	},
 	"devDependencies": {

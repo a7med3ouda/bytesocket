@@ -1,7 +1,6 @@
+import type { ServerOutgoingData, SocketData } from "@bytesocket/core";
 import type { SocketEvents } from "@bytesocket/types";
-import type { WebSocket } from "ws";
 import type { Socket } from "./socket";
-import type { SocketData } from "./types";
 
 export class RoomManager<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData> {
 	#rooms = new Map<string, Set<Socket<TEvents, SD>>>();
@@ -66,7 +65,7 @@ export class RoomManager<TEvents extends SocketEvents = SocketEvents, SD extends
 		}
 	}
 
-	publishServer(room: string, message: WebSocket.Data, isBinary?: boolean, compress?: boolean): void {
+	publishServer(room: string, message: ServerOutgoingData, isBinary?: boolean, compress?: boolean): void {
 		const set = this.#rooms.get(room);
 		if (!set || set.size === 0) {
 			return;
@@ -79,7 +78,7 @@ export class RoomManager<TEvents extends SocketEvents = SocketEvents, SD extends
 		}
 	}
 
-	publish(socket: Socket<TEvents, SD>, room: string, message: WebSocket.Data, isBinary?: boolean, compress?: boolean): void {
+	publish(socket: Socket<TEvents, SD>, room: string, message: ServerOutgoingData, isBinary?: boolean, compress?: boolean): void {
 		const set = this.#rooms.get(room);
 		if (!set || set.size === 0) {
 			return;

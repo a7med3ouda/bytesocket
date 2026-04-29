@@ -1,27 +1,24 @@
 {
-	"name": "@bytesocket/uws",
+	"name": "@bytesocket/core",
 	"version": "0.3.0",
-	"description": "High-performance WebSocket server for Node.js using uWebSockets.js",
+	"description": "Shared core logic for ByteSocket WebSocket server implementations",
 	"keywords": [
 		"websocket",
 		"socket",
 		"realtime",
 		"bytesocket",
-		"uws",
-		"uWebSockets",
-		"ultimate-express",
-		"hyper-express",
+		"core",
 		"msgpack",
 		"binary"
 	],
-	"homepage": "https://github.com/a7med3ouda/bytesocket/tree/main/packages/uws",
+	"homepage": "https://github.com/a7med3ouda/bytesocket/tree/main/packages/core",
 	"bugs": {
 		"url": "https://github.com/a7med3ouda/bytesocket/issues"
 	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/a7med3ouda/bytesocket.git",
-		"directory": "packages/uws"
+		"directory": "packages/core"
 	},
 	"license": "MIT",
 	"sideEffects": false,
@@ -31,6 +28,10 @@
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js",
 			"require": "./dist/index.cjs"
+		},
+		"./test-utils": {
+			"import": "./dist/test-utils/index.js",
+			"types": "./dist/test-utils/index.d.ts"
 		}
 	},
 	"main": "./dist/index.cjs",
@@ -46,12 +47,11 @@
 		"dev": "tsup --watch"
 	},
 	"dependencies": {
-		"@bytesocket/core": "workspace:*",
-		"@bytesocket/types": "workspace:*"
+		"@bytesocket/types": "workspace:*",
+		"msgpackr": "catalog:"
 	},
 	"devDependencies": {
-		"@types/node": "catalog:",
-		"uWebSockets.js": "catalog:"
+		"@types/node": "catalog:"
 	},
 	"engines": {
 		"node": ">=22.4.0"

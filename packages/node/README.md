@@ -635,7 +635,7 @@ After `destroy()`, you can safely attach a new `ByteSocket` instance to the same
 
 ## Full Configuration Reference
 
-```typescript
+```ts
 const io = new ByteSocket({
 	// Authentication
 	auth: (socket, data, callback) => {
@@ -646,7 +646,7 @@ const io = new ByteSocket({
 	// Middleware
 	middlewareTimeout: 5000,
 	roomMiddlewareTimeout: 5000,
-	onMiddlewareError: "ignore", // "ignore" | "close" | (err, socket) => void
+	onMiddlewareError: "ignore",
 	onMiddlewareTimeout: "ignore",
 
 	// Serialization
@@ -666,12 +666,31 @@ const io = new ByteSocket({
 	// Debug
 	debug: false,
 
-	// ws pass-through options (e.g., maxPayload, perMessageDeflate, ...)
-	maxPayload: 100 * 1024 * 1024,
+	// ws-specific options (see ServerOptions for full list)
+	serverOptions: {
+		maxPayload: 100 * 1024 * 1024,
+		perMessageDeflate: true,
+		skipUTF8Validation: false,
+		autoPong: true,
+		// … any other ws.ServerOptions except `noServer`/`port`/`server`/`host`/`backlog`/`path`
+	},
 });
 ```
 
-Any option not consumed by ByteSocket is passed directly to the `ws` WebSocketServer constructor.
+### Transport‑specific options
+
+All `ws` server settings (e.g., `maxPayload`, `perMessageDeflate`, `verifyClient`, `handleProtocols`) are passed through the `serverOptions` field. The reserved keys `noServer`, `port`, `server`, `host`, `backlog`, and `path` are excluded because ByteSocket manages them internally.
+
+```typescript
+const io = new ByteSocket({
+	serverOptions: {
+		maxPayload: 1024 * 1024,
+		perMessageDeflate: { threshold: 512 },
+	},
+});
+```
+
+Any option in serverOptions is passed directly to the `ws` WebSocketServer constructor.
 
 ---
 
