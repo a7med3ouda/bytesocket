@@ -6,8 +6,7 @@
 
 import { ByteSocket } from "./byte-socket";
 
-export * from "@bytesocket/core";
-export * from "@bytesocket/types";
+export * from "@bytesocket/server";
 export * from "./byte-socket";
 export * from "./room-manager";
 export * from "./socket";

@@ -1,5 +1,5 @@
-import type { ByteSocketOptionsBase, SocketData } from "@bytesocket/core";
-import type { SocketEvents } from "@bytesocket/types";
+// packages/node/src/types.ts
+import type { ByteSocketOptionsBase, SocketData, SocketEvents } from "@bytesocket/server";
 import type { ServerOptions } from "ws";
 
 export interface HeartbeatConfig {
@@ -15,8 +15,8 @@ export interface HeartbeatConfig {
  *
  * The following fields are **reserved and managed by ByteSocket**; they are
  * therefore omitted:
- * - `noServer` – always set to `true` internally
- * - `port`, `server`, `host`, `backlog`, `path` – because the HTTP server
+ * - `noServer` - always set to `true` internally
+ * - `port`, `server`, `host`, `backlog`, `path` - because the HTTP server
  *   and upgrade listener are managed by the {@link ByteSocket.attach} method
  *
  * All other `ServerOptions` (e.g., `maxPayload`, `perMessageDeflate`,
@@ -58,13 +58,13 @@ export type WebSocketServerOptions = Omit<ServerOptions, "noServer" | "port" | "
  *   }
  * });
  */
-export interface ByteSocketOptions<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData> extends ByteSocketOptionsBase<
+export type ByteSocketOptions<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData> = ByteSocketOptionsBase<
 	TEvents,
 	SD
-> {
+> & {
 	/**
 	 * Transport‑specific options forwarded to uWS.
 	 * @see {@link WebSocketServerOptions}
 	 */
 	serverOptions?: WebSocketServerOptions;
-}
+};

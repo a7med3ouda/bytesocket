@@ -1,3 +1,4 @@
+// packages/server/src/socket-server-base.ts
 import {
 	AuthState,
 	LifecycleTypes,
@@ -8,11 +9,15 @@ import {
 	type StringKeys,
 	type StringNumberKeys,
 	type UserMessage,
-} from "@bytesocket/types";
-import type { AuthFunction, ISocket, ISocketRooms, MiddlewareNext, ServerOutgoingData, SocketData } from "./types";
+} from "@bytesocket/core";
+import type { ISocket, ISocketRooms } from "./interfaces";
+import type { AuthFunction, MiddlewareNext, ServerOutgoingData, SocketData } from "./types";
 
-export abstract class SocketBase<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData> implements ISocket<TEvents, SD> {
-	readonly rooms: ISocketRooms<this, TEvents>;
+export abstract class SocketServerBase<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData> implements ISocket<
+	TEvents,
+	SD
+> {
+	readonly rooms: ISocketRooms<TEvents>;
 
 	payload: any = {};
 	locals: any = {};
@@ -86,13 +91,13 @@ export abstract class SocketBase<TEvents extends SocketEvents = SocketEvents, SD
 
 	protected abstract getRoomList(includeBroadcast?: boolean): string[];
 
-	protected abstract publishRaw(room: string, message: ServerOutgoingData, isBinary?: boolean, compress?: boolean): this;
+	protected abstract publishRaw(room: string, message: ServerOutgoingData, isBinary?: boolean, compress?: boolean): typeof this.rooms;
 
-	protected abstract joinRoom(room: string): this;
+	protected abstract joinRoom(room: string): typeof this.rooms;
 
-	protected abstract leaveRoom(room: string): this;
+	protected abstract leaveRoom(room: string): typeof this.rooms;
 
-	protected abstract closeTransport(code: number, reason: string): void;
+	abstract close(code?: number, reason?: string): void;
 
 	protected startHeartbeat(): void {}
 
@@ -133,57 +138,54 @@ export abstract class SocketBase<TEvents extends SocketEvents = SocketEvents, SD
 		R extends StringKeys<TEvents["emitRoom"]>,
 		E extends StringNumberKeys<NonNullable<TEvents["emitRoom"]>[R]>,
 		D extends NonNullable<TEvents["emitRoom"]>[R][E],
-	>(room: R, event: E, data: D): this {
+	>(room: R, event: E, data: D): typeof this.rooms {
 		if (!this.canSend) {
-			return this;
+			return this.rooms;
 		}
 		const message = this.#encode({ room, event, data });
 		this.publishRaw(room, message);
-		return this;
+		return this.rooms;
 	}
 
 	#publishMany<
 		Rs extends NonNullable<TEvents["emitRooms"]>["rooms"],
 		E extends StringNumberKeys<EventsForRooms<NonNullable<TEvents["emitRooms"]>, Rs>>,
 		D extends NonNullable<EventsForRooms<NonNullable<TEvents["emitRooms"]>, Rs>>[E],
-	>(rooms: Rs, event: E, data: D): this {
+	>(rooms: Rs, event: E, data: D): typeof this.rooms.bulk {
 		if (!this.canSend) {
-			return this;
+			return this.rooms.bulk;
 		}
 		const message = this.#encode({ rooms, event, data });
 		for (const room of rooms) {
 			this.publishRaw(room, message);
 		}
-		return this;
+		return this.rooms.bulk;
 	}
 
-	#joinRooms(rooms: string[]): this {
+	#joinRooms(rooms: string[]): typeof this.rooms.bulk {
 		if (!this.canSend) {
-			return this;
+			return this.rooms.bulk;
 		}
 		for (const room of rooms) {
 			this.joinRoom(room);
 		}
-		return this;
+		return this.rooms.bulk;
 	}
 
-	#leaveRooms(rooms: string[]): this {
+	#leaveRooms(rooms: string[]): typeof this.rooms.bulk {
 		if (!this.canSend) {
-			return this;
+			return this.rooms.bulk;
 		}
 		for (const room of rooms) {
 			this.leaveRoom(room);
 		}
-		return this;
+		return this.rooms.bulk;
 	}
 
-	close(code = 1000, reason = "normal"): void {
+	protected _close(): void {
+		this.#closed = true;
 		this.#clearAuthTimer();
 		this.clearHeartbeat();
-		if (!this.#closed) {
-			this.closeTransport(code, reason);
-			this.#closed = true;
-		}
 	}
 
 	_handleAuth<D>(
@@ -206,7 +208,7 @@ export abstract class SocketBase<TEvents extends SocketEvents = SocketEvents, SD
 			}, authTimeout);
 			try {
 				auth(this, parsed.data, (payload, error) => {
-					if (error || payload == null) {
+					if (error) {
 						const err = error || new Error("Auth failed");
 						this.#setAuthFailed({ phase: "auth", error: err, code: 4003 });
 						next(err);

@@ -1,10 +1,10 @@
-// packages/uws/tests/connection.test.ts
-import { LifecycleTypes } from "@bytesocket/types";
+// packages/server/src/test-utils/rooms-bulk.ts
+import { LifecycleTypes } from "@bytesocket/core";
 import type * as vitest from "vitest";
 import { createClient, type CreateByteSocketServerResponse, type TestEvents } from ".";
-import type { ByteSocketBase } from "../byte-socket-base";
+import type { ByteSocketServerBase } from "../byte-socket-server-base";
 
-export function coreRoomsBulkTest<B extends ByteSocketBase<TestEvents> = ByteSocketBase<TestEvents>>(
+export function serverRoomsBulkTest<B extends ByteSocketServerBase<TestEvents> = ByteSocketServerBase<TestEvents>>(
 	{ vi, afterEach, beforeEach, it, expect }: typeof vitest,
 	createByteSocketServer: () => Promise<CreateByteSocketServerResponse<B>>,
 	destroyByteSocketServer: (obj: CreateByteSocketServerResponse<B>) => void,

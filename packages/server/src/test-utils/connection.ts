@@ -1,11 +1,11 @@
-// packages/uws/tests/connection.test.ts
+// packages/server/src/test-utils/connection.ts
 import type * as vitest from "vitest";
 import WebSocket from "ws";
 import { createClient, type CreateByteSocketServerResponse, type TestEvents } from ".";
-import type { ByteSocketBase } from "../byte-socket-base";
+import type { ByteSocketServerBase } from "../byte-socket-server-base";
 import type { ByteSocketOptionsBase } from "../types";
 
-export function coreConnectionTest<B extends ByteSocketBase<TestEvents> = ByteSocketBase<TestEvents>>(
+export function serverConnectionTest<B extends ByteSocketServerBase<TestEvents> = ByteSocketServerBase<TestEvents>>(
 	{ vi, afterEach, beforeEach, it, expect }: typeof vitest,
 	createByteSocket: (options?: ByteSocketOptionsBase<TestEvents>) => B,
 	createByteSocketServer: () => Promise<CreateByteSocketServerResponse<B>>,

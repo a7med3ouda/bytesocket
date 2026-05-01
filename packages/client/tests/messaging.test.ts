@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WebSocket, WebSocketServer } from "ws";
 import { ByteSocket, type SocketEvents } from "../src";
+import type { ClientIncomingData } from "../src/types";
 
 type TestEvents = SocketEvents<{
 	echo: { message: string };
@@ -150,7 +151,7 @@ describe("ByteSocket Client: Messaging", () => {
 		const payload = { event: "echo", data: { message: "test" } };
 		const encoded = socket.encode(payload, "binary");
 		expect(encoded).toBeInstanceOf(Uint8Array);
-		const decoded = socket.decode(encoded as string | ArrayBuffer, true);
+		const decoded = socket.decode(encoded as ClientIncomingData, true);
 		expect(decoded).toEqual(payload);
 		socket.destroy();
 	});

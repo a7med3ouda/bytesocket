@@ -1,5 +1,5 @@
-import type { ByteSocketOptionsBase, SocketData } from "@bytesocket/core";
-import type { SocketEvents } from "@bytesocket/types";
+// packages/uws/src/types.ts
+import type { ByteSocketOptionsBase, SocketData, SocketEvents } from "@bytesocket/server";
 import type { WebSocketBehavior } from "uWebSockets.js";
 
 /**
@@ -8,8 +8,8 @@ import type { WebSocketBehavior } from "uWebSockets.js";
  *
  * The following fields are **reserved and managed by ByteSocket**; they are
  * therefore omitted from this type:
- * - `upgrade`, `open`, `message`, `close` – lifecycle handlers
- * - `idleTimeout`, `sendPingsAutomatically` – managed via ByteSocket’s own heartbeat config
+ * - `upgrade`, `open`, `message`, `close` - lifecycle handlers
+ * - `idleTimeout`, `sendPingsAutomatically` - managed via ByteSocket’s own heartbeat config
  *
  * All other `WebSocketBehavior` properties (e.g., `maxPayloadLength`,
  * `compression`, `maxBackpressure`, `closeOnBackpressureLimit`, …) can be

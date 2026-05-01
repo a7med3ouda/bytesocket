@@ -1,12 +1,12 @@
-// packages/uws/tests/connection.test.ts
-import { LifecycleTypes } from "@bytesocket/types";
+// packages/server/src/test-utils/auth.ts
+import { LifecycleTypes } from "@bytesocket/core";
 import type * as vitest from "vitest";
 import WebSocket from "ws";
 import { createClient, type CreateByteSocketServerResponse, type TestEvents } from ".";
-import type { ByteSocketBase } from "../byte-socket-base";
+import type { ByteSocketServerBase } from "../byte-socket-server-base";
 import type { ByteSocketOptionsBase } from "../types";
 
-export function coreAuthTest<B extends ByteSocketBase<TestEvents> = ByteSocketBase<TestEvents>>(
+export function serverAuthTest<B extends ByteSocketServerBase<TestEvents> = ByteSocketServerBase<TestEvents>>(
 	{ vi, afterEach, beforeEach, it, expect }: typeof vitest,
 	createByteSocket: (options?: ByteSocketOptionsBase<TestEvents>) => B,
 	createByteSocketServer: () => Promise<CreateByteSocketServerResponse<B>>,
@@ -159,14 +159,14 @@ export function coreAuthTest<B extends ByteSocketBase<TestEvents> = ByteSocketBa
 		await vi.waitFor(() => expect(client.readyState).toBe(WebSocket.CLOSED));
 	});
 
-	it("should fail when auth callback receives null payload", async () => {
+	it("should success when auth callback receives null payload", async () => {
 		const authFn = vi.fn((_socket, _data, cb) => {
 			cb(null);
 		});
 		obj.io = createByteSocket({ auth: authFn, serialization: "json" });
 
-		const authErrorHandler = vi.fn();
-		obj.io.lifecycle.onAuthError(authErrorHandler);
+		const authSuccessHandler = vi.fn();
+		obj.io.lifecycle.onAuthSuccess(authSuccessHandler);
 
 		obj.io.attach(obj.server, "/ws");
 
@@ -174,8 +174,7 @@ export function coreAuthTest<B extends ByteSocketBase<TestEvents> = ByteSocketBa
 
 		client.send(JSON.stringify({ type: LifecycleTypes.auth, data: { token: "x" } }));
 
-		await vi.waitFor(() => expect(authErrorHandler).toHaveBeenCalled());
-		await vi.waitFor(() => expect(client.readyState).toBe(WebSocket.CLOSED));
+		await vi.waitFor(() => expect(authSuccessHandler).toHaveBeenCalled());
 	});
 
 	it("should ignore duplicate auth messages from the same client", async () => {

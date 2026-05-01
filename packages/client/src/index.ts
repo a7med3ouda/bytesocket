@@ -4,7 +4,11 @@
  * @packageDocumentation
  */
 
-export * from "@bytesocket/types";
-export { FLOAT32_OPTIONS } from "msgpackr";
+import type { ByteSocket } from "./byte-socket";
+
+export * from "@bytesocket/core";
 export * from "./byte-socket";
-export type { AuthConfig, ByteSocketOptions, EventCallback, IByteSocket, IRoomManager, LifecycleApi, RoomBulkApi, RoomLifecycleApi } from "./types";
+export * from "./interfaces";
+export * from "./types";
+
+export default ByteSocket;

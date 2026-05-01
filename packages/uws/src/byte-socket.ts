@@ -1,9 +1,18 @@
-import { ByteSocketBase, type IByteSocket, type ServerOutgoingData, type SocketData } from "@bytesocket/core";
-import { LifecycleTypes, type SocketEvents } from "@bytesocket/types";
+// packages/uws/src/byte-socket.ts
+import {
+	ByteSocketServerBase,
+	LifecycleTypes,
+	type IByteSocket,
+	type ServerOutgoingData,
+	type SocketData,
+	type SocketEvents,
+} from "@bytesocket/server";
 import { randomUUID } from "node:crypto";
 import type { HttpRequest, HttpResponse, TemplatedApp, us_socket_context_t, WebSocket } from "uWebSockets.js";
 import { Socket } from "./socket";
 import type { ByteSocketOptions, WebSocketServerOptions } from "./types";
+
+type UpgradeCallback<SD> = (res: HttpResponse, req: HttpRequest, userData: SD, context: us_socket_context_t) => void;
 
 /**
  * ByteSocket server instance.
@@ -58,6 +67,9 @@ import type { ByteSocketOptions, WebSocketServerOptions } from "./types";
  *   listenRoom: {
  *     chat: { "message": { text: string; sender: string } };
  *   };
+ *   emitRooms:
+ *     | { rooms: ['lobby', 'announcements']; event: { 'alert': string } }
+ *     | { rooms: ['roomA', 'roomB']; event: { 'message': { text: string } } };
  * }
  *
  * const io = new ByteSocket<MyEvents>({ debug: true });
@@ -77,8 +89,8 @@ import type { ByteSocketOptions, WebSocketServerOptions } from "./types";
  * ```
  */
 export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData>
-	extends ByteSocketBase<TEvents, SD>
-	implements IByteSocket<TEvents, SD>
+	extends ByteSocketServerBase<TEvents, SD, UpgradeCallback<SD>>
+	implements IByteSocket<TEvents, SD, UpgradeCallback<SD>>
 {
 	#app: TemplatedApp | undefined;
 	#serverOptions: WebSocketServerOptions<SD> | undefined;
@@ -107,22 +119,17 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		this.#serverOptions = options.serverOptions;
 	}
 
-	protected onUpgrade(callback: (res: HttpResponse, req: HttpRequest, userData: SD, context: us_socket_context_t) => void) {
-		return this.onLifecycle(LifecycleTypes.upgrade, callback);
-	}
-	protected offUpgrade(callback?: (res: HttpResponse, req: HttpRequest, userData: SD, context: us_socket_context_t) => void) {
-		return this.offLifecycle(LifecycleTypes.upgrade, callback);
-	}
-	protected onceUpgrade(callback: (res: HttpResponse, req: HttpRequest, userData: SD, context: us_socket_context_t) => void) {
-		return this.onceLifecycle(LifecycleTypes.upgrade, callback);
-	}
-
-	protected publishRaw(room: string, message: ServerOutgoingData, isBinary: boolean = typeof message !== "string", compress?: boolean): this {
+	protected publishRaw(
+		room: string,
+		message: ServerOutgoingData,
+		isBinary: boolean = typeof message !== "string",
+		compress?: boolean,
+	): typeof this.rooms {
 		if (!this.#app || this.destroyed) {
-			return this;
+			return this.rooms;
 		}
 		this.#app.publish(room, message, isBinary, compress);
-		return this;
+		return this.rooms;
 	}
 
 	/**
@@ -137,6 +144,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	 * app.listen(3000);
 	 */
 	attach(app: TemplatedApp, path: string): this {
+		if (this.destroyed) {
+			return this;
+		}
 		app.ws(path, {
 			...this.#serverOptions,
 			idleTimeout: this.options.idleTimeout,
@@ -148,6 +158,40 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		});
 		this.#app = app;
 		return this;
+	}
+
+	/**
+	 * Permanently destroy the server instance, closing all connections and
+	 * cleaning up resources. The instance **cannot be reused** after this call.
+	 *
+	 * **Note about the WebSocket route:** uWebSockets.js does not offer a way
+	 * to delete a registered route. After `destroy()`, the route still exists
+	 * on the `TemplatedApp`, but it now points to the destroyed instance and
+	 * will not function correctly. To fully replace ByteSocket on the same path,
+	 * **attach a new ByteSocket instance** – `app.ws()` will overwrite the
+	 * previous route, making the old one inactive.
+	 *
+	 * @example
+	 * ```ts
+	 * const app = uWS.App();
+	 * const io = new ByteSocket();
+	 * io.attach(app, "/ws");
+	 *
+	 * // Later, during shutdown or re‑configuration:
+	 * io.destroy();
+	 *
+	 * // Reuse the same app and path with a fresh instance.
+	 * // The new attach() replaces the dead route automatically:
+	 * const io2 = new ByteSocket();
+	 * io2.attach(app, "/ws");  // works – overrides the old, destroyed route
+	 * ```
+	 */
+	destroy(): void {
+		if (this.destroyed) {
+			return;
+		}
+		this._destroy();
+		this.#app = undefined;
 	}
 
 	#upgrade(res: HttpResponse, req: HttpRequest, context: us_socket_context_t) {
@@ -179,7 +223,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 			xForwardedFor: req.getHeader("x-forwarded-for") ?? "",
 		} as SD;
 
-		this.runSyncHooks(this.lifecycleCallbacksMap.get(LifecycleTypes.upgrade), [res, req, userData, context], (error) => {
+		this._runSyncHooks(this._lifecycleCallbacksMap.get(LifecycleTypes.upgrade), [res, req, userData, context], (error) => {
 			if (error == null) {
 				res.upgrade(
 					userData,
@@ -191,7 +235,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 			} else {
 				res.writeStatus("500 Internal Server Error");
 				res.end("Upgrade rejected");
-				this.triggerCallbacks(this.lifecycleCallbacksMap.get(LifecycleTypes.error), null, { phase: "onUpgrade", error });
+				this._triggerCallbacks(this._lifecycleCallbacksMap.get(LifecycleTypes.error), null, { phase: "onUpgrade", error });
 			}
 		});
 	}
@@ -207,9 +251,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		if (!this.options.auth) {
 			socket._handleAuth(null, this.options.auth, this.options.authTimeout, (err) => {
 				if (err == null) {
-					this.runSyncHooks(this.lifecycleCallbacksMap.get(LifecycleTypes.open), [socket], (error) => {
+					this._runSyncHooks(this._lifecycleCallbacksMap.get(LifecycleTypes.open), [socket], (error) => {
 						if (error != null) {
-							this.triggerCallbacks(this.lifecycleCallbacksMap.get(LifecycleTypes.error), socket, { phase: "onOpen", error });
+							this._triggerCallbacks(this._lifecycleCallbacksMap.get(LifecycleTypes.error), socket, { phase: "onOpen", error });
 						}
 					});
 				}

@@ -1,13 +1,14 @@
-import type { SocketEvents } from "@bytesocket/types";
+// packages/server/src/test-utils/index.ts
+import type { SocketEvents } from "@bytesocket/core";
 import type { ClientRequestArgs } from "node:http";
 import { WebSocket } from "ws";
-import type { ByteSocketBase } from "../byte-socket-base";
+import type { ByteSocketServerBase } from "../byte-socket-server-base";
 
 export type TestEvents = SocketEvents<{
 	echo: { message: string };
 	broadcast: { text: string };
 }>;
-export interface CreateByteSocketServerResponse<B extends ByteSocketBase = ByteSocketBase> {
+export interface CreateByteSocketServerResponse<B extends ByteSocketServerBase = ByteSocketServerBase> {
 	io: B;
 	server: unknown;
 	port: number;

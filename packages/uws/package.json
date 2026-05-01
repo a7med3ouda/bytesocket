@@ -1,6 +1,6 @@
 {
 	"name": "@bytesocket/uws",
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"description": "High-performance WebSocket server for Node.js using uWebSockets.js",
 	"keywords": [
 		"websocket",
@@ -41,13 +41,12 @@
 		"LICENSE"
 	],
 	"scripts": {
-		"build": "tsup",
+		"build": "tsdown",
 		"clean": "rm -rf dist",
-		"dev": "tsup --watch"
+		"dev": "tsdown --watch"
 	},
 	"dependencies": {
-		"@bytesocket/core": "workspace:*",
-		"@bytesocket/types": "workspace:*"
+		"@bytesocket/server": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/node": "catalog:",

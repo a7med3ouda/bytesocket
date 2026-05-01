@@ -1,177 +1,132 @@
 # @bytesocket/core
 
-Shared core logic for ByteSocket WebSocket server implementations. This package provides the abstract base classes, interfaces, and types that the transport‑specific adaptors (`@bytesocket/node`, `@bytesocket/uws`) extend to create a fully‑typed, real‑time server.
+Shared TypeScript definitions for the ByteSocket ecosystem -- used internally by both the client and server packages.
 
 You do not need to install this package directly; it is a dependency of the main packages.
 
-[![npm version](https://img.shields.io/npm/v/@bytesocket/types)](https://www.npmjs.com/package/@bytesocket/types)
-[![MIT](https://img.shields.io/npm/l/@bytesocket/types)](LICENSE)
-[![node-current](https://img.shields.io/node/v/@bytesocket/types?logo=nodedotjs)](https://nodejs.org/)
-[![GitHub](https://img.shields.io/badge/GitHub-gray?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket/tree/main/packages/types)
+[![npm version](https://img.shields.io/npm/v/@bytesocket/core)](https://www.npmjs.com/package/@bytesocket/core)
+[![MIT](https://img.shields.io/npm/l/@bytesocket/core)](LICENSE)
+[![node-current](https://img.shields.io/node/v/@bytesocket/core?logo=nodedotjs)](https://nodejs.org/)
+[![GitHub](https://img.shields.io/badge/GitHub-gray?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket/tree/main/packages/core)
 [![GitHub stars](https://img.shields.io/github/stars/a7med3ouda/bytesocket?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket)
-
-## Features
-
-- **Transport‑agnostic server skeleton** – `ByteSocketBase` handles message parsing, middleware execution, event routing, authentication, room join/leave, and lifecycle hooks. You only implement the transport‑specific parts.
-- **Type‑safe event system** – Full TypeScript generics for emit/listen maps, room events, socket data, and middleware callbacks.
-- **Pluggable serialization** – JSON (text) or MessagePack (binary) encoding, selectable per‑server instance or per‑message.
-- **Shared test utilities** – Common test factories (`/test-utils`) let you run the exact same test suite against every adaptor.
-
----
-
-## Installation
-
-```bash
-npm install @bytesocket/core
-```
-
-> This package is not meant to be used directly. Choose an adaptor that matches your WebSocket library:
->
-> - [`@bytesocket/node`](https://www.npmjs.com/package/@bytesocket/node) – for Node.js [`ws`](https://github.com/websockets/ws)
-> - [`@bytesocket/uws`](https://www.npmjs.com/package/@bytesocket/uws) – for [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js)
-
----
+[![Socket Badge](https://badge.socket.dev/npm/package/@bytesocket/core/0.3.1)](https://badge.socket.dev/npm/package/@bytesocket/core/0.3.1)
 
 ## Exports
 
-### Main entry (`@bytesocket/core`)
+### Core Types
 
-- `ByteSocketBase` – abstract server class
-- `SocketBase` – abstract per‑connection socket class
-- `IByteSocket` / `ISocket` / `ISocketRooms` / `IServerRooms` / `IServerLifecycle` – public API interfaces
-- `ByteSocketOptionsBase` – configuration options shared by every adaptor
-- `ServerIncomingData` / `ServerOutgoingData` – type aliases for raw WebSocket data
-- `Middleware`, `EventCallback`, `RoomEventMiddleware`, `AuthFunction`, `MiddlewareNext` – callback types
-- `SocketData` – the user data shape attached to every socket
-- `encode` / `decode` – serialization helpers (MessagePack / JSON)
+- `StringKeys<T>` - Extract only string keys from a type.
+- `StringNumberKeys<T>` - Extract string or number keys.
+- `SocketEvents<T>` - The event map shape for end-to-end type safety.
+- `EventsForRooms<T, R>` - Extract events for a specific set of rooms.
 
-### Test utilities (`@bytesocket/core/test-utils`)
+### Lifecycle & Error Types
 
-Factory functions that create a server + test client for running integration tests across adaptors:
+- `LifecycleTypes` - Enum of all internal protocol message types (open, close, auth, ping, errors, room operations, etc.).
+- `ErrorContext` - Structured context for error events (`phase`, `error`, `event`, `raw`, `code`, `bytes`).
+- `LifecycleType` - Messages with only a `type` field (e.g., `open`, `ping`).
+- `LifecycleRoomType<R>` - Success messages for single-room operations.
+- `LifecycleRoomsType<Rs>` - Success messages for bulk room operations.
+- `LifecyclePayload<D>` - Auth request message.
+- `LifecycleError` - Global error messages (`error`, `auth_error`).
+- `LifecycleRoomError<R>` - Error messages for single-room operations.
+- `LifecycleRoomsError<Rs>` - Error messages for bulk room operations.
+- `LifecycleMessage<R, D>` - Complete union of all lifecycle messages (combines the above).
 
-```ts
-import { coreConnectionTest } from "@bytesocket/core/test-utils";
+### User Message Shapes
+
+- `GeneralEvent<E, D>` - Global user event.
+- `RoomEvent<R, E, D>` - User event scoped to a single room.
+- `RoomsEvent<Rs, E, D>` - User event scoped to multiple rooms.
+- `UserMessage<R, E, D>` - Union of all user-defined messages.
+
+### Other
+
+- `MsgpackrOptions` - Type for msgpackr configuration (excludes internal `useRecords` must be false).
+- `AuthState` - Enum of authentication states (`idle`, `none`, `pending`, `success`, `failed`).
+- `AnyCallback` - Generic callback type (internal).
+
+### ByteSocketBase
+
+`ByteSocketBase` is an **abstract base class** that provides the shared runtime infrastructure for both the client and server implementations. It bundles serialisation, callback management, and message‑type guards.
+
+> **Note:** The base class has no abstract methods – it’s abstract only to prevent direct instantiation. Subclasses (client/server) provide the concrete networking layer.
+
+#### Constructor Options
+
+The constructor accepts an optional `ByteSocketBaseOptions` object:
+
+| Option            | Type                   | Default    | Description                                         |
+| ----------------- | ---------------------- | ---------- | --------------------------------------------------- |
+| `debug`           | `boolean`              | `false`    | Enable debug logging to console.                    |
+| `serialization`   | `"json"` \| `"binary"` | `"binary"` | Serialization format for messages.                  |
+| `msgpackrOptions` | `MsgpackrOptions`      | `{}`       | Options forwarded to the internal `Packr` instance. |
+
+#### Instance Properties
+
+- `_packr` - The shared `Packr` instance for MessagePack encoding/decoding.
+- `_msgpackrOptions` - The resolved options passed to `Packr`.
+- `_serialization` - The active serialization mode.
+- `_debug` - Debug flag.
+
+#### Core Methods
+
+**`encode(payload: unknown, serialization?): string | Buffer<ArrayBufferLike>`**
+Encodes any payload into a string (JSON) or a `Uint8Array` (MessagePack). Uses the instance’s default serialization unless overridden.
+
+**`decode(message, isBinary?): unknown`**
+Decodes a raw WebSocket message into a structured object. Handles:
+
+- Fragmented messages (`Array<Uint8Array>`) - concatenated automatically.
+- Plain text frames (`string`) - parsed as JSON.
+- Binary frames intended as text (`isBinary === false`) - decoded with `TextDecoder`.
+- Binary MessagePack frames - unpacked via `Packr`.
+
+#### Callback Management (Protected)
+
+These methods manage typed event listeners. They are used internally by the client and server wrappers to wire up user‑facing `on`/`off`/`once` APIs.
+
+- `_on(event, callback)` - Register a global event listener.
+- `_off(event, callback?)` - Remove a global listener (or all for that event).
+- `_once(event, callback)` - Register a one‑time global listener.
+- `_onRoom(room, event, callback)` - Register a room‑scoped listener.
+- `_offRoom(room, event?, callback?)` - Remove room‑scoped listeners.
+- `_onceRoom(room, event, callback)` - Register a one‑time room listener.
+- `_onLifecycle(type, callback)` - Listen for lifecycle events (open, close, etc.).
+- `_offLifecycle(type, callback?)` - Remove lifecycle listeners.
+- `_onceLifecycle(type, callback)` - One‑time lifecycle listener.
+- `_clearCallbacks()` - Remove all registered callbacks (global, room, lifecycle).
+- `_triggerCallbacks(callbacks, ...args)` - Invoke a set of callbacks safely, catching errors.
+
+#### Type Guards (Protected)
+
+A comprehensive set of runtime type guards for verifying decoded message shapes. These enable the client and server to branch on message type without unsafe casts.
+
+- `_isObject(obj)` - Simple object check.
+- `_isObjectEvent(obj)` - Checks for `event: string | number` property.
+- `_isObjectRoom(obj)` - Checks for `room: string`.
+- `_isObjectRooms(obj)` - Checks for `rooms: string[]`.
+- `_isObjectLifecycle(obj)` - Checks for `type` property matching a `LifecycleTypes` value.
+- `_isLifecycleMessage(type, obj)` - Composite guard for a specific lifecycle type.
+- `_isLifecyclePayloadMessage(type, obj)` - Lifecycle message with a `data` payload.
+- `_isLifecycleRoomMessage(type, obj)` - Single‑room lifecycle message.
+- `_isLifecycleRoomsMessage(type, obj)` - Multi‑room lifecycle message.
+- `_isLifecycleRoomErrorMessage(obj)` - Single‑room error lifecycle message.
+- `_isLifecycleRoomsErrorMessage(obj)` - Multi‑room error lifecycle message.
+- `_isEventMessage(obj)` - User event with `event` and `data`.
+- `_isRoomEventMessage(obj)` - User event scoped to a single room.
+- `_isRoomsEventMessage(obj)` - User event scoped to multiple rooms.
+
+## Usage
+
+All types are re-exported by `@bytesocket/client` and `@bytesocket/server`. Import from those packages instead of directly from `@bytesocket/core`.
+
+```typescript
+// ✅ Recommended
+import { type SocketEvents, LifecycleTypes } from "@bytesocket/client";
+// or
+import { type SocketEvents, LifecycleTypes } from "@bytesocket/server";
 ```
-
-Available test suites:
-
-- `coreConnectionTest` – connection open/close, origin checks, header getters
-- `coreHeartbeatTest` – empty‑binary ping/pong, automatic keep‑alive
-- `coreAuthTest` – authentication flow (success / failure / timeout)
-- `coreLifecycleTest` – lifecycle hook ordering and errors
-- `coreMessagingTest` – message send / receive, serialization
-- `coreRoomsSingleTest` – single‑room join/leave/emit
-- `coreRoomsBulkTest` – bulk room operations
-
-Each factory function receives:
-
-1. The Vitest instance (`import * as vitest from 'vitest'`)
-2. A `createByteSocket` function
-3. A `createByteSocketServer` function
-4. A `destroyByteSocketServer` function
-
-See the [adaptor packages](#adaptors) for concrete examples.
-
----
-
-## API overview
-
-### `ByteSocketBase`
-
-The abstract server class. Adaptors extend it and implement `attach`, `publishRaw`, and the upgrade lifecycle methods.
-
-```ts
-import { ByteSocketBase } from "@bytesocket/core";
-
-class MyByteSocket extends ByteSocketBase<MyEvents> {
-	attach(server: unknown, path: string): this {
-		/* … */
-	}
-	// …
-}
-```
-
-Key protected methods (call these from your adaptor):
-
-- `message(socket, data, isBinary)` – process an incoming WebSocket message
-- `close(socket, code, reason)` – handle a transport close event
-
-Public API: `emit`, `on`, `off`, `once`, `use` (middleware), `encode`, `decode`, `destroy`.
-
-### `SocketBase`
-
-Abstract socket instance. Adaptors subclass it to provide `sendRaw`, `publishRaw`, `joinRoom`, `leaveRoom`, and `closeTransport`.
-
-### Common options (`ByteSocketOptionsBase`)
-
-| Option                   | Type                                  | Default                      | Description                                        |
-| ------------------------ | ------------------------------------- | ---------------------------- | -------------------------------------------------- |
-| `debug`                  | `boolean`                             | `false`                      | Enable debug logging                               |
-| `serialization`          | `"json"` \| `"binary"`                | `"binary"`                   | Payload encoding format                            |
-| `broadcastRoom`          | `string`                              | `"__bytesocket_broadcast__"` | Internal room used for global broadcasts           |
-| `authTimeout`            | `number`                              | `5000`                       | Max milliseconds to wait for an auth response      |
-| `middlewareTimeout`      | `number`                              | `5000`                       | Timeout for global middleware                      |
-| `roomMiddlewareTimeout`  | `number`                              | `5000`                       | Timeout for room middleware                        |
-| `idleTimeout`            | `number`                              | `120`                        | Seconds before an idle connection is closed        |
-| `sendPingsAutomatically` | `boolean`                             | `true`                       | Send WebSocket pings to keep the connection alive  |
-| `origins`                | `string[]`                            | –                            | Allowed origin list (empty = all allowed)          |
-| `onMiddlewareError`      | `"ignore"` \| `"close"` \| `function` | `"ignore"`                   | Action when global middleware errors               |
-| `onMiddlewareTimeout`    | `"ignore"` \| `"close"` \| `function` | `"ignore"`                   | Action when global middleware times out            |
-| `msgpackrOptions`        | `object`                              | –                            | Options forwarded to the `msgpackr` Packr instance |
-| `auth`                   | `AuthFunction`                        | –                            | User‑supplied authentication handler               |
-
----
-
-## Usage example (via an adaptor)
-
-```ts
-import { ByteSocket } from '@bytesocket/node';   // or '@bytesocket/uws'
-import { SocketEvents } from '@bytesocket/types';
-
-type MyEvents = SocketEvents<{
-  "chat:message": { text: string };
-  "user:joined": { userId: string };
-}>;
-
-const io = new ByteSocket<MyEvents>({ debug: true });
-
-io.on('chat:message', (socket, data) => {
-  console.log(\`${socket.id} says: ${data.text}\`);
-});
-
-io.emit('user:joined', { userId: 'server' });
-
-// attach to an HTTP server or uWS app
-io.attach(server, '/ws');
-```
-
----
-
-## Adaptors
-
-Transport‑specific implementations:
-
-- [@bytesocket/node](../node) – Node.js `ws` library
-- [@bytesocket/uws](../uws) – uWebSockets.js
-
-Both expose a concrete `ByteSocket` class that you instantiate directly.
-
----
-
-## Testing with shared utilities
-
-```ts
-// packages/node/tests/connection.test.ts
-import * as vitest from "vitest";
-import { coreConnectionTest } from "@bytesocket/core/test-utils";
-import { createByteSocket, createByteSocketServer, destroyByteSocketServer } from "./factory";
-
-describe("ByteSocket node: Connection", () => {
-	coreConnectionTest(vitest, createByteSocket, createByteSocketServer, destroyByteSocketServer);
-});
-```
-
-Your factory file provides the three functions that wrap your specific transport setup. The shared test suite handles the rest.
 
 ---
 

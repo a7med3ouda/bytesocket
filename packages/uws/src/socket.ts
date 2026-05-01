@@ -1,5 +1,13 @@
-import { SocketBase, type ISocket, type ServerOutgoingData, type SocketData } from "@bytesocket/core";
-import { type LifecycleMessage, type SocketEvents, type UserMessage } from "@bytesocket/types";
+// packages/uws/src/socket.ts
+import {
+	SocketServerBase,
+	type ISocket,
+	type LifecycleMessage,
+	type ServerOutgoingData,
+	type SocketData,
+	type SocketEvents,
+	type UserMessage,
+} from "@bytesocket/server";
 import type { WebSocket } from "uWebSockets.js";
 
 /**
@@ -20,7 +28,7 @@ import type { WebSocket } from "uWebSockets.js";
  * });
  */
 export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData>
-	extends SocketBase<TEvents, SD>
+	extends SocketServerBase<TEvents, SD>
 	implements ISocket<TEvents, SD>
 {
 	#ws: WebSocket<SD>;
@@ -53,6 +61,18 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 		return this;
 	}
 
+	close(code = 1000, reason = "normal"): void {
+		if (this.isClosed) {
+			return;
+		}
+		this._close();
+		try {
+			this.#ws.end(code, reason);
+		} catch {
+			// Transport already closed – ignore silently
+		}
+	}
+
 	protected getRoomList(includeBroadcast?: boolean): string[] {
 		if (this.isClosed) {
 			return includeBroadcast ? [...this.#rooms] : [...this.#rooms].filter((r) => r !== this.broadcastRoom);
@@ -61,43 +81,40 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 		return includeBroadcast ? topics : topics.filter((t) => t !== this.broadcastRoom);
 	}
 
-	protected publishRaw(room: string, message: ServerOutgoingData, isBinary: boolean = typeof message !== "string", compress?: boolean): this {
+	protected publishRaw(
+		room: string,
+		message: ServerOutgoingData,
+		isBinary: boolean = typeof message !== "string",
+		compress?: boolean,
+	): typeof this.rooms {
 		if (this.isClosed) {
-			return this;
+			return this.rooms;
 		}
 		this.#ws.publish(room, message, isBinary, compress);
-		return this;
+		return this.rooms;
 	}
 
-	protected joinRoom(room: string): this {
+	protected joinRoom(room: string): typeof this.rooms {
 		if (!this.canSend) {
-			return this;
+			return this.rooms;
 		}
 		if (this.#ws.isSubscribed(room) || this.#rooms.has(room)) {
-			return this;
+			return this.rooms;
 		}
 		this.#ws.subscribe(room);
 		this.#rooms.add(room);
-		return this;
+		return this.rooms;
 	}
 
-	protected leaveRoom(room: string): this {
+	protected leaveRoom(room: string): typeof this.rooms {
 		if (!this.canSend) {
-			return this;
+			return this.rooms;
 		}
 		if (!this.#ws.isSubscribed(room) && !this.#rooms.has(room)) {
-			return this;
+			return this.rooms;
 		}
 		this.#ws.unsubscribe(room);
 		this.#rooms.delete(room);
-		return this;
-	}
-
-	protected closeTransport(code: number, reason: string): void {
-		try {
-			this.#ws.end(code, reason);
-		} catch {
-			// Transport already closed – ignore silently
-		}
+		return this.rooms;
 	}
 }

@@ -1,5 +1,13 @@
-import { ByteSocketBase, type IByteSocket, type ServerIncomingData, type ServerOutgoingData, type SocketData } from "@bytesocket/core";
-import { LifecycleTypes, type SocketEvents } from "@bytesocket/types";
+// packages/node/src/byte-socket.ts
+import {
+	ByteSocketServerBase,
+	LifecycleTypes,
+	type IByteSocket,
+	type ServerIncomingData,
+	type ServerOutgoingData,
+	type SocketData,
+	type SocketEvents,
+} from "@bytesocket/server";
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage, Server } from "node:http";
 import type Stream from "node:stream";
@@ -7,6 +15,8 @@ import { WebSocketServer } from "ws";
 import { RoomManager } from "./room-manager";
 import { Socket } from "./socket";
 import type { ByteSocketOptions, WebSocketServerOptions } from "./types";
+
+type UpgradeCallback<SD> = (req: IncomingMessage, socket: Stream.Duplex, head: Buffer<ArrayBuffer>, userData: SD, context: WebSocketServer) => void;
 
 /**
  * ByteSocket server instance.
@@ -61,6 +71,9 @@ import type { ByteSocketOptions, WebSocketServerOptions } from "./types";
  *   listenRoom: {
  *     chat: { "message": { text: string; sender: string } };
  *   };
+ *   emitRooms:
+ *     | { rooms: ['lobby', 'announcements']; event: { 'alert': string } }
+ *     | { rooms: ['roomA', 'roomB']; event: { 'message': { text: string } } };
  * }
  *
  * const io = new ByteSocket<MyEvents>({ debug: true });
@@ -80,8 +93,8 @@ import type { ByteSocketOptions, WebSocketServerOptions } from "./types";
  * ```
  */
 export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData>
-	extends ByteSocketBase<TEvents, SD>
-	implements IByteSocket<TEvents, SD>
+	extends ByteSocketServerBase<TEvents, SD, UpgradeCallback<SD>>
+	implements IByteSocket<TEvents, SD, UpgradeCallback<SD>>
 {
 	#paths: Set<string> = new Set();
 	#server: Server | undefined;
@@ -115,35 +128,17 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		this.#serverOptions = options.serverOptions;
 	}
 
-	protected onUpgrade(
-		callback: (req: IncomingMessage, socket: Stream.Duplex, head: Buffer<ArrayBuffer>, userData: SD, context: WebSocketServer) => void,
-	) {
-		return this.onLifecycle(LifecycleTypes.upgrade, callback);
-	}
-	protected offUpgrade(
-		callback?: (req: IncomingMessage, socket: Stream.Duplex, head: Buffer<ArrayBuffer>, userData: SD, context: WebSocketServer) => void,
-	) {
-		return this.offLifecycle(LifecycleTypes.upgrade, callback);
-	}
-	protected onceUpgrade(
-		callback: (req: IncomingMessage, socket: Stream.Duplex, head: Buffer<ArrayBuffer>, userData: SD, context: WebSocketServer) => void,
-	) {
-		return this.onceLifecycle(LifecycleTypes.upgrade, callback);
-	}
-
-	protected publishRaw(room: string, message: ServerOutgoingData, isBinary: boolean = typeof message !== "string", compress?: boolean): this {
+	protected publishRaw(
+		room: string,
+		message: ServerOutgoingData,
+		isBinary: boolean = typeof message !== "string",
+		compress?: boolean,
+	): typeof this.rooms {
 		if (!this.#wss || this.destroyed) {
-			return this;
+			return this.rooms;
 		}
 		this.#roomManager.publishServer(room, message, isBinary, compress);
-		return this;
-	}
-
-	protected serverDestroy() {
-		this.#wss?.close();
-		this.#paths.clear();
-		this.#wss = undefined;
-		this.#server = undefined;
+		return this.rooms;
 	}
 
 	/**
@@ -175,15 +170,16 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 	 * ```
 	 */
 	attach(server: Server, path: string): this {
+		if (this.destroyed) {
+			return this;
+		}
 		if (!this.#wss) {
 			this.#wss = new WebSocketServer({ ...this.#serverOptions, noServer: true });
 		}
-
 		if (this.#paths.has(path)) {
 			return this;
 		}
 		this.#paths.add(path);
-
 		if (this.#server !== server) {
 			if (this.#server && this.#upgrade) {
 				this.#server.off("upgrade", this.#upgrade);
@@ -194,6 +190,44 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		}
 
 		return this;
+	}
+
+	/**
+	 * Permanently destroys the ByteSocket instance.
+	 *
+	 * - Closes all active WebSocket connections.
+	 * - Closes the underlying WebSocketServer.
+	 * - **Removes the `upgrade` listener** from the attached HTTP server, freeing
+	 *   the server to be used with a new ByteSocket instance later.
+	 * - Clears all event listeners, middleware, and internal state.
+	 *
+	 * After calling `destroy()`, the instance **cannot be reused**.
+	 *
+	 * @example
+	 * ```ts
+	 * const io = new ByteSocket();
+	 * io.attach(server, "/ws");
+	 * // ... later, during graceful shutdown:
+	 * io.destroy();
+	 *
+	 * // The HTTP server will be free and can be reused if you do:
+	 * server.removeAllListeners("upgrade");
+	 * const io2 = new ByteSocket();
+	 * io2.attach(server, "/ws");  // works without conflict
+	 * ```
+	 */
+	destroy(): void {
+		if (this.destroyed) {
+			return;
+		}
+		this._destroy();
+		this.#wss?.close();
+		this.#paths.clear();
+		// if (this.#upgrade) {
+		// 	this.#server?.off("upgrade", this.#upgrade);
+		// }
+		this.#wss = undefined;
+		this.#server = undefined;
 	}
 
 	#upgrade: ((req: IncomingMessage, socket: Stream.Duplex, head: Buffer<ArrayBuffer>) => void) | undefined;
@@ -232,7 +266,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 			xForwardedFor: req.headers["x-forwarded-for"] ?? "",
 		} as SD;
 
-		this.runSyncHooks(this.lifecycleCallbacksMap.get(LifecycleTypes.upgrade), [req, streamSocket, head, socketData, this.#wss], (error) => {
+		this._runSyncHooks(this._lifecycleCallbacksMap.get(LifecycleTypes.upgrade), [req, streamSocket, head, socketData, this.#wss], (error) => {
 			if (error == null) {
 				if (this.destroyed || !this.#wss) {
 					streamSocket.destroy();
@@ -251,9 +285,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 					if (!this.options.auth) {
 						socket._handleAuth(null, this.options.auth, this.options.authTimeout, (err) => {
 							if (err == null) {
-								this.runSyncHooks(this.lifecycleCallbacksMap.get(LifecycleTypes.open), [socket], (error) => {
+								this._runSyncHooks(this._lifecycleCallbacksMap.get(LifecycleTypes.open), [socket], (error) => {
 									if (error != null) {
-										this.triggerCallbacks(this.lifecycleCallbacksMap.get(LifecycleTypes.error), socket, {
+										this._triggerCallbacks(this._lifecycleCallbacksMap.get(LifecycleTypes.error), socket, {
 											phase: "onOpen",
 											error,
 										});
@@ -266,11 +300,11 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 					ws.on("close", (code, reason) => this.close(socket, code, reason));
 				});
 			} else {
-				if (this.options.debug) {
+				if (this._debug) {
 					console.error(error);
 				}
 				streamSocket.destroy();
-				this.triggerCallbacks(this.lifecycleCallbacksMap.get(LifecycleTypes.error), null, { phase: "onUpgrade", error });
+				this._triggerCallbacks(this._lifecycleCallbacksMap.get(LifecycleTypes.error), null, { phase: "onUpgrade", error });
 			}
 		});
 	}

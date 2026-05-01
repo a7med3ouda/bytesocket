@@ -1,27 +1,24 @@
 {
-	"name": "@bytesocket/types",
-	"version": "0.3.0",
-	"description": "Shared types and enums for ByteSocket",
+	"name": "@bytesocket/server",
+	"version": "0.3.1",
+	"description": "Shared server logic for ByteSocket WebSocket server implementations",
 	"keywords": [
 		"websocket",
 		"socket",
 		"realtime",
 		"bytesocket",
-		"uws",
-		"uWebSockets",
-		"ultimate-express",
-		"hyper-express",
+		"server",
 		"msgpack",
 		"binary"
 	],
-	"homepage": "https://github.com/a7med3ouda/bytesocket/tree/main/packages/types",
+	"homepage": "https://github.com/a7med3ouda/bytesocket/tree/main/packages/server",
 	"bugs": {
 		"url": "https://github.com/a7med3ouda/bytesocket/issues"
 	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/a7med3ouda/bytesocket.git",
-		"directory": "packages/types"
+		"directory": "packages/server"
 	},
 	"license": "MIT",
 	"sideEffects": false,
@@ -31,6 +28,11 @@
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js",
 			"require": "./dist/index.cjs"
+		},
+		"./test-utils": {
+			"types": "./dist/test-utils/index.d.ts",
+			"import": "./dist/test-utils/index.js",
+			"require": "./dist/test-utils/index.cjs"
 		}
 	},
 	"main": "./dist/index.cjs",
@@ -41,10 +43,15 @@
 		"LICENSE"
 	],
 	"scripts": {
-		"build": "tsup",
-		"dev": "tsup --watch"
+		"build": "tsdown",
+		"clean": "rm -rf dist",
+		"dev": "tsdown --watch"
+	},
+	"dependencies": {
+		"@bytesocket/core": "workspace:*"
 	},
 	"devDependencies": {
+		"@types/node": "catalog:",
 		"msgpackr": "catalog:"
 	},
 	"engines": {
