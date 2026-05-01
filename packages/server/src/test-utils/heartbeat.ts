@@ -1,10 +1,10 @@
-// packages/uws/tests/connection.test.ts
+// packages/server/src/test-utils/heartbeat.ts
 import type * as vitest from "vitest";
 import WebSocket from "ws";
 import { type CreateByteSocketServerResponse, type TestEvents } from ".";
-import type { ByteSocketBase } from "../byte-socket-base";
+import type { ByteSocketServerBase } from "../byte-socket-server-base";
 
-export function coreHeartbeatTest<B extends ByteSocketBase<TestEvents> = ByteSocketBase<TestEvents>>(
+export function serverHeartbeatTest<B extends ByteSocketServerBase<TestEvents> = ByteSocketServerBase<TestEvents>>(
 	{ vi, afterEach, beforeEach, it, expect }: typeof vitest,
 	createByteSocketServer: () => Promise<CreateByteSocketServerResponse<B>>,
 	destroyByteSocketServer: (obj: CreateByteSocketServerResponse<B>) => void,

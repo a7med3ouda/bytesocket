@@ -1,4 +1,5 @@
-import type { CreateByteSocketServerResponse, TestEvents } from "@bytesocket/core";
+// packages/uws/tests/factory.ts
+import type { CreateByteSocketServerResponse, TestEvents } from "@bytesocket/server/test-utils";
 import uWS from "uWebSockets.js";
 import { ByteSocket } from "../src/byte-socket";
 import type { ByteSocketOptions } from "../src/types";

@@ -1,12 +1,12 @@
 // packages/node/tests/heartbeat.test.ts
-import { coreHeartbeatTest } from "@bytesocket/core/test-utils";
+import { serverHeartbeatTest } from "@bytesocket/server/test-utils";
 import * as vitest from "vitest";
 import { describe } from "vitest";
 import WebSocket from "ws";
 import { createByteSocket, createByteSocketServer, destroyByteSocketServer } from "./factory";
 
 describe("ByteSocket node: Heartbeat", () => {
-	const getObj = coreHeartbeatTest(vitest, createByteSocketServer, destroyByteSocketServer);
+	const getObj = serverHeartbeatTest(vitest, createByteSocketServer, destroyByteSocketServer);
 
 	vitest.it("should send protocol pings and keep connection alive when client responds", async () => {
 		const obj = getObj();

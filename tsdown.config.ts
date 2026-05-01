@@ -1,4 +1,4 @@
-import { defineConfig } from "tsup";
+import { defineConfig } from "tsdown";
 
 export const baseConfig = defineConfig({
 	format: ["esm", "cjs"],
@@ -8,5 +8,5 @@ export const baseConfig = defineConfig({
 	minify: false,
 	treeshake: true,
 	sourcemap: true,
-	splitting: false,
+	fixedExtension: false,
 });

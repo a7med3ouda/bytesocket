@@ -1,11 +1,11 @@
-// packages/uws/tests/connection.test.ts
-import { LifecycleTypes, type LifecycleRoomError } from "@bytesocket/types";
+// packages/server/src/test-utils/rooms-single.ts
+import { LifecycleTypes, type LifecycleRoomError } from "@bytesocket/core";
 import type * as vitest from "vitest";
 import { createClient, type CreateByteSocketServerResponse, type TestEvents } from ".";
-import type { ByteSocketBase } from "../byte-socket-base";
+import type { ByteSocketServerBase } from "../byte-socket-server-base";
 import type { ByteSocketOptionsBase } from "../types";
 
-export function coreRoomsSingleTest<B extends ByteSocketBase<TestEvents> = ByteSocketBase<TestEvents>>(
+export function serverRoomsSingleTest<B extends ByteSocketServerBase<TestEvents> = ByteSocketServerBase<TestEvents>>(
 	{ vi, afterEach, beforeEach, it, expect }: typeof vitest,
 	createByteSocket: (options?: ByteSocketOptionsBase<TestEvents>) => B,
 	createByteSocketServer: () => Promise<CreateByteSocketServerResponse<B>>,

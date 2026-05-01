@@ -7,6 +7,7 @@ High-performance WebSocket server for [ByteSocket](https://github.com/a7med3ouda
 [![node-current](https://img.shields.io/node/v/@bytesocket/uws?logo=nodedotjs)](https://nodejs.org/)
 [![GitHub](https://img.shields.io/badge/GitHub-gray?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket/tree/main/packages/uws)
 [![GitHub stars](https://img.shields.io/github/stars/a7med3ouda/bytesocket?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket)
+[![Socket Badge](https://badge.socket.dev/npm/package/@bytesocket/uws/0.3.1)](https://badge.socket.dev/npm/package/@bytesocket/uws/0.3.1)
 
 > ✅ Compatible with Ultimate Express and any framework exposing a `uWebSockets.js` instance.
 > ⚠️ Hyper Express supported only when accessing the underlying uWS instance.
@@ -165,6 +166,7 @@ interface MyEvents extends SocketEvents {
 	listenRoom: {
 		chat: { message: { text: string; sender: string } };
 	};
+	emitRooms: { rooms: ["lobby", "announcements"]; event: { alert: string } } | { rooms: ["roomA", "roomB"]; event: { message: { text: string } } };
 }
 
 const io = new ByteSocket<MyEvents>();
@@ -522,6 +524,8 @@ io.lifecycle.onMessage((socket, rawBuffer, isBinary) => {
 - `encode(payload)` - uses the configured `serialization` (`"json"` or `"binary"`).
 - `decode(message, isBinary?)` - parses a raw WebSocket message back into an object. If `isBinary` is omitted, the format is auto-detected.
 
+> **Caution:** `encode()` throws if the payload cannot be serialised (e.g., circular references or functions). Wrap it in a try-catch when dealing with untrusted data structures.
+
 These methods give you full control when integrating with external systems or debugging the wire format.
 
 ---
@@ -543,10 +547,15 @@ const socket = io.sockets.get(socketId);
 ## Destroy
 
 ```typescript
-// Closes all connections and cleans up all resources
-// Instance cannot be reused after this
 io.destroy();
 ```
+
+Closes all connections and cleans up all resources. The instance **cannot be reused**.
+
+> After `destroy()`, the WebSocket route remains registered on the uWS app, but it is
+> backed by the destroyed instance and becomes inactive. To use the same path again,
+> simply create a new `ByteSocket` and call `attach()` — the new handler overwrites
+> the old one automatically.
 
 ---
 

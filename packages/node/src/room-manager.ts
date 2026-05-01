@@ -1,5 +1,5 @@
-import type { ServerOutgoingData, SocketData } from "@bytesocket/core";
-import type { SocketEvents } from "@bytesocket/types";
+// packages/node/src/room-manager.ts
+import type { ServerOutgoingData, SocketData, SocketEvents } from "@bytesocket/server";
 import type { Socket } from "./socket";
 
 export class RoomManager<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData> {

@@ -1,4 +1,5 @@
-import type { CreateByteSocketServerResponse, TestEvents } from "@bytesocket/core";
+// packages/node/tests/factory.ts
+import type { CreateByteSocketServerResponse, TestEvents } from "@bytesocket/server/test-utils";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { ByteSocket } from "../src/byte-socket";

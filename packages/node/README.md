@@ -7,6 +7,7 @@ WebSocket server for [ByteSocket](https://github.com/a7med3ouda/bytesocket/tree/
 [![node-current](https://img.shields.io/node/v/@bytesocket/node?logo=nodedotjs)](https://nodejs.org/)
 [![GitHub](https://img.shields.io/badge/GitHub-gray?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket/tree/main/packages/node)
 [![GitHub stars](https://img.shields.io/github/stars/a7med3ouda/bytesocket?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket)
+[![Socket Badge](https://badge.socket.dev/npm/package/@bytesocket/node/0.3.1)](https://badge.socket.dev/npm/package/@bytesocket/node/0.3.1)
 
 > ✅ Works with any Node.js HTTP server -- Express, Fastify, Koa, NestJS, plain `http.createServer`, and more.
 
@@ -220,6 +221,7 @@ interface MyEvents extends SocketEvents {
 	listenRoom: {
 		chat: { message: { text: string; sender: string } };
 	};
+	emitRooms: { rooms: ["lobby", "announcements"]; event: { alert: string } } | { rooms: ["roomA", "roomB"]; event: { message: { text: string } } };
 }
 
 const io = new ByteSocket<MyEvents>();
@@ -569,7 +571,9 @@ const io = new ByteSocket({
 
 ## Advanced: Manual Serialization
 
-Use `encode()` and `decode()` to bypass the automatic serialization.
+If you need to inspect, pre-encode, or bypass the automatic serialization, you can use the `encode()` and `decode()` methods.
+
+> ⚠️ **These are advanced APIs.** Prefer `emit()` and `on()` for type-safe, automatic encoding/decoding.
 
 ```typescript
 // Encode a structured payload (returns a string or Buffer)
@@ -590,6 +594,10 @@ io.lifecycle.onMessage((socket, rawBuffer, isBinary) => {
 
 - `encode(payload)` -- uses the configured `serialization` (`"json"` or `"binary"`).
 - `decode(message, isBinary?)` -- parses a raw WebSocket message. Handles fragmented messages automatically.
+
+> **Caution:** `encode()` throws if the payload cannot be serialised (e.g., circular references or functions). Wrap it in a try-catch when dealing with untrusted data structures.
+
+These methods give you full control when integrating with external systems or debugging the wire format.
 
 ---
 
@@ -623,8 +631,8 @@ The `path` is available via `socket.url`.
 ## Destroy
 
 ```typescript
-// Closes all connections, shuts down the WebSocket server,
-// removes the upgrade listener from the HTTP server.
+// Closes all connections, shuts down the WebSocket server.
+// Note: The upgrade listener on the HTTP server is currently NOT removed.
 // Instance cannot be reused.
 io.destroy();
 ```

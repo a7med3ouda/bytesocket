@@ -1,7 +1,7 @@
 {
 	"name": "@bytesocket/core",
-	"version": "0.3.0",
-	"description": "Shared core logic for ByteSocket WebSocket server implementations",
+	"version": "0.3.1",
+	"description": "Shared core logic for ByteSocket WebSocket implementations",
 	"keywords": [
 		"websocket",
 		"socket",
@@ -28,10 +28,6 @@
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js",
 			"require": "./dist/index.cjs"
-		},
-		"./test-utils": {
-			"import": "./dist/test-utils/index.js",
-			"types": "./dist/test-utils/index.d.ts"
 		}
 	},
 	"main": "./dist/index.cjs",
@@ -42,12 +38,11 @@
 		"LICENSE"
 	],
 	"scripts": {
-		"build": "tsup",
+		"build": "tsdown",
 		"clean": "rm -rf dist",
-		"dev": "tsup --watch"
+		"dev": "tsdown --watch"
 	},
 	"dependencies": {
-		"@bytesocket/types": "workspace:*",
 		"msgpackr": "catalog:"
 	},
 	"devDependencies": {

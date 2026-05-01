@@ -1,6 +1,6 @@
 {
 	"name": "@bytesocket/client",
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"description": "High-performance WebSocket client for browsers",
 	"keywords": [
 		"websocket",
@@ -41,13 +41,12 @@
 		"LICENSE"
 	],
 	"scripts": {
-		"build": "tsup",
+		"build": "tsdown",
 		"clean": "rm -rf dist",
-		"dev": "tsup --watch"
+		"dev": "tsdown --watch"
 	},
 	"dependencies": {
-		"@bytesocket/types": "workspace:*",
-		"msgpackr": "catalog:"
+		"@bytesocket/core": "workspace:*"
 	},
 	"engines": {
 		"node": ">=22.4.0"

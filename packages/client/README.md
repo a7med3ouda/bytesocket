@@ -7,6 +7,7 @@ A modern WebSocket client for [ByteSocket](https://github.com/a7med3ouda/bytesoc
 [![node-current](https://img.shields.io/node/v/@bytesocket/client?logo=nodedotjs)](https://nodejs.org/)
 [![GitHub](https://img.shields.io/badge/GitHub-gray?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket/tree/main/packages/client)
 [![GitHub stars](https://img.shields.io/github/stars/a7med3ouda/bytesocket?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket)
+[![Socket Badge](https://badge.socket.dev/npm/package/@bytesocket/client/0.3.1)](https://badge.socket.dev/npm/package/@bytesocket/client/0.3.1)
 
 ---
 
@@ -19,7 +20,7 @@ A modern WebSocket client for [ByteSocket](https://github.com/a7med3ouda/bytesoc
 - **Message queue** -- outgoing messages are buffered while offline and flushed on reconnect
 - **Dual serialization** -- JSON or binary MessagePack (`msgpackr`) out of the box
 - **Fully typed** -- generic event maps for compile-time safety on all emit/listen calls
-- **Zero runtime dependencies** beyond `msgpackr` (for binary mode)
+- **Lightweight** - uses `@bytesocket/core` internally (installed automatically, no extra step)
 
 ---
 
@@ -35,10 +36,10 @@ yarn add @bytesocket/client
 
 ## Backend Packages
 
-| Package                                                              | Backend                                                         | Status       |
-| -------------------------------------------------------------------- | --------------------------------------------------------------- | ------------ |
-| [`@bytesocket/uws`](https://www.npmjs.com/package/@bytesocket/uws)   | [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js) | ✅ Available |
-| [`@bytesocket/node`](https://www.npmjs.com/package/@bytesocket/node) | node:http server using [ws](https://www.npmjs.com/package/ws)   | ✅ Available |
+| Package                                                              | Backend                                                         | Status            |
+| -------------------------------------------------------------------- | --------------------------------------------------------------- | ----------------- |
+| [`@bytesocket/uws`](https://www.npmjs.com/package/@bytesocket/uws)   | [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js) | ✅&nbsp;Available |
+| [`@bytesocket/node`](https://www.npmjs.com/package/@bytesocket/node) | node:http server using [ws](https://www.npmjs.com/package/ws)   | ✅&nbsp;Available |
 
 ---
 
@@ -61,6 +62,8 @@ socket.on("welcome", (data) => console.log(data));
 ## Type-Safe Events
 
 Define your event schema once and get full inference everywhere. You can use **symmetric events** (emit and listen share the same map) or **asymmetric events** (full control via interface extension).
+
+> **Note:** To type-check bulk room emits (`rooms.bulk.emit`), you must define an `emitRooms` union in your event map (see the asymmetric example). Otherwise, bulk emit falls back to loosely-typed arguments.
 
 ### Symmetric usage (most common)
 
@@ -114,6 +117,8 @@ interface MyEvents extends SocketEvents {
 			"user:left": { userId: string };
 		};
 	};
+	// For bulk emit typing you MUST provide a union of explicit room arrays:
+	emitRooms: { rooms: ["lobby", "announcements"]; event: { alert: string } } | { rooms: ["roomA", "roomB"]; event: { message: { text: string } } };
 }
 
 const socket = new ByteSocket<MyEvents>("wss://example.com/socket");
@@ -145,6 +150,8 @@ const socket = new ByteSocket("wss://example.com/socket", {
 socket.lifecycle.onAuthSuccess(() => console.log("Authenticated"));
 socket.lifecycle.onAuthError((err) => console.error("Auth failed", err));
 ```
+
+> `onAuthError` receives an `ErrorContext` object containing `phase`, `error`, `event`, `raw`, `code`, and `bytes`.
 
 ### Async token (e.g. refresh before each connection)
 
@@ -225,7 +232,7 @@ socket.rooms.bulk.join(["lobby", "notifications", "chat"]);
 // Leave multiple rooms
 socket.rooms.bulk.leave(["lobby", "notifications"]);
 
-// Emit to multiple rooms at once
+// Emit to multiple rooms at once (fully typed only if emitRooms is defined)
 socket.rooms.bulk.emit(["room1", "room2"], "announcement", { text: "Hello everyone!" });
 
 // Bulk lifecycle events
@@ -279,8 +286,8 @@ Keepalive ping/pong is enabled by default.
 ```typescript
 const socket = new ByteSocket("wss://example.com/socket", {
 	heartbeatEnabled: true,
-	pingInterval: 25000, // send ping every 25s
-	pingTimeout: 20000, // close if no pong within 20s
+	pingInterval: 50000, // send ping every 50s (default)
+	pingTimeout: 40000, // close if no pong within 40s (default)
 });
 ```
 
@@ -297,8 +304,9 @@ const socket = new ByteSocket("wss://example.com/socket", {
 	maxQueueSize: 100, // default; drop oldest when full
 });
 
+// onQueueFull is called when a message is dropped because the queue is full
 socket.lifecycle.onQueueFull(() => {
-	console.warn("Queue full -- some messages will be dropped");
+	console.warn("Queue full -- some messages are being dropped");
 });
 ```
 
@@ -339,7 +347,7 @@ If you need to inspect, pre-encode, or bypass the automatic serialization, you c
 > ⚠️ **These are advanced APIs.** Prefer `emit()` and `on()` for type-safe, automatic encoding/decoding.
 
 ```typescript
-// Encode a structured payload (returns a string or Uint8Array)
+// Encode any payload (returns a string or Uint8Array)
 const encoded = socket.encode({ event: "chat", data: { text: "Hello" } });
 socket.sendRaw(encoded);
 
@@ -353,8 +361,10 @@ socket.lifecycle.onMessage((raw) => {
 const decoded = socket.decode(someArrayBuffer, true);
 ```
 
-- `encode(payload)` - uses the configured `serialization` (`"json"` or `"binary"`). Returns a `string` (JSON) or `Uint8Array` (MessagePack).
+- `encode(payload)` - uses the configured `serialization` (`"json"` or `"binary"`). Returns a `string` (JSON) or `Uint8Array` (MessagePack). Accepts any value (`unknown`).
 - `decode(message, isBinary?)` - parses a raw WebSocket message back into an object. If `isBinary` is omitted, the format is auto-detected.
+
+> **Caution:** `encode()` throws if the payload cannot be serialised (e.g., circular references or functions). Wrap it in a try-catch when dealing with untrusted data structures.
 
 These methods give you full control when integrating with external systems or debugging the wire format.
 
@@ -412,7 +422,7 @@ socket.lifecycle.onError((event) => {}); // WebSocket error
 
 // Authentication
 socket.lifecycle.onAuthSuccess(() => {});
-socket.lifecycle.onAuthError((err) => {});
+socket.lifecycle.onAuthError((err) => {}); // err is ErrorContext
 
 // Raw incoming message (before parsing)
 socket.lifecycle.onMessage((raw) => {
@@ -492,8 +502,8 @@ const socket = new ByteSocket("wss://example.com/socket", {
 
 	// Heartbeat
 	heartbeatEnabled: true,
-	pingInterval: 25000,
-	pingTimeout: 20000,
+	pingInterval: 50000,
+	pingTimeout: 40000,
 
 	// Queue
 	maxQueueSize: 100,
