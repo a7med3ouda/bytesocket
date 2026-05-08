@@ -149,7 +149,7 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents, SD extends 
 		}
 		app.ws(path, {
 			...this.#serverOptions,
-			idleTimeout: this.options.idleTimeout,
+			idleTimeout: this.options.idleTimeout / 1000,
 			sendPingsAutomatically: this.options.sendPingsAutomatically,
 			upgrade: this.#upgrade.bind(this),
 			open: this.#open.bind(this),

@@ -58,13 +58,13 @@ export abstract class ByteSocketServerBase<
 
 		this.options = {
 			...options,
-			middlewareTimeout: options.middlewareTimeout ?? 5000,
-			roomMiddlewareTimeout: options.roomMiddlewareTimeout ?? 5000,
-			authTimeout: options.authTimeout ?? 5000,
+			middlewareTimeout: options.middlewareTimeout ?? 0,
+			roomMiddlewareTimeout: options.roomMiddlewareTimeout ?? 0,
+			authTimeout: options.authTimeout ?? 0,
 			broadcastRoom: options.broadcastRoom ?? "__bytesocket_broadcast__",
 			onMiddlewareError: options.onMiddlewareError ?? "ignore",
 			onMiddlewareTimeout: options.onMiddlewareTimeout ?? "ignore",
-			idleTimeout: options.idleTimeout ?? 120,
+			idleTimeout: options.idleTimeout ?? 120000,
 			sendPingsAutomatically: options.sendPingsAutomatically ?? true,
 		};
 
@@ -345,6 +345,10 @@ export abstract class ByteSocketServerBase<
 		return this;
 	}
 
+	#isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+		return !!value && typeof (value as PromiseLike<unknown>).then === "function";
+	}
+
 	#runMiddlewares<R extends string, E extends string | number, D>(
 		socket: ISocket<TEvents, SD>,
 		ctx: UserMessage<R, E, D>,
@@ -401,7 +405,7 @@ export abstract class ByteSocketServerBase<
 						}
 					});
 
-					if (result instanceof Promise) {
+					if (this.#isPromiseLike(result)) {
 						result.then(
 							() => {
 								if (!called) {
@@ -425,18 +429,23 @@ export abstract class ByteSocketServerBase<
 				}
 			});
 
-			const timeout = new Promise<void>((_, reject) => {
-				timeoutId = setTimeout(() => {
-					if (!called) {
-						called = true;
-						const timeoutError = new Error(`Middleware timeout after ${this.options.middlewareTimeout}ms`);
-						timeoutError.name = "TimeoutError";
-						reject(timeoutError);
-					}
-				}, this.options.middlewareTimeout);
-			});
+			const tasks: Promise<void>[] = [execution];
 
-			Promise.race([execution, timeout])
+			if (this.options.middlewareTimeout > 0) {
+				const timeout = new Promise<void>((_, reject) => {
+					timeoutId = setTimeout(() => {
+						if (!called) {
+							called = true;
+							const timeoutError = new Error(`Middleware timeout after ${this.options.middlewareTimeout}ms`);
+							timeoutError.name = "TimeoutError";
+							reject(timeoutError);
+						}
+					}, this.options.middlewareTimeout);
+				});
+				tasks.push(timeout);
+			}
+
+			Promise.race(tasks)
 				.then(() => next())
 				.catch((err) => next(err))
 				.finally(() => {
@@ -746,7 +755,7 @@ export abstract class ByteSocketServerBase<
 						}
 					});
 
-					if (result instanceof Promise) {
+					if (this.#isPromiseLike(result)) {
 						result.then(
 							() => {
 								if (!called) {
@@ -770,18 +779,23 @@ export abstract class ByteSocketServerBase<
 				}
 			});
 
-			const timeout = new Promise<void>((_, reject) => {
-				timeoutId = setTimeout(() => {
-					if (!called) {
-						called = true;
-						const timeoutError = new Error(`Room middleware timeout after ${this.options.roomMiddlewareTimeout}ms`);
-						timeoutError.name = "TimeoutError";
-						reject(timeoutError);
-					}
-				}, this.options.roomMiddlewareTimeout);
-			});
+			const tasks: Promise<void>[] = [execution];
 
-			Promise.race([execution, timeout])
+			if (this.options.roomMiddlewareTimeout > 0) {
+				const timeout = new Promise<void>((_, reject) => {
+					timeoutId = setTimeout(() => {
+						if (!called) {
+							called = true;
+							const timeoutError = new Error(`Room middleware timeout after ${this.options.roomMiddlewareTimeout}ms`);
+							timeoutError.name = "TimeoutError";
+							reject(timeoutError);
+						}
+					}, this.options.roomMiddlewareTimeout);
+				});
+				tasks.push(timeout);
+			}
+
+			Promise.race(tasks)
 				.then(() => next())
 				.catch((err) => next(err))
 				.finally(() => {

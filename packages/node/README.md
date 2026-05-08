@@ -7,7 +7,7 @@ WebSocket server for [ByteSocket](https://github.com/a7med3ouda/bytesocket/tree/
 [![node-current](https://img.shields.io/node/v/@bytesocket/node?logo=nodedotjs)](https://nodejs.org/)
 [![GitHub](https://img.shields.io/badge/GitHub-gray?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket/tree/main/packages/node)
 [![GitHub stars](https://img.shields.io/github/stars/a7med3ouda/bytesocket?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket)
-[![Socket Badge](https://badge.socket.dev/npm/package/@bytesocket/node/0.3.1)](https://badge.socket.dev/npm/package/@bytesocket/node/0.3.1)
+[![Socket Badge](https://badge.socket.dev/npm/package/@bytesocket/node)](https://socket.dev/npm/package/@bytesocket/node)
 
 > ✅ Works with any Node.js HTTP server -- Express, Fastify, Koa, NestJS, plain `http.createServer`, and more.
 
@@ -399,7 +399,7 @@ By default, the server sends automatic pings and closes connections that remain 
 
 ```typescript
 const io = new ByteSocket({
-	idleTimeout: 60, // seconds of inactivity before termination (0 = disabled)
+	idleTimeout: 60000, // milliseconds of inactivity before termination (0 = disabled)
 	sendPingsAutomatically: true, // set to false to disable pings
 });
 ```
@@ -668,7 +668,7 @@ const io = new ByteSocket({
 	broadcastRoom: "__bytesocket_broadcast__",
 
 	// Heartbeat
-	idleTimeout: 120, // seconds, 0 = disabled
+	idleTimeout: 120000, // milliseconds, 0 = disabled
 	sendPingsAutomatically: true,
 
 	// Debug

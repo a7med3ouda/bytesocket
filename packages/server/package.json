@@ -1,6 +1,6 @@
 {
 	"name": "@bytesocket/server",
-	"version": "0.3.1",
+	"version": "0.4.0",
 	"description": "Shared server logic for ByteSocket WebSocket server implementations",
 	"keywords": [
 		"websocket",

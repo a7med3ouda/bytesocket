@@ -41,6 +41,7 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 	// ──── Heartbeat ──────────────────────────────────────────────
 	#heartbeat: {
 		enabled: boolean;
+		pingEnabled: boolean;
 		idleTimeoutMs: number;
 		pingIntervalMs: number;
 	};
@@ -68,18 +69,17 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 		this.broadcastRoom = broadcastRoom;
 		this.#ws = ws;
 		this.#roomManager = roomManager;
-		const idleTimeoutSec = heartbeatConfig?.idleTimeout ?? 120;
+		const idleTimeout = heartbeatConfig?.idleTimeout ?? 120000;
 		const sendPings = heartbeatConfig?.sendPingsAutomatically ?? true;
+		const idleEnabled = idleTimeout > 0;
+		const pingEnabled = sendPings && idleEnabled;
 
-		if (sendPings && idleTimeoutSec > 0) {
-			this.#heartbeat = {
-				enabled: true,
-				idleTimeoutMs: idleTimeoutSec * 1000,
-				pingIntervalMs: (idleTimeoutSec * 1000) / 2,
-			};
-		} else {
-			this.#heartbeat = { enabled: false, idleTimeoutMs: 0, pingIntervalMs: 0 };
-		}
+		this.#heartbeat = {
+			enabled: idleEnabled,
+			pingEnabled,
+			idleTimeoutMs: idleTimeout,
+			pingIntervalMs: pingEnabled ? idleTimeout / 2 : 0,
+		};
 	}
 
 	sendRaw(message: ServerOutgoingData, isBinary: boolean = typeof message !== "string", compress?: boolean): this {
@@ -164,12 +164,14 @@ export class Socket<TEvents extends SocketEvents = SocketEvents, SD extends Sock
 
 		resetIdle();
 
-		this.#pingIntervalHandle = setInterval(() => {
-			if (this.isClosed) {
-				return;
-			}
-			this.#ws.ping();
-		}, this.#heartbeat.pingIntervalMs);
+		if (this.#heartbeat.pingEnabled) {
+			this.#pingIntervalHandle = setInterval(() => {
+				if (this.isClosed) {
+					return;
+				}
+				this.#ws.ping();
+			}, this.#heartbeat.pingIntervalMs);
+		}
 	}
 
 	protected clearHeartbeat(): void {

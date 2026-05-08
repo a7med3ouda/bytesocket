@@ -39,6 +39,7 @@ export abstract class ByteSocketBase implements IByteSocketBase {
 		this._msgpackrOptions = {
 			...msgpackrOptions,
 			useRecords: false,
+			structuredClone: false,
 			structures: msgpackrOptions?.structures?.length ? [...this._defaultStructures, ...msgpackrOptions.structures] : this._defaultStructures,
 			useFloat32: msgpackrOptions?.useFloat32 ?? FLOAT32_OPTIONS.DECIMAL_FIT,
 			copyBuffers: msgpackrOptions?.copyBuffers ?? false,

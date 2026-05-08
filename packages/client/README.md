@@ -1,4 +1,4 @@
-# ByteSocket
+# @bytesocket/client
 
 A modern WebSocket client for [ByteSocket](https://github.com/a7med3ouda/bytesocket/tree/main/packages/client) with automatic reconnection, room management, authentication, heartbeat, and pluggable serialization -- fully typed with TypeScript.
 
@@ -7,7 +7,7 @@ A modern WebSocket client for [ByteSocket](https://github.com/a7med3ouda/bytesoc
 [![node-current](https://img.shields.io/node/v/@bytesocket/client?logo=nodedotjs)](https://nodejs.org/)
 [![GitHub](https://img.shields.io/badge/GitHub-gray?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket/tree/main/packages/client)
 [![GitHub stars](https://img.shields.io/github/stars/a7med3ouda/bytesocket?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket)
-[![Socket Badge](https://badge.socket.dev/npm/package/@bytesocket/client/0.3.1)](https://badge.socket.dev/npm/package/@bytesocket/client/0.3.1)
+[![Socket Badge](https://badge.socket.dev/npm/package/@bytesocket/client)](https://socket.dev/npm/package/@bytesocket/client)
 
 ---
 
@@ -36,10 +36,11 @@ yarn add @bytesocket/client
 
 ## Backend Packages
 
-| Package                                                              | Backend                                                         | Status            |
-| -------------------------------------------------------------------- | --------------------------------------------------------------- | ----------------- |
-| [`@bytesocket/uws`](https://www.npmjs.com/package/@bytesocket/uws)   | [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js) | ✅&nbsp;Available |
-| [`@bytesocket/node`](https://www.npmjs.com/package/@bytesocket/node) | node:http server using [ws](https://www.npmjs.com/package/ws)   | ✅&nbsp;Available |
+| Package                                                              | Backend                                                                                                                                          | Status                   |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ |
+| [`@bytesocket/uws`](https://www.npmjs.com/package/@bytesocket/uws)   | [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js)                                                                                  | ✅&nbsp;Available        |
+| [`@bytesocket/node`](https://www.npmjs.com/package/@bytesocket/node) | node:http server using [ws](https://www.npmjs.com/package/ws)                                                                                    | ✅&nbsp;Available        |
+| `ByteSocket.Server`                                                  | Server adapter for .NET applications using [System.Net.WebSockets](https://learn.microsoft.com/en-us/dotnet/api/system.net.websockets.websocket) | 🚧&nbsp;Coming&nbsp;soon |
 
 ---
 

@@ -8,12 +8,12 @@ export type TestEvents = SocketEvents<{
 	echo: { message: string };
 	broadcast: { text: string };
 }>;
-export interface CreateByteSocketServerResponse<B extends ByteSocketServerBase = ByteSocketServerBase> {
+export type CreateByteSocketServerResponse<B extends ByteSocketServerBase = ByteSocketServerBase> = {
 	io: B;
 	server: unknown;
 	port: number;
 	listenSocket?: unknown;
-}
+};
 
 export function createClient(
 	port: number,

@@ -67,7 +67,7 @@ export function serverMessagingTest<B extends ByteSocketServerBase<TestEvents> =
 		const client = await createClient(obj.port);
 
 		const { Packr } = await import("msgpackr");
-		const packr = new Packr({ useRecords: false });
+		const packr = new Packr({ useRecords: false, structuredClone: false });
 		const packed = packr.pack({ event: "echo", data: { message: "binary" } });
 
 		client.send(packed);
@@ -297,7 +297,7 @@ export function serverMessagingTest<B extends ByteSocketServerBase<TestEvents> =
 		await vi.waitFor(() => expect(rawMessages.length).toBe(1));
 
 		const { Packr } = await import("msgpackr");
-		const packr = new Packr({ useRecords: false });
+		const packr = new Packr({ useRecords: false, structuredClone: false });
 		const unpacked = packr.unpack(rawMessages[0]);
 		await vi.waitFor(() => expect(unpacked).toEqual({ event: "echo", data: { message: "binary" } }));
 		client.close();

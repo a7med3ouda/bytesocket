@@ -165,10 +165,9 @@ export type ByteSocketOptionsBase<TEvents extends SocketEvents = SocketEvents, S
 	/** Authentication configuration. */
 	auth?: AuthFunction<TEvents, SD>;
 	/**
-	 * Maximum seconds of inactivity (no messages received or pongs) before the connection is closed.
-	 * Only effective when `sendPingsAutomatically` is `true`.
+	 * Maximum milliseconds of inactivity (no messages received or pongs) before the connection is closed.
 	 * Set to `0` to disable.
-	 * @default 120
+	 * @default 120000
 	 */
 	idleTimeout?: number;
 	/**

@@ -7,7 +7,7 @@ High-performance WebSocket server for [ByteSocket](https://github.com/a7med3ouda
 [![node-current](https://img.shields.io/node/v/@bytesocket/uws?logo=nodedotjs)](https://nodejs.org/)
 [![GitHub](https://img.shields.io/badge/GitHub-gray?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket/tree/main/packages/uws)
 [![GitHub stars](https://img.shields.io/github/stars/a7med3ouda/bytesocket?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket)
-[![Socket Badge](https://badge.socket.dev/npm/package/@bytesocket/uws/0.3.1)](https://badge.socket.dev/npm/package/@bytesocket/uws/0.3.1)
+[![Socket Badge](https://badge.socket.dev/npm/package/@bytesocket/uws)](https://socket.dev/npm/package/@bytesocket/uws)
 
 > ✅ Compatible with Ultimate Express and any framework exposing a `uWebSockets.js` instance.
 > ⚠️ Hyper Express supported only when accessing the underlying uWS instance.
@@ -589,7 +589,7 @@ const io = new ByteSocket({
 	debug: false,
 
 	// uWebSockets.js pass-through options
-	idleTimeout: 120, // seconds, 0 = disabled
+	idleTimeout: 120000, // milliseconds, 0 = disabled
 	sendPingsAutomatically: true,
 	serverOptions: {
 		maxPayloadLength: 16 * 1024 * 1024,

@@ -9,7 +9,7 @@ You do not need to install this package directly; it is a dependency of the main
 [![node-current](https://img.shields.io/node/v/@bytesocket/server?logo=nodedotjs)](https://nodejs.org/)
 [![GitHub](https://img.shields.io/badge/GitHub-gray?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket/tree/main/packages/server)
 [![GitHub stars](https://img.shields.io/github/stars/a7med3ouda/bytesocket?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket)
-[![Socket Badge](https://badge.socket.dev/npm/package/@bytesocket/server/0.3.1)](https://badge.socket.dev/npm/package/@bytesocket/server/0.3.1)
+[![Socket Badge](https://badge.socket.dev/npm/package/@bytesocket/server)](https://socket.dev/npm/package/@bytesocket/server)
 
 ## Features
 
@@ -110,10 +110,10 @@ Abstract socket instance. Adaptors subclass it to provide `sendRaw`, `publishRaw
 | `debug`                  | `boolean`                             | `false`                      | Enable debug logging                               |
 | `serialization`          | `"json"` \| `"binary"`                | `"binary"`                   | Payload encoding format                            |
 | `broadcastRoom`          | `string`                              | `"__bytesocket_broadcast__"` | Internal room used for global broadcasts           |
-| `authTimeout`            | `number`                              | `5000`                       | Max milliseconds to wait for an auth response      |
-| `middlewareTimeout`      | `number`                              | `5000`                       | Timeout for global middleware                      |
-| `roomMiddlewareTimeout`  | `number`                              | `5000`                       | Timeout for room middleware                        |
-| `idleTimeout`            | `number`                              | `120`                        | Seconds before an idle connection is closed        |
+| `authTimeout`            | `number`                              | `0`                          | Max milliseconds to wait for an auth response      |
+| `middlewareTimeout`      | `number`                              | `0`                          | Timeout for global middleware                      |
+| `roomMiddlewareTimeout`  | `number`                              | `0`                          | Timeout for room middleware                        |
+| `idleTimeout`            | `number`                              | `120000`                     | Milliseconds before an idle connection is closed   |
 | `sendPingsAutomatically` | `boolean`                             | `true`                       | Send WebSocket pings to keep the connection alive  |
 | `origins`                | `string[]`                            | -                            | Allowed origin list (empty = all allowed)          |
 | `onMiddlewareError`      | `"ignore"` \| `"close"` \| `function` | `"ignore"`                   | Action when global middleware errors               |

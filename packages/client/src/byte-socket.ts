@@ -532,6 +532,9 @@ export class ByteSocket<TEvents extends SocketEvents = SocketEvents> extends Byt
 			this.#flushing = false;
 			if (this.#messageQueue.length > 0 && this.canSend && this.#isOperational()) {
 				queueMicrotask(() => {
+					if (this.#destroyed) {
+						return;
+					}
 					if (this.#flushFailures++ > 10) {
 						this.#flushFailures = 0;
 						return;

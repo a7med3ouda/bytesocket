@@ -16,14 +16,14 @@ export type ClientOutgoingData = string | BufferSource;
 export type EventCallback<D> = (data: D) => void;
 
 /** Internal state tracking for a single room. */
-export interface RoomState {
+export type RoomState = {
 	/** Current pending operation (join/leave) or null. */
 	pending: "join" | "leave" | null;
 	/** Whether the application intends to be in this room. */
 	wanted: boolean;
 	/** Whether the server has confirmed membership. */
 	joined: boolean;
-}
+};
 
 /**
  * Authentication configuration.
