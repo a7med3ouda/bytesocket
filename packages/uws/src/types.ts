@@ -53,13 +53,13 @@ export type WebSocketServerOptions<SD extends SocketData = SocketData> = Omit<
  * });
  * ```
  */
-export interface ByteSocketOptions<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData> extends ByteSocketOptionsBase<
+export type ByteSocketOptions<TEvents extends SocketEvents = SocketEvents, SD extends SocketData = SocketData> = ByteSocketOptionsBase<
 	TEvents,
 	SD
-> {
+> & {
 	/**
 	 * Transport‑specific options forwarded to uWS.
 	 * @see {@link WebSocketServerOptions}
 	 */
 	serverOptions?: WebSocketServerOptions<SD>;
-}
+};

@@ -2,8 +2,7 @@ packages:
     - packages/*
 
 catalog:
-    "@types/node": ^22.19.17
+    "@types/node": ^22.4.0
     "@types/ws": ^8.18.1
-    msgpackr: ^1.11.10
-    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.64.0"
+    msgpackr: ^2.0.1
     ws: ^8.20.0

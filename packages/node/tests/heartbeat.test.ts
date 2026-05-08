@@ -13,7 +13,7 @@ describe("ByteSocket node: Heartbeat", () => {
 
 		obj.io = createByteSocket({
 			serialization: "json",
-			idleTimeout: 2,
+			idleTimeout: 2000,
 			sendPingsAutomatically: true,
 		});
 		obj.io.attach(obj.server, "/ws");
@@ -33,7 +33,7 @@ describe("ByteSocket node: Heartbeat", () => {
 
 		obj.io = createByteSocket({
 			serialization: "json",
-			idleTimeout: 2,
+			idleTimeout: 2000,
 			sendPingsAutomatically: true,
 		});
 		obj.io.attach(obj.server, "/ws");

@@ -164,8 +164,8 @@ export type SocketEvents<T extends { [event: string | number]: unknown } = { [ev
 /** Extracts the event map for a specific set of rooms from `emitRooms`. */
 export type EventsForRooms<T extends NonNullable<SocketEvents["emitRooms"]>, R> = Extract<T, { rooms: R }>["event"];
 
-/** Options for the msgpackr serialization library, excluding the internal `useRecords` field must be false. */
-export type MsgpackrOptions = Omit<Options, "useRecords">;
+/** Options for the msgpackr serialization library, excluding the internal `useRecords` & `structuredClone` fields must be false. */
+export type MsgpackrOptions = Omit<Options, "useRecords" | "structuredClone">;
 
 /** Lifecycle message shape for events without additional data. */
 export type LifecycleType = {

@@ -2,12 +2,12 @@
 import type { ByteSocketOptionsBase, SocketData, SocketEvents } from "@bytesocket/server";
 import type { ServerOptions } from "ws";
 
-export interface HeartbeatConfig {
-	/** Idle timeout in seconds. 0 = disabled. Default 120. */
+export type HeartbeatConfig = {
+	/** Idle timeout in milliseconds. 0 = disabled. @default 120000 */
 	idleTimeout?: number;
-	/** Whether to send automatic pings. Default true. */
+	/** Whether to send automatic pings. @default true */
 	sendPingsAutomatically?: boolean;
-}
+};
 
 /**
  * Transport‑specific options that are forwarded directly to the `ws`

@@ -9,17 +9,18 @@ ByteSocket is a monorepo providing a client library and server adapters that wor
 [![node-current](https://img.shields.io/node/v/@bytesocket/client?logo=nodedotjs)](https://nodejs.org/)
 [![GitHub](https://img.shields.io/badge/GitHub-gray?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket)
 [![GitHub stars](https://img.shields.io/github/stars/a7med3ouda/bytesocket?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket)
-[![Socket Badge](https://badge.socket.dev/npm/package/@bytesocket/client/0.3.1)](https://badge.socket.dev/npm/package/@bytesocket/client/0.3.1)
+[![Socket Badge](https://badge.socket.dev/npm/package/@bytesocket/client)](https://socket.dev/npm/package/@bytesocket/client)
 
 ---
 
 ## Packages
 
-| Package                                                                  | Description                                                                                                | Status            |
-| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- | ----------------- |
-| [`@bytesocket/client`](https://www.npmjs.com/package/@bytesocket/client) | Browser / Node WebSocket client                                                                            | ✅&nbsp;Available |
-| [`@bytesocket/uws`](https://www.npmjs.com/package/@bytesocket/uws)       | Server adapter for [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js)                         | ✅&nbsp;Available |
-| [`@bytesocket/node`](https://www.npmjs.com/package/@bytesocket/node)     | Server adapter for plain Node.js HTTP servers (Express, Fastify, Koa, NestJS, etc.) using the `ws` library | ✅&nbsp;Available |
+| Package                                                                  | Description                                                                                                                                      | Status                   |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ |
+| [`@bytesocket/client`](https://www.npmjs.com/package/@bytesocket/client) | Browser / Node WebSocket client                                                                                                                  | ✅&nbsp;Available        |
+| [`@bytesocket/uws`](https://www.npmjs.com/package/@bytesocket/uws)       | Server adapter for [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js)                                                               | ✅&nbsp;Available        |
+| [`@bytesocket/node`](https://www.npmjs.com/package/@bytesocket/node)     | Server adapter for plain Node.js HTTP servers (Express, Fastify, Koa, NestJS, etc.) using [ws](https://www.npmjs.com/package/ws)                 | ✅&nbsp;Available        |
+| `ByteSocket.Server`                                                      | Server adapter for .NET applications using [System.Net.WebSockets](https://learn.microsoft.com/en-us/dotnet/api/system.net.websockets.websocket) | 🚧&nbsp;Coming&nbsp;soon |
 
 ---
 

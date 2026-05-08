@@ -345,6 +345,7 @@ describe("ByteSocketBase - encode / decode", () => {
 		const packr = b["_msgpackrOptions"];
 		expect(packr).toBeDefined();
 		expect(packr.useRecords).toBe(false);
+		expect(packr.structuredClone).toBe(false);
 
 		const structures = b["_defaultStructures"];
 		expect(structures.some((s: string[]) => s[0] === "type")).toBe(true);

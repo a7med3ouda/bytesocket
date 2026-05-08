@@ -199,13 +199,15 @@ export abstract class SocketServerBase<TEvents extends SocketEvents = SocketEven
 				return;
 			}
 			this.#authState = AuthState.pending;
-			this.#authTimer = setTimeout(() => {
-				if (!this.isClosed && !this.isAuthenticated) {
-					const err = new Error("Auth timeout");
-					this.#setAuthFailed({ phase: "auth", error: err, code: 4008 });
-					next(err);
-				}
-			}, authTimeout);
+			if (authTimeout > 0) {
+				this.#authTimer = setTimeout(() => {
+					if (!this.isClosed && !this.isAuthenticated) {
+						const err = new Error("Auth timeout");
+						this.#setAuthFailed({ phase: "auth", error: err, code: 4008 });
+						next(err);
+					}
+				}, authTimeout);
+			}
 			try {
 				auth(this, parsed.data, (payload, error) => {
 					if (error) {

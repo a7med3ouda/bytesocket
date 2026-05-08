@@ -9,7 +9,7 @@ You do not need to install this package directly; it is a dependency of the main
 [![node-current](https://img.shields.io/node/v/@bytesocket/core?logo=nodedotjs)](https://nodejs.org/)
 [![GitHub](https://img.shields.io/badge/GitHub-gray?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket/tree/main/packages/core)
 [![GitHub stars](https://img.shields.io/github/stars/a7med3ouda/bytesocket?style=flat&logo=github)](https://github.com/a7med3ouda/bytesocket)
-[![Socket Badge](https://badge.socket.dev/npm/package/@bytesocket/core/0.3.1)](https://badge.socket.dev/npm/package/@bytesocket/core/0.3.1)
+[![Socket Badge](https://badge.socket.dev/npm/package/@bytesocket/core)](https://socket.dev/npm/package/@bytesocket/core)
 
 ## Exports
 
@@ -42,7 +42,7 @@ You do not need to install this package directly; it is a dependency of the main
 
 ### Other
 
-- `MsgpackrOptions` - Type for msgpackr configuration (excludes internal `useRecords` must be false).
+- `MsgpackrOptions` - Type for msgpackr configuration (excludes internal `useRecords` & `structuredClone` must be false).
 - `AuthState` - Enum of authentication states (`idle`, `none`, `pending`, `success`, `failed`).
 - `AnyCallback` - Generic callback type (internal).
 
